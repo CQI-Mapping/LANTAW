@@ -34,7 +34,7 @@ The system uses three application roles, each mapped to the people who actually 
 |---|---|
 | Build tool | Vite 8 |
 | Framework | React 18 (function components + hooks) |
-| Tests | Vitest 2 — 339 unit tests (`npm test`) |
+| Tests | Vitest 2 — 342 unit tests (`npm test`) |
 | Styling | Plain CSS with CSS custom properties in `src/index.css` |
 | Graph | d3 7 — Subject Graph (`admin/Map.tsx`) |
 | Documents | ExcelJS (TOS workbooks), `docx` (Word syllabus exports), `jspdf` + `html2canvas` (report PDFs), `xlsx` (report workbooks) |
