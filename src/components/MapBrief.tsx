@@ -345,22 +345,34 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
     return record
   }, [mapping, programCourseList])
 
+  // Coverage reads per role: the figures, the summary table and its status
+  // badges describe the program for a faculty viewer (the whole pool, the
+  // same committee-level truth the Generate Map serves), while admins and
+  // managers keep their RLS table read, which is already program-wide. The
+  // PO Coverage Chart is the deliberate exception — it stays on the
+  // viewer's own slice, a personal lens inside a program brief.
+  const readsPool = profile?.role === 'user'
+
+  const coverageMapping = useMemo(
+    () => (readsPool ? buildMappingReport(programPoolClos, activeOutcomes) : mapping),
+    [readsPool, programPoolClos, activeOutcomes, mapping],
+  )
   const courseOutcomeRows = useMemo(
-    () => courseOutcomes(programCourseList, programClos),
-    [programCourseList, programClos],
+    () => courseOutcomes(programCourseList, readsPool ? programPoolClos : programClos),
+    [programCourseList, readsPool, programPoolClos, programClos],
   )
   const mappedByCourse = useMemo(() => {
     const byCourse = new Map<string, { mapped: number; total: number }>()
     for (const course of programCourseList) {
       const key = normalizeCode(course.code)
       const total = courseOutcomeRows.find((r) => r.course.id === course.id)?.outcomeCount ?? 0
-      const mapped = mapping.links.filter(
+      const mapped = coverageMapping.links.filter(
         (l) => normalizeCode(l.clo.course) === key && l.poKeys.length > 0,
       ).length
       byCourse.set(course.id, { mapped, total })
     }
     return byCourse
-  }, [programCourseList, courseOutcomeRows, mapping])
+  }, [programCourseList, courseOutcomeRows, coverageMapping])
 
   // Coverage the way a coordinator reads it: subjects, not learning
   // outcomes — a subject counts when every learning outcome it holds names
@@ -381,7 +393,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
   // CLO, the Coverage qualifier names the state ("0 / 33 subjects — no CLOs
   // yet") instead of a plain "(0 / 33)" — the same convention the totals-0
   // branch uses. The value itself keeps the literal 0%.
-  const pipelineEmpty = programClos.length === 0
+  const pipelineEmpty = (readsPool ? programPoolClos : programClos).length === 0
 
   return (
     <div className="map-brief">
