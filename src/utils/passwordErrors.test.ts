@@ -28,6 +28,12 @@ describe('friendlyPasswordError', () => {
     )
   })
 
+  it('translates the secure password change rejection', () => {
+    expect(friendlyPasswordError(new Error('Current password required when setting new password.'))).toBe(
+      'Sign out and back in once (or use the reset link), then try again — the server wants a fresh sign-in before changing your password.',
+    )
+  })
+
   it('returns null for unknown errors so the raw text survives', () => {
     expect(friendlyPasswordError(new Error('Some unexpected failure'))).toBeNull()
   })

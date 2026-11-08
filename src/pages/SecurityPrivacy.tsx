@@ -115,7 +115,11 @@ function SecurityPrivacy({ profile, onNavigate }: SecurityPrivacyProps) {
         )
         return
       }
-      const { error: updateError } = await supabase!.auth.updateUser({ password })
+      // Secure password change (GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD):
+      // GoTrue rejects the swap unless the request carries the current
+      // password itself. The verify sign-in above proves the secret, but
+      // the update must still present it — so pass it through.
+      const { error: updateError } = await supabase!.auth.updateUser({ password, current_password: currentPassword })
       if (updateError) throw updateError
       await addActivityLog('profile.password_changed', {
         entity: 'profile',
