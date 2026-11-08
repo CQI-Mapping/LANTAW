@@ -21,6 +21,7 @@ import {
   fetchProgramOutcomesStandalone,
   fetchProgramEducationalObjectives,
   fetchCourseLearningOutcomesStandalone,
+  fetchCourseLearningOutcomePoolForMap,
   fetchStrategicGoals,
   fetchChedMemoOrders,
 } from '../services/database'
@@ -184,6 +185,12 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
   const [pos, setPos] = useState<ProgramOutcomeStandalone[]>([])
   const [peos, setPeos] = useState<ProgramEducationalObjective[]>([])
   const [clos, setClos] = useState<CourseLearningOutcomeStandalone[]>([])
+  // The whole outcome pool — every faculty member's rows — backing the
+  // faculty brief's Total CLO's tile. Admin and manager read every row
+  // through table RLS already, so the pool hop only serves role 'user',
+  // whose owner-scoped read would otherwise count a personal figure in a
+  // program-inventory tile.
+  const [poolClos, setPoolClos] = useState<CourseLearningOutcomeStandalone[]>([])
   const [goals, setGoals] = useState<StrategicGoal[]>([])
   const [cmos, setCmos] = useState<ChedMemoOrder[]>([])
 
@@ -200,8 +207,17 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
       fetchCourseLearningOutcomesStandalone(),
       fetchStrategicGoals(),
       fetchChedMemoOrders(),
+      // Whole-pool read for the faculty Total CLO's tile: the committee-level
+      // fetch the Generate Map uses. Falls back to the owner's own rows (and
+      // to a personal-looking figure) until migration 019 installs the RPC.
+      profile?.role === 'user'
+        ? fetchCourseLearningOutcomePoolForMap().catch((e) => {
+            console.warn('map_outcome_pool unavailable; Total CLOs counts you only:', e?.message)
+            return fetchCourseLearningOutcomesStandalone()
+          })
+        : Promise.resolve([] as CourseLearningOutcomeStandalone[]),
     ])
-      .then(([p, c, po, peo, clo, sg, cmo]) => {
+      .then(([p, c, po, peo, clo, sg, cmo, pool]) => {
         setPrograms(p)
         setCourses(c)
         setPos(po)
@@ -209,6 +225,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
         setClos(clo)
         setGoals(sg)
         setCmos(cmo)
+        setPoolClos(pool)
         setProgramId((current) => {
           if (current) return current
           if (viewerProgramId && p.some((row) => row.id === viewerProgramId)) return viewerProgramId
@@ -275,6 +292,17 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
     const codes = new Set(programCourseList.map((c) => normalizeCode(c.code)))
     return clos.filter((cl) => codes.has(normalizeCode(cl.course)))
   }, [program, programCourseList, clos])
+
+  // The same program filter over the pool: what "Total CLO's" names for a
+  // faculty viewer. The chart, coverage tile and summary table keep reading
+  // programClos — per-role truth — so only this tile widens.
+  const programPoolClos = useMemo(() => {
+    if (!program) return []
+    const codes = new Set(programCourseList.map((c) => normalizeCode(c.code)))
+    return poolClos.filter((cl) => codes.has(normalizeCode(cl.course)))
+  }, [program, programCourseList, poolClos])
+
+  const totalClos = profile?.role === 'user' ? programPoolClos.length : programClos.length
 
   const yearsOffered = useMemo(
     () => new Set(programCourseList.map((c) => c.year_level).filter((y) => y != null)).size,
@@ -387,11 +415,14 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
             )}
             {/* The host dashboard's live tiles already count CLOs, POs and
                 PEOs directly above — its dedupe flag skips the brief's
-                copies so the figures appear once, not twice. */}
+                copies so the figures appear once, not twice. A faculty
+                viewer gets the whole program's figure (pool read), admins
+                and managers their table read — same tile, program-wide for
+                both. */}
             {!skipTiles.has('clos') && (
               <KpiCard
                 label="Total CLO's"
-                value={programClos.length}
+                value={totalClos}
                 sub={program ? `${program.code} courses` : 'From all courses'}
               />
             )}
