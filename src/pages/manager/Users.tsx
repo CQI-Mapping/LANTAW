@@ -3,10 +3,16 @@
 // Function forces the role to 'user' for manager callers. Role changes and
 // removal stay admin-only.
 //
-// Add Faculty collects just the email: the Edge Function generates the
-// account password server-side and emails the faculty member a one-time
-// "set your password" link, so the person adding the account never handles
-// a password and the new faculty sets their own.
+// Add Faculty offers two equal onCreate routes, both ending with the new
+// faculty setting their own password:
+//   * default (email-only) — the Edge Function generates the account
+//     password server-side and emails a one-time "set your password" link,
+//     so the person adding the account never handles a password.
+//   * optional temporary password — the inviter types one (policy-checked
+//     exactly like every other password form), shares it privately, and the
+//     faculty member signs in with it and can change it later from their
+//     Security & privacy page. The mailbox still gets the one-time link
+//     either way.
 //
 // Archive + Restore live here too (migration 012 scoped it: managers may
 // flip ONLY the archive status of 'user'-role rows; the 015 reconciliation
@@ -18,6 +24,7 @@ import { useState, useEffect } from 'react'
 import Icon from '../../components/icons'
 import { adminCreateUser, adminResendInvite, addActivityLog, fetchAllProfiles, updateUserStatus } from '../../services/database'
 import { isActive } from '../../utils/report'
+import { MIN_PASSWORD_LENGTH, passwordVariety, suggestStrongPassword } from '../../utils/passwordPolicy'
 import { supabase } from '../../utils/supabaseClient'
 import type { Profile } from '../../services/database'
 
@@ -28,6 +35,13 @@ function Users() {
   const [success, setSuccess] = useState('')
   const [email, setEmail] = useState('')
   const [busy, setBusy] = useState(false)
+  // Optional temporary password: typed once, shared privately, policy-checked
+  // exactly like the Security & Privacy card (length floor + all four
+  // character families). It lives in component state only — never
+  // sessionStorage — same rule the password-change card follows.
+  const [useTempPassword, setUseTempPassword] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
+  const [showTempPassword, setShowTempPassword] = useState(false)
   const [creatorName, setCreatorName] = useState('')
   const [archived, setArchived] = useState(false)
   // Re-invite a faculty member whose one-time set-password email never
@@ -137,28 +151,51 @@ function Users() {
     setError('')
     setSuccess('')
     if (!email.trim()) { setError('Email is required.'); return }
+    if (useTempPassword && tempPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`A temporary password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
+    }
+    if (useTempPassword && passwordVariety(tempPassword) < 4) {
+      setError('A temporary password must mix uppercase, lowercase, number and symbol.')
+      return
+    }
     setBusy(true)
     try {
       const createdEmail = email.trim()
-      // Empty password/name by design: the Edge Function generates a random
-      // password the inviter never sees and emails a one-time set-password
-      // link; the name is left blank until the faculty member fills it in
-      // on their Profile page.
-      const created = await adminCreateUser(createdEmail, '', '', 'user')
+      const setTempPasswordByHand = useTempPassword && tempPassword.length > 0
+      // The name stays blank until the faculty member fills it in on their
+      // Profile page. The password is either empty (Edge Function generates
+      // a random one nobody sees and emails a one-time link) or the typed
+      // temporary one (validated above; shared privately after creation),
+      // and the inbox gets the one-time link either way.
+      const created = await adminCreateUser(createdEmail, setTempPasswordByHand ? tempPassword : '', '', 'user')
       await addActivityLog('user.created', {
         entity: 'user',
         entity_id: created?.id,
         label: createdEmail,
+        ...(setTempPasswordByHand ? { mode: 'temporary_password' } : {}),
       })
       const base = creatorName
         ? `Faculty ${createdEmail} has been added to the system by ${creatorName}.`
         : `Faculty ${createdEmail} has been added to the system.`
-      setSuccess(
-        created.welcomeEmailSent
-          ? `${base} A welcome email was sent to ${createdEmail} with a one-time link to set their password.`
-          : `${base} No welcome email was sent (email service not set up) — an administrator can use "Resend invite" on their row, or set a password in the Supabase dashboard (Authentication → Users).`,
-      )
+      if (setTempPasswordByHand) {
+        const deliveryNote = created.welcomeEmailSent
+          ? ' a welcome email with a one-time link also went out, so they can replace it with their own right away.'
+          : ' the one-time link email could not be sent (service limits) — they can still sign in with the temporary password.'
+        setSuccess(
+          `${base} Share the temporary password with them privately.${deliveryNote} ` +
+            `After they set their own password, the temporary one stops working — they can change it anytime from their Security & privacy page.`,
+        )
+      } else {
+        setSuccess(
+          created.welcomeEmailSent
+            ? `${base} A welcome email was sent to ${createdEmail} with a one-time link to set their password.`
+            : `${base} No welcome email was sent (email service not set up) — an administrator can use "Resend invite" on their row, or set a password in the Supabase dashboard (Authentication → Users).`,
+        )
+      }
       setEmail('')
+      setTempPassword('')
+      setUseTempPassword(false)
       load()
     } catch (e) {
       setError('Failed to create faculty: ' + (e instanceof Error ? e.message : String(e)))
@@ -188,10 +225,58 @@ function Users() {
               {busy ? 'Creating...' : (<><Icon name="plus" size={13} /> Create Faculty</>)}
             </button>
           </div>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            style={{ marginTop: 4 }}
+            onClick={() => {
+              setUseTempPassword((v) => !v)
+              if (useTempPassword) setTempPassword('')
+            }}
+            title="Optional: set the starting password yourself and hand it over privately, instead of relying on the emailed link"
+          >
+            {useTempPassword ? '↺ Let the email link do it' : 'Set a temporary password instead'}
+          </button>
+          {useTempPassword && (
+            <div className="create-user__row create-user__row--email-only" style={{ marginTop: 8 }}>
+              <label className="field">
+                <span>Temporary password</span>
+                <div className="profile-input-wrap">
+                  <input
+                    className="input"
+                    type={showTempPassword ? 'text' : 'password'}
+                    placeholder="At least 8 characters"
+                    value={tempPassword}
+                    autoComplete="new-password"
+                    onChange={(e) => setTempPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="profile-password-toggle"
+                    aria-label={showTempPassword ? 'Hide the temporary password' : 'Show the temporary password'}
+                    title={showTempPassword ? 'Hide the temporary password' : 'Show the temporary password'}
+                    onClick={() => setShowTempPassword((v) => !v)}
+                  >
+                    <Icon name="eye" size={15} />
+                  </button>
+                </div>
+              </label>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                style={{ marginBottom: 4 }}
+                onClick={() => setTempPassword(suggestStrongPassword())}
+                title="Generate a strong temporary password"
+              >
+                Suggest one
+              </button>
+            </div>
+          )}
           <p className="create-user__hint">
             <Icon name="mail" size={14} />
-            Only an email is needed. The faculty member gets an email with a one-time link to
-            set their password, and can fill in their name on their Profile page.
+            {useTempPassword
+              ? 'Both routes reach them: your temporary password (share it privately) and the emailed one-time link. The faculty member changes or replaces the password anytime from their Security & privacy page.'
+              : 'Only an email is needed. The faculty member gets an email with a one-time link to set their password, and can fill in their name on their Profile page.'}
           </p>
         </form>
       </div>

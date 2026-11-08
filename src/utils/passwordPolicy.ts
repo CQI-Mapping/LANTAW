@@ -26,3 +26,20 @@ export function passwordStrength(password: string): number {
   if (password.length < MIN_PASSWORD_LENGTH) return 0.15
   return 0.45 + 0.55 * (0.7 * Math.min(password.length / 16, 1) + 0.3 * (passwordVariety(password) / 4))
 }
+
+/**
+ * A strong suggestion for "temporary password" fields on the create forms:
+ * one guaranteed character per family, then random fill, drawn with crypto
+ * so no two invites share a pattern. Ambiguous glyphs (l, I, O, 0, 1) are
+ * left out of the families where possible — a password handed over verbally
+ * survives being read aloud.
+ */
+export function suggestStrongPassword(length = 16): string {
+  const families = ['abcdefghijkmnpqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ', '23456789', '!@#$%*_-?']
+  const pool = families.join('')
+  const rand = (max: number) => crypto.getRandomValues(new Uint32Array(1))[0] % max
+  return families
+    .map((f) => f[rand(f.length)])
+    .concat(Array.from({ length: length - families.length }, () => pool[rand(pool.length)]))
+    .join('')
+}

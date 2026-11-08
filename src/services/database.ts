@@ -71,6 +71,10 @@ export interface ActivityDetails {
   label?: string
   // Why an action failed — only used by `auth.login_failed`.
   reason?: string
+  // Invite mode for user.created: 'temporary_password' when the inviter
+  // typed a starting password (shared privately), omitted for the default
+  // email-link flow.
+  mode?: string
 }
 
 export interface ActivityLogEntry {
