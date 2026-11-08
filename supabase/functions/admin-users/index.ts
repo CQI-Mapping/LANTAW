@@ -15,10 +15,18 @@
 //             Delete stays admin-only.
 //
 // Welcome email: after a successful create, the new user is emailed at their
-// address ("your account was created by <inviter name>"). When no password
-// was supplied — the manager's Add Faculty form only asks for an email —
-// a strong random password is generated here (nobody sees it) and the user
-// is emailed a way to set their own password before signing in:
+// address ("your account was created by <inviter name>"). Two routes reach
+// the mailbox, and both are usable to sign in:
+//   * When a temporary password IS supplied (the inviter typed one — the
+//     optional "temporary password" on the create forms) — a strong random
+//     password is NOT generated; the inviter shares the typed one privately,
+//     and the mailbox still receives a one-time "set your password" link so
+//     the user can replace it with their own immediately. After they set
+//     their own, the temporary one stops working.
+//   * When no password was supplied — a strong random password is generated
+//     here (nobody sees it) and the user is emailed a way to set their own
+//     password before signing in.
+// Delivery of that link:
 //   * Resend secrets configured  -> custom-branded welcome email with a
 //     one-time "set your password" link (an auth recovery link minted here).
 //   * otherwise (the default)    -> Supabase's built-in mailer sends its
@@ -27,7 +35,8 @@
 //     sending is rate-limited (~2 emails/hour) by Supabase's shared mailer.
 //   * neither is available / send failures -> creation still succeeds and
 //     the response reports welcomeEmailSent:false; the user falls back to
-//     "Forgot password" on the sign-in page.
+//     "Forgot password" on the sign-in page (or the temporary password,
+//     when one was supplied).
 //
 //   npx supabase secrets set RESEND_API_KEY=re_... WELCOME_FROM_EMAIL="LANTAW <accounts@your-domain>" APP_URL=https://your-app-url
 //
@@ -201,6 +210,9 @@ function buildEmailHtml(args: {
   appUrl: string
   setupLink?: string
   passwordGenerated?: boolean
+  /** The inviter typed a temporary password (shared privately). The email
+      then leads with BOTH routes: that password and the one-time link. */
+  passwordChosenByInviter?: boolean
   resend?: boolean
 }): string {
   const name = escapeHtml(args.name || 'there')
@@ -220,14 +232,23 @@ function buildEmailHtml(args: {
   if (args.setupLink) {
     const link = escapeHtml(args.setupLink)
     actionBlock =
-      `<p style="margin:0 0 16px; font-size:15px; color:#374151;">` +
-      `To set your password and sign in, click the button below.</p>\n` +
+      (args.passwordChosenByInviter
+        ? `<p style="margin:0 0 16px; font-size:15px; color:#374151;">` +
+          `Sign in with the temporary password <b>${inviter}</b> set for you — they will hand it ` +
+          `to you privately — or set your own right away with the button below.</p>\n`
+        : `<p style="margin:0 0 16px; font-size:15px; color:#374151;">` +
+          `To set your password and sign in, click the button below.</p>\n`) +
       `<a href="${link}" style="display:inline-block; background:#16a34a; color:#ffffff; ` +
       `font-size:15px; font-weight:600; padding:12px 24px; border-radius:10px; ` +
       `text-decoration:none;">Set Password &amp; Sign In</a>\n` +
-      `<p style="margin:14px 0 0; font-size:12.5px; color:#6b7280; line-height:1.5;">` +
-      `This link can be used once. If it has expired or doesn't work, use ` +
-      `"Forgot password" on the sign-in page instead.</p>`
+      (args.passwordChosenByInviter
+        ? `<p style="margin:14px 0 0; font-size:12.5px; color:#6b7280; line-height:1.5;">` +
+          `Setting your own password replaces the temporary one — the temporary one stops ` +
+          `working after that. This link can be used once; if it has expired, sign in with ` +
+          `the temporary password and change it from your Security &amp; privacy page.</p>`
+        : `<p style="margin:14px 0 0; font-size:12.5px; color:#6b7280; line-height:1.5;">` +
+          `This link can be used once. If it has expired or doesn't work, use ` +
+          `"Forgot password" on the sign-in page instead.</p>`)
   } else if (args.passwordGenerated) {
     // Rare fallback: the password was generated server-side but no link
     // could be built — recovery is the only way in.
@@ -281,6 +302,7 @@ async function sendWelcomeEmail(args: {
   inviterName: string
   setupLink?: string
   passwordGenerated?: boolean
+  passwordChosenByInviter?: boolean
   resend?: boolean
 }): Promise<boolean> {
   const resendKey = Deno.env.get('RESEND_API_KEY') || ''
@@ -307,10 +329,17 @@ async function sendWelcomeEmail(args: {
     ? `Role: ${roleLabel}\n` +
       `Sign-in email: ${args.to}\n` +
       (appUrl ? `Sign-in page: ${appUrl}\n` : '') +
-      `\nTo set your password and sign in, open this one-time link:\n` +
-      `${args.setupLink}\n\n` +
-      `The link can be used once. If it has expired or doesn't work, use ` +
-      `"Forgot password" on the sign-in page instead.\n\n`
+      (args.passwordChosenByInviter
+        ? `\nSign in with the temporary password ${args.inviterName} set for you (hand-delivered), ` +
+          `or set your own password right away with this one-time link:\n` +
+          `${args.setupLink}\n\n` +
+          `Setting your own password replaces the temporary one — the temporary one stops ` +
+          `working after that. If the link has expired, sign in with the temporary password ` +
+          `and change it from your Security & privacy page.\n\n`
+        : `\nTo set your password and sign in, open this one-time link:\n` +
+          `${args.setupLink}\n\n` +
+          `The link can be used once. If it has expired or doesn't work, use ` +
+          `"Forgot password" on the sign-in page instead.\n\n`)
     : args.passwordGenerated
       ? // Rare fallback: the password was generated here but the one-time
         // link couldn't be built, so there is no password anyone can hand
@@ -481,18 +510,22 @@ Deno.serve(async (req: Request) => {
         .eq('id', created.user.id)
       if (updateError) throw updateError
 
-      // Welcome email to the new user, naming who added them. When the
-      // password was generated here (invite flow), the user is emailed a way
-      // to set their own password:
-      //   * Resend configured -> custom-branded email led by a minted
-      //     one-time recovery link (generateLink never sends mail itself;
-      //     its failure just degrades the wording inside the email).
-      //   * otherwise -> Supabase's built-in mailer recovery email; the
-      //     default template already contains the one-time set-password link.
+      // Welcome email to the new user, naming who added them. BOTH routes
+      // reach the mailbox: the temporary password the inviter set (shared
+      // privately — it never travels in the email) and a one-time link to
+      // set their own. After the new password is set, the temporary one
+      // stops working; until then either signs in.
+      //   * Resend configured -> custom-branded email carrying the minted
+      //     one-time recovery link; with an inviter-chosen password the
+      //     wording leads with BOTH credentials ("ask the inviter" + link).
+      //   * otherwise -> Supabase's built-in mailer recovery email; its
+      //     template already carries the one-time set-password link.
       //   * neither works -> welcomeEmailSent:false and the UI tells the
-      //     inviter to point the user at Forgot password on the sign-in page.
+      //     inviter the fallbacks (Resend invite / dashboard share — with an
+      //     inviter-chosen password the private handover already works).
       let welcomeEmailSent = false
-      if (passwordGenerated) {
+      const passwordChosenByInviter = !passwordGenerated
+      {
         const resendConfigured =
           !!Deno.env.get('RESEND_API_KEY') && !!Deno.env.get('WELCOME_FROM_EMAIL')
         if (resendConfigured) {
@@ -504,7 +537,7 @@ Deno.serve(async (req: Request) => {
               role,
               inviterName,
               setupLink,
-              passwordGenerated,
+              passwordChosenByInviter,
             })
             if (!welcomeEmailSent) {
               // Resend rejected the branded copy (sandbox sender until a
