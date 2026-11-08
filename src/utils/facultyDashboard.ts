@@ -84,9 +84,17 @@ export function planNextStep(courses: Course[], clos: Outcome[]): NextStep {
   return { kind: 'next', subject: missing[0], missing: missing.length, total }
 }
 
+/** How many curriculum subjects the given outcome rows actively cover. The
+ *  personal tiles pass a faculty member's own rows; the "Subjects covered"
+ *  headline passes the whole outcome pool so colleagues' work counts too.
+ *  Archived outcomes cover nothing, the rule heldKeys has always applied. */
+export function subjectsCovered(clos: Outcome[], courses: Course[]): number {
+  const held = heldKeys(clos)
+  return courses.filter((c) => held.has(normalizeCode(c.code))).length
+}
+
 /** The stat row's figures, all read from the faculty member's own outcomes. */
 export function ownFigures(clos: Outcome[], courses: Course[], now: number) {
-  const held = heldKeys(clos)
   const active = clos.filter(isActive).length
   const latest = clos.reduce<Outcome | null>(
     (best, l) => (best === null || updatedAt(l) > updatedAt(best) ? l : best),
@@ -96,7 +104,7 @@ export function ownFigures(clos: Outcome[], courses: Course[], now: number) {
     total: clos.length,
     active,
     archived: clos.length - active,
-    covered: courses.filter((c) => held.has(normalizeCode(c.code))).length,
+    covered: subjectsCovered(clos, courses),
     editedThisWeek: clos.filter((l) => updatedAt(l) >= now - WEEK_MS).length,
     latest,
   }
