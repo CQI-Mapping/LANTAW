@@ -347,7 +347,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
       <MapPreview profile={profile} onNavigate={onNavigate} />
 
       <section className="fac-program">
-        <MapBrief profile={profile} onNavigate={onNavigate} />
+        <MapBrief profile={profile} onNavigate={onNavigate} hideTiles={['programs', 'pos', 'peos']} />
       </section>
 
       <div className="fac-main">

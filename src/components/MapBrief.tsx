@@ -62,6 +62,11 @@ interface MapBriefProps {
       (Programs, Courses, Coverage, Unmapped stay; those are the brief's own
       dividend and none of the tiles duplicate them). */
   dedupeCoreCounts?: boolean
+  /** Tiles to hide on this host, named one by one — a shorthand-free way to
+      pick a combination the dedupe flag does not cover (the faculty brief
+      hides Programs and the PO/PEO governance figures while keeping its own
+      CLO count and the coverage tile). */
+  hideTiles?: Array<'programs' | 'courses' | 'clos' | 'pos' | 'peos'>
 }
 
 /** Stands in for program assignments the account may not carry yet, the way
@@ -167,7 +172,10 @@ function KpiCard({
   )
 }
 
-function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefProps) {
+function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }: MapBriefProps) {
+  // Which KPI tiles to leave out of the row: the admin's dedupe flag is
+  // shorthand for the CLO/PO/PEO trio, hideTiles names tiles individually.
+  const skipTiles = new Set(dedupeCoreCounts ? ['clos', 'pos', 'peos'] : (hideTiles ?? []))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
@@ -363,27 +371,31 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
               figure mean something — a count on its own invites the reader
               to assume it is the answer. */}
           <div className="stat-grid stat-grid--2026 reports-kpis">
-            <KpiCard label="Total Programs" value={programs.length} sub={program.code} />
-            <KpiCard
-              label="Total Courses"
-              value={programCourseList.length}
-              sub={
-                yearsOffered
-                  ? `Across ${yearsOffered} year${yearsOffered === 1 ? '' : 's'}`
-                  : 'Across all academic years'
-              }
-            />
+            {!skipTiles.has('programs') && (
+              <KpiCard label="Total Programs" value={programs.length} sub={program.code} />
+            )}
+            {!skipTiles.has('courses') && (
+              <KpiCard
+                label="Total Courses"
+                value={programCourseList.length}
+                sub={
+                  yearsOffered
+                    ? `Across ${yearsOffered} year${yearsOffered === 1 ? '' : 's'}`
+                    : 'Across all academic years'
+                }
+              />
+            )}
             {/* The host dashboard's live tiles already count CLOs, POs and
                 PEOs directly above — its dedupe flag skips the brief's
                 copies so the figures appear once, not twice. */}
-            {!dedupeCoreCounts && (
+            {!skipTiles.has('clos') && (
               <KpiCard
                 label="Total CLO's"
                 value={programClos.length}
                 sub={program ? `${program.code} courses` : 'From all courses'}
               />
             )}
-            {!dedupeCoreCounts && (
+            {!skipTiles.has('pos') && (
               <KpiCard
                 label="Total PO's"
                 value={officialOutcomes.length}
@@ -393,7 +405,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
                 ].filter(Boolean).join(' · ') || 'Program Outcomes'}
               />
             )}
-            {!dedupeCoreCounts && (
+            {!skipTiles.has('peos') && (
               <KpiCard
                 label="Total PEO's"
                 value={peos.length}
