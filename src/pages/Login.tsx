@@ -8,12 +8,16 @@
 // doorstep — the archived check and the audit row — because a Google sign-in
 // lands a session straight into the app shell without passing through here.
 //
-// No self-service "Forgot password" on purpose: accounts exist only because an
-// administrator put them there, so recovering one is an administrator action too
-// — a recovery email they trigger from the Supabase dashboard lands as a
-// PASSWORD_RECOVERY session, which App swaps for the Set-a-new-password screen.
+// Self-service password RECOVERY also lives here — the in-card "Forgot
+// password" view asks for the account email and dispatches a one-time reset
+// link. Closed registration is untouched by that: profiles exist only
+// because an administrator created them, and a reset link only reaches a
+// mailbox that already belongs to an account. Any link that lands back here
+// opens as a PASSWORD_RECOVERY session, which App swaps for the
+// Set-a-new-password screen — so recovery, like every account, still runs
+// through a mailbox an administrator once invited.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../utils/supabaseClient'
 import { recordLoginEvent, fetchOwnProfileStatus } from '../services/database'
 import { truthfulAuthError } from '../utils/authErrors'
@@ -23,14 +27,34 @@ interface LoginProps {
    *  pre-remixed auth-return error; App reads the return URL once so this
    *  page never races its own URL scrubbing. */
   notice?: string | null
+  /** Arrived by way of the expired-reset-link screen's re-request: open
+   *  straight onto the Forgot-password card. One-shot — App clears it via
+   *  onForgotHandled on mount, so later visits show Sign in again. */
+  forgotRequested?: boolean
+  onForgotHandled?: () => void
 }
 
-function Login({ notice }: LoginProps) {
+function Login({ notice, forgotRequested, onForgotHandled }: LoginProps) {
+  // The card holds two views: sign-in, and the self-service "Forgot
+  // password" recovery request. The email field is shared — an address
+  // typed on sign-in needs one tap to become a reset request.
+  const [view, setView] = useState<'signin' | 'forgot'>(forgotRequested ? 'forgot' : 'signin')
+  // One-shot consumption of App's forget-me-not flag.
+  useEffect(() => {
+    if (forgotRequested) onForgotHandled?.()
+  }, [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false) // true while the sign-in request is in flight
+
+  // Forgot-password view state: whether a request is in flight, a sending
+  // failure, and the one generic verdict on success. No pre-existence claim
+  // in any of the wording — same enumeration discipline as sign-in.
+  const [forgotBusy, setForgotBusy] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [forgotSent, setForgotSent] = useState('')
 
   // Google sign-in has its own busy state: the OAuth round-trip can take a
   // couple of seconds, and this flow cannot set busy on the password button
@@ -154,6 +178,42 @@ function Login({ notice }: LoginProps) {
     recordLoginEvent(trimmedEmail, true)
   }
 
+  // Recovery request: one email, one generic verdict. Supabase never
+  // confirms whether an address has an account, and neither does this
+  // screen — the success wording is identical either way. The rate limiter
+  // guards this endpoint too, hence the shared truthful sentence.
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotError('')
+    setForgotSent('')
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) {
+      setForgotError('Enter the email on your account to receive a reset link.')
+      return
+    }
+    setForgotBusy(true)
+    try {
+      const { error: resetError } = await supabase!.auth.resetPasswordForEmail(trimmedEmail, {
+        // Same origin the OAuth path uses: App's auth listener swaps the
+        // whole shell for the Set-a-new-password screen when the link opens.
+        redirectTo: window.location.origin + '/',
+      })
+      if (resetError) {
+        const truthful = truthfulAuthError(resetError)
+        setForgotError(
+          truthful?.message ??
+            'Could not send the reset email right now — wait a moment and try again.',
+        )
+      } else {
+        setForgotSent(
+          'A reset link has been sent if that email belongs to an account. Check your inbox.',
+        )
+      }
+    } finally {
+      setForgotBusy(false)
+    }
+  }
+
   return (
     <div className="login-page">
       {/* Animated aurora blobs */}
@@ -173,8 +233,59 @@ function Login({ notice }: LoginProps) {
           </div>
 
           {notice && <div className="login-alert login-alert--error" role="alert">{notice}</div>}
-          {error && <div className="login-alert login-alert--error" role="alert">{error}</div>}
+          {view === 'signin'
+            ? error && <div className="login-alert login-alert--error" role="alert">{error}</div>
+            : forgotError && <div className="login-alert login-alert--error" role="alert">{forgotError}</div>}
+          {forgotSent && <div className="login-alert login-alert--info" role="status">{forgotSent}</div>}
 
+          {view === 'forgot' ? (
+            <form onSubmit={handleForgotSubmit} noValidate>
+              <p className="login-reset-description">
+                Enter the email on your account. If it belongs to one, a one-time
+                "set your password" link arrives in that mailbox — trying an
+                address without an account changes nothing.
+              </p>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <div className="input-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="M22 7l-10 6L2 7" />
+                  </svg>
+                  <input
+                    type="email"
+                    id="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); if (forgotError) setForgotError('') }}
+                    autoComplete="email"
+                    autoFocus
+                    aria-invalid={forgotError ? true : undefined}
+                  />
+                </div>
+              </div>
+              <button type="submit" className="login-btn" disabled={forgotBusy} aria-busy={forgotBusy}>
+                {forgotBusy ? (
+                  <span className="login-btn__busy">
+                    <svg className="login-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Sending link…
+                  </span>
+                ) : (
+                  <>Send reset link →</>
+                )}
+              </button>
+              <button
+                type="button"
+                className="login-reset-link login-reset-link--block"
+                onClick={() => { setView('signin'); setForgotSent(''); setForgotError('') }}
+              >
+                ← Back to sign in
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
               <label htmlFor="email">Email</label>
@@ -248,7 +359,15 @@ function Login({ notice }: LoginProps) {
                 <>Sign In →</>
               )}
             </button>
+            <button
+              type="button"
+              className="login-reset-link login-reset-link--block"
+              onClick={() => { setView('forgot'); setForgotSent(''); setForgotError('') }}
+            >
+              Forgot password?
+            </button>
           </form>
+          )}
 
           <div className="login-divider" aria-hidden="true">or</div>
 

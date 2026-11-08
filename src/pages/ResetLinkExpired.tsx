@@ -2,16 +2,20 @@
 // design/profile-reset-redesign.html, translated to the sign-in page's
 // classes. App swaps the whole shell for this screen when the bounced URLs
 // error params say the emailed link is dead. The honest core of the message:
-// nothing was changed — the account's current password still works, and the
-// only way to get a fresh link is an administrator (the sign-in page has no
-// self-service reset by design, so this screen points straight at them).
+// nothing was changed — the account's current password still works — and a
+// fresh link is one tap away: the sign-in page's Forgot password card
+// re-sends it to the same mailbox (an administrator remains the backstop for
+// an account whose setup never finished — Resend invite).
 
 interface ResetLinkExpiredProps {
   /** Escape hatch: straight back to the sign-in form. */
   onBackToLogin: () => void
+  /** Self-service re-request: back to the sign-in page with its Forgot
+   *  password card open, so the loop closes without any administrator. */
+  onResendLink: () => void
 }
 
-export default function ResetLinkExpired({ onBackToLogin }: ResetLinkExpiredProps) {
+export default function ResetLinkExpired({ onBackToLogin, onResendLink }: ResetLinkExpiredProps) {
   return (
     <div className="login-page">
       {/* Same aurora backdrop as the sign-in screen */}
@@ -42,11 +46,18 @@ export default function ResetLinkExpired({ onBackToLogin }: ResetLinkExpiredProp
           </div>
 
           <p className="login-reset-description">
-            The fix is an administrator action: they can send a fresh password-reset
-            email (Supabase dashboard → Authentication → Users → the account's row),
-            or resend the invite if the account never finished its setup.
+            A fresh link is self-service: "Forgot password" on the sign-in page
+            sends a new one to the same mailbox. (The administrator "Resend
+            invite" remains the backstop if the account's setup never finished.)
           </p>
 
+          <button
+            type="button"
+            className="login-reset-link login-reset-link--block"
+            onClick={onResendLink}
+          >
+            Send me a fresh link
+          </button>
           <button
             type="button"
             className="login-reset-link login-reset-link--block"
