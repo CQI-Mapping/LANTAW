@@ -102,7 +102,9 @@ export default function Users() {
   // placeholder name like "test") without waiting for that user to sign in
   // and fix their own Profile page. Mirrors the Program page's modal.
   const [editingUser, setEditingUser] = useState<ProfileWithProgram | null>(null)
-  const [editForm, setEditForm] = useState({ fullName: '', nickname: '', department: '', designation: '' })
+  const [editForm, setEditForm] = useState<{ fullName: string; nickname: string; department: string; designation: string; role: UserRole; programId: string }>(
+    { fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' },
+  )
   const [editBusy, setEditBusy] = useState(false)
 
   const loadUsers = async () => {
@@ -346,7 +348,9 @@ export default function Users() {
   // ----- Fix profile -----
 
   // Seeded from the row so the fields open pre-filled, exactly the identity
-  // the user sees on their own Profile page.
+  // the user sees on their own Profile page. Role + program join the form
+  // so they only surface inside this modal — the table itself reads
+  // read-only.
   const openEdit = (u: ProfileWithProgram) => {
     setEditingUser(u)
     setEditForm({
@@ -354,6 +358,8 @@ export default function Users() {
       nickname: u.nickname ?? '',
       department: u.department ?? '',
       designation: u.designation ?? '',
+      role: u.role,
+      programId: profileProgramOf(u)?.id ?? '',
     })
   }
 
@@ -361,7 +367,7 @@ export default function Users() {
     // Mid-save the modal must stay put: the save writes the fields it shows.
     if (editBusy) return
     setEditingUser(null)
-    setEditForm({ fullName: '', nickname: '', department: '', designation: '' })
+    setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
   }
 
   // Saves the repaired identity through the same updateProfile the Profile
@@ -369,7 +375,9 @@ export default function Users() {
   // trigger (migration 013) allows admins to repair OTHER people's academic
   // fields — a user could never send department/designation through here.
   // Nickname follows the Profile page's normalization: trimmed, and empty
-  // becomes null rather than an empty string in the DB.
+  // becomes null rather than an empty string in the DB. Role and program
+  // changes ride the same Save — they only exist inside this modal, so
+  // there is no always-on select to misuse in the table.
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -378,6 +386,11 @@ export default function Users() {
     const nickname = editForm.nickname.trim()
     const department = editForm.department.trim()
     const designation = editForm.designation.trim()
+    const nextRole = editForm.role
+    const nextProgramId = nextRole === 'admin' ? '' : editForm.programId
+    if (editingUser.email === currentEmail && nextRole !== editingUser.role) {
+      if (!window.confirm(`Change your own role to ${nextRole}? You could lose admin access.`)) return
+    }
     setError('')
     setSuccess('')
     setEditBusy(true)
@@ -389,11 +402,41 @@ export default function Users() {
         department: department || null,
         designation: designation || null,
       })
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id ? { ...u, full_name: name, nickname: nickname || null } : u,
-        ),
-      )
+      // Role change: same updateUserRole the table used to fire inline.
+      if (nextRole !== editingUser.role) {
+        const updated = await updateUserRole(editingUser.id, nextRole)
+        if (nextRole === 'admin') await updateUserProgram(editingUser.id, null)
+        await addActivityLog('role.updated', {
+          entity: 'user',
+          entity_id: editingUser.id,
+          label: `${editingUser.email} → ${nextRole}`,
+        })
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id
+              ? { ...u, ...updated, full_name: name, nickname: nickname || null, program_id: nextRole === 'admin' ? null : u.program_id }
+              : u,
+          ),
+        )
+      } else {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id ? { ...u, full_name: name, nickname: nickname || null } : u,
+          ),
+        )
+      }
+      // Program change (admins skip — they span every program).
+      const prevProgramId = profileProgramOf(editingUser)?.id ?? ''
+      if (nextRole !== 'admin' && nextProgramId !== prevProgramId) {
+        const assigned = nextProgramId ? programs.find((p) => p.id === nextProgramId) ?? null : null
+        await updateUserProgram(editingUser.id, nextProgramId || null)
+        await addActivityLog('user.program_assigned', {
+          entity: 'user',
+          entity_id: editingUser.id,
+          label: `${editingUser.email} → ${assigned?.code ?? 'none'}`,
+        })
+        await loadUsers()
+      }
       await addActivityLog('user.profile_updated', {
         entity: 'user',
         entity_id: editingUser.id,
@@ -414,7 +457,7 @@ export default function Users() {
     // read against the fields that produced it.
     if (saved) {
       setEditingUser(null)
-      setEditForm({ fullName: '', nickname: '', department: '', designation: '' })
+      setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
     }
   }
 
@@ -676,37 +719,11 @@ export default function Users() {
                     <td>{u.email}</td>
                     <td>
                       <span className={`role-badge role-badge--${u.role}`}>{u.role}</span>
-                      <select
-                        className="input input--sm"
-                        style={{ marginLeft: 8, maxWidth: 130 }}
-                        aria-label={`Change role for ${u.email}`}
-                        value={u.role}
-                        disabled={roleBusyId === u.id || rowArchived}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole, u.email)}
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
-                        <option value="user">Faculty</option>
-                      </select>
                     </td>
                     <td>
-                      {u.role === 'admin' ? (
-                        <span className="users-program-chip users-program-chip--none">All programs</span>
-                      ) : (
-                        <select
-                          className="input input--sm"
-                          style={{ maxWidth: 130 }}
-                          aria-label={`Assign program for ${u.email}`}
-                          value={assigned?.id ?? ''}
-                          disabled={programBusyId === u.id || programs.length === 0 || rowArchived}
-                          onChange={(e) => handleProgramChange(u.id, e.target.value, u.email)}
-                        >
-                          <option value="">None</option>
-                          {programs.map((p) => (
-                            <option key={p.id} value={p.id}>{p.code}</option>
-                          ))}
-                        </select>
-                      )}
+                      <span className={u.role === 'admin' ? 'users-program-chip users-program-chip--none' : 'users-program-chip'}>
+                        {u.role === 'admin' ? 'All programs' : (assigned?.code ?? 'None')}
+                      </span>
                     </td>
                     <td>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
@@ -716,7 +733,7 @@ export default function Users() {
                             <button
                               className="btn btn--ghost btn--sm"
                               onClick={() => openEdit(u)}
-                              title="Fix their name & nickname — the same fields their Profile page shows"
+                              title="Fix name, nickname, role & program — the dropdowns only appear here"
                             >
                               Edit
                             </button>
@@ -742,7 +759,7 @@ export default function Users() {
                             <button
                               className="btn btn--ghost btn--sm"
                               onClick={() => openEdit(u)}
-                              title="Fix their name & nickname — the same fields their Profile page shows"
+                              title="Fix name, nickname, role & program — the dropdowns only appear here"
                             >
                               Edit
                             </button>
@@ -840,9 +857,41 @@ export default function Users() {
                     />
                   </label>
                 </div>
+                <div className="modal__grid-2" style={{ marginTop: 12 }}>
+                  <label className="field" style={{ marginBottom: 0 }}>
+                    <span>Role</span>
+                    <select
+                      className="input input--sm"
+                      aria-label={`Change role for ${editingUser.email}`}
+                      value={editForm.role}
+                      disabled={editBusy || !isActive(editingUser)}
+                      onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="user">Faculty</option>
+                    </select>
+                  </label>
+                  <label className="field" style={{ marginBottom: 0 }}>
+                    <span>Program</span>
+                    <select
+                      className="input input--sm"
+                      aria-label={`Assign program for ${editingUser.email}`}
+                      value={editForm.role === 'admin' ? '' : editForm.programId}
+                      disabled={editBusy || editForm.role === 'admin' || programs.length === 0 || !isActive(editingUser)}
+                      onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
+                    >
+                      <option value="">{editForm.role === 'admin' ? 'All programs' : 'None'}</option>
+                      {programs.map((p) => (
+                        <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <p className="au__cred-note" style={{ marginTop: 10 }}>
                   Reports and audit logs use the full name; the nickname shows in quotes. Department and designation
                   are admin-managed — the account holder sees them read-only on their Profile.
+                  {editForm.role === 'admin' && ' Admins span every program — the assignment is cleared on save.'}
                 </p>
               </div>
               <div className="modal__footer">
