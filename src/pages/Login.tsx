@@ -1,6 +1,8 @@
 // Login page: the only entry point to the system.
-// Validates fields client-side, shows a generic error (never leaks Supabase details),
-// and records every sign-in attempt to the audit log via the record_login_event RPC.
+// Validates fields client-side, speaks plainly about the known auth
+// rejections (an unconfirmed address, the rate limiter) while never
+// leaking Supabase internals, and records every sign-in attempt to the
+// audit log via the record_login_event RPC.
 // School-scoped Google sign-in sits alongside the password form: same card,
 // same audit trail. App.tsx handles what the OAuth return drops on this page's
 // doorstep — the archived check and the audit row — because a Google sign-in
@@ -14,6 +16,7 @@
 import { useState } from 'react'
 import { supabase } from '../utils/supabaseClient'
 import { recordLoginEvent, fetchOwnProfileStatus } from '../services/database'
+import { truthfulAuthError } from '../utils/authErrors'
 
 interface LoginProps {
   /** Message inherited from App.tsx — the archived-account refusal or a
@@ -88,10 +91,22 @@ function Login({ notice }: LoginProps) {
     })
 
     if (error) {
+      // Truth before defaults: the recognised GoTrue codes get their own
+      // honest sentence (an unconfirmed address, the shared rate limiter)
+      // instead of the old single "Invalid email or password." collapse
+      // that sent people chasing credentials that were never wrong.
+      const truthful = truthfulAuthError(error)
+      if (truthful) {
+        recordLoginEvent(trimmedEmail, false, truthful.reason)
+        setError(truthful.message)
+        setBusy(false)
+        return
+      }
       // Service/config failures must NOT masquerade as wrong passwords —
       // otherwise a broken .env sends users chasing their credentials forever.
-      // (Credential rejections stay generic by design: never reveal whether
-      // the email exists, whether it's a bad password, rate limit, etc.)
+      // (Credential rejections stay generic by design: an unknown address and
+      // a bad password look exactly the same, so nothing reveals which
+      // addresses exist.)
       const msg = (error.message || '').toLowerCase()
       const status = (error as { status?: number }).status
       const isServiceFailure =
