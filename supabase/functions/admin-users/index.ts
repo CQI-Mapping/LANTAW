@@ -56,17 +56,35 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+const ALLOWED_ORIGINS: readonly string[] = [
+  'https://mapping.vercel.app',
+  'http://localhost:5173',
+]
+// CORS: an exact allow-list, not a wildcard. The deployed frontend and
+// the local dev server are the only origins this function is ever called
+// from; a `*` would also bless any other page that learns the endpoint
+// (the service key still gates the actions, but echoing a known origin
+// keeps the browser preflight honest). Unknown origins receive the
+// production origin — their preflight simply never satisfies.
+function corsHeaders(origin: string | null): Record<string, string> {
+  const allow =
+    origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
 }
+// The request's CORS answer, captured at the top of serve() because
+// helpers deep in the flow (json(), fail(), the preflight branch) must
+// echo the exact calling origin. Each isolate serves one request at a time.
+let cors: Record<string, string> = corsHeaders(null)
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   })
 }
 
@@ -387,8 +405,10 @@ async function sendWelcomeEmail(args: {
 }
 
 Deno.serve(async (req: Request) => {
+  // Build this request's CORS answer before any branch can need it.
+  cors = corsHeaders(req.headers.get('origin'))
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: cors })
   }
 
   try {
