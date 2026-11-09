@@ -316,6 +316,11 @@ export default function SubjectView() {
   // it by prerequisite connectors — its unlocks and its dependents — and
   // fades the rest (see the connector block in renderCurriculumMap).
   const [mapFocusId, setMapFocusId] = useState<string | null>(null)
+  // The curriculum map's prerequisite-wire switch (added 2026-11-09): one
+  // press clears every amber connector off the drawing, another brings them
+  // back — dots and columns stay put, and the press-to-reveal spotlight
+  // keeps chasing chains dot-by-dot over the clean canvas.
+  const [showMapPrereqs, setShowMapPrereqs] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [dlOpen, setDlOpen] = useState(false)
   const [dlFormat, setDlFormat] = useState<'pdf' | 'docx'>('pdf')
@@ -2177,22 +2182,27 @@ export default function SubjectView() {
       if (focusPeerIds.has(d.id)) return d.dim ? 0.45 : 1
       return 0.12
     }
-    for (const { from, to, standing } of prereqLinks) {
-      const dim = from.dim || to.dim
-      // A wire stays in the chain when BOTH ends are on the forward path —
-      // segments beyond the first hop don't touch the pressed dot directly
-      // but still carry the connection toward the chain's end.
-      const inChain = focusNode !== null && focusPeerIds.has(from.id) && focusPeerIds.has(to.id)
-      zoomGroup.append('line')
-        .attr('x1', from.x).attr('y1', from.y)
-        .attr('x2', to.x).attr('y2', to.y)
-        .attr('stroke', '#b45309')
-        // Standing bands run thinner and dimmer in the home state so the
-        // ~125 band wires never drown the ~20 code wires they share the page
-        // with — the whole net stays visible, just quieter.
-        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
-        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
-        .attr('vector-effect', 'non-scaling-stroke')
+    // With the wire switch cleared the connectors skip the drawing entirely
+    // while the spotlight walk above stays intact — a pressed dot still
+    // rings its forward chain through the bare dots.
+    if (showMapPrereqs) {
+      for (const { from, to, standing } of prereqLinks) {
+        const dim = from.dim || to.dim
+        // A wire stays in the chain when BOTH ends are on the forward path —
+        // segments beyond the first hop don't touch the pressed dot directly
+        // but still carry the connection toward the chain's end.
+        const inChain = focusNode !== null && focusPeerIds.has(from.id) && focusPeerIds.has(to.id)
+        zoomGroup.append('line')
+          .attr('x1', from.x).attr('y1', from.y)
+          .attr('x2', to.x).attr('y2', to.y)
+          .attr('stroke', '#b45309')
+          // Standing bands run thinner and dimmer in the home state so the
+          // ~125 band wires never drown the ~20 code wires they share the page
+          // with — the whole net stays visible, just quieter.
+          .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+          .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
+          .attr('vector-effect', 'non-scaling-stroke')
+      }
     }
 
     // The Year · Semester header band lives in its own svg — the pinned strip
@@ -2323,7 +2333,7 @@ export default function SubjectView() {
       svg.on('click.mapfocus', null)
       zoomRef.current = null
     }
-  }, [containerSize, datasets, selectedCurriculum, mapPoId, buildCurriculumMapModel, mapFocusId])
+  }, [containerSize, datasets, selectedCurriculum, mapPoId, buildCurriculumMapModel, mapFocusId, showMapPrereqs])
 
   // Dual-root: subject mode (subject → curriculum / prereq / coreq / CLO → PO
   // → PEO/SG/CMO) or PO mode (PO → CLOs → subjects + PEO/SG/CMO), with the
@@ -3541,6 +3551,17 @@ export default function SubjectView() {
                         Reset zoom
                       </button>
                     </>
+                  )}
+                  {rootType === 'curriculum' && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => setShowMapPrereqs((v) => !v)}
+                      aria-pressed={!showMapPrereqs}
+                      title={showMapPrereqs ? 'Clear the amber prerequisite lines off the map' : 'Bring the prerequisite lines back'}
+                    >
+                      {showMapPrereqs ? 'Hide prereq lines' : 'Show prereq lines'}
+                    </button>
                   )}
                   <button
                     type="button"

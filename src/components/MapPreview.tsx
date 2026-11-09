@@ -104,6 +104,11 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
   const [courses, setCourses] = useState<Course[]>([])
   const [curricula, setCurricula] = useState<Resource[]>([])
   const [focusId, setFocusId] = useState<string | null>(null)
+  // The prerequisite-wire switch (added 2026-11-09): one press clears every
+  // amber connector off the block, another brings them back — the dots and
+  // columns stay put either way, and the press-to-reveal spotlight keeps
+  // working so connections can be chased dot-by-dot with the canvas clean.
+  const [showWires, setShowWires] = useState(true)
 
   const headRef = useRef<SVGSVGElement>(null)
   const bodyRef = useRef<SVGSVGElement>(null)
@@ -428,18 +433,23 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     }
     const inChainIds = (id: string) => chainIds.has(id)
 
-    for (const { from, to, standing } of prereqLinks) {
-      const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
-      body.append('line')
-        .attr('x1', from.x).attr('y1', from.y)
-        .attr('x2', to.x).attr('y2', to.y)
-        .attr('stroke', '#b45309')
-        // Standing bands run thinner and dimmer in the home state so the
-        // band wires never drown the code wires they share the page with —
-        // the whole net stays visible, just quieter.
-        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
-        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
-        .attr('vector-effect', 'non-scaling-stroke')
+    // With the wire switch cleared, nothing draws here — the connectors skip
+    // the canvas entirely while the spotlight logic above stays intact, so a
+    // pressed dot still rings its forward chain through the bare dots.
+    if (showWires) {
+      for (const { from, to, standing } of prereqLinks) {
+        const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
+        body.append('line')
+          .attr('x1', from.x).attr('y1', from.y)
+          .attr('x2', to.x).attr('y2', to.y)
+          .attr('stroke', '#b45309')
+          // Standing bands run thinner and dimmer in the home state so the
+          // band wires never drown the code wires they share the page with —
+          // the whole net stays visible, just quieter.
+          .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+          .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
+          .attr('vector-effect', 'non-scaling-stroke')
+      }
     }
 
     const nodeGroup = body.append('g').attr('stroke', '#fff').attr('stroke-width', 1.5)
@@ -499,7 +509,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       .text((d) => d.code)
 
     return teardown
-  }, [subjects, focusId])
+  }, [subjects, focusId, showWires])
 
   const placedCount = useMemo(
     () =>
@@ -525,12 +535,25 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       ) : subjects.length === 0 ? (
         <p className="reports-empty">No subjects carry this curriculum yet.</p>
       ) : (
-        <div className="map-preview__scroll">
-          <div className="map-preview__inner">
-            <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
-            <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
+        <>
+          <div className="map-preview__toolbar">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setShowWires((v) => !v)}
+              aria-pressed={!showWires}
+              title={showWires ? 'Clear the amber prerequisite lines off the map' : 'Bring the prerequisite lines back'}
+            >
+              {showWires ? 'Hide prereq lines' : 'Show prereq lines'}
+            </button>
           </div>
-        </div>
+          <div className="map-preview__scroll">
+            <div className="map-preview__inner">
+              <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
+              <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
+            </div>
+          </div>
+        </>
       )}
       <PanelFoot
         left={

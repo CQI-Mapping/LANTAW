@@ -5631,6 +5631,14 @@ button.reports-panel__more:hover {
   padding-bottom: 2px;
 }
 
+/* The wire switch sits right above the map's scroll box, right-aligned —
+   a plain ghost button that reads like the toolbar control it accompanies. */
+.map-preview__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 0;
+}
+
 /* The Year · Semester header strip: sticky while the dot grid scrolls under
    it, matching Generate Map's pinned header band — "which column is which"
    never scrolls out of view again. */
