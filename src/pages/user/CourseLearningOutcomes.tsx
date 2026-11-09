@@ -3,7 +3,7 @@
 // the program-outcomes string is stored in the `title` column.
 // Owned by the `user` role — the admin no longer has this page.
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useEntityCrud } from '../admin/curriculum/useEntityCrud.js'
 import { useViewMode } from '../../hooks/useViewMode'
 import ViewModeToggle from '../../components/ViewModeToggle'
@@ -115,12 +115,6 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Null = model not loaded / failed — the keyword-only floor keeps suggesting.
   const [createSemantic, setCreateSemantic] = useState<RankedPo[] | null>(null)
   const [editSemantic, setEditSemantic] = useState<RankedPo[] | null>(null)
-
-  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [])
 
   const isActive = (i: CourseLearningOutcomeStandalone) => !i.status || i.status === 'active'
   // A CLO's place in the curriculum — its year and term — comes from its
@@ -544,12 +538,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="CLO Code (e.g. 1)" />
         </div>
       </div>
-      <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
+      <input className="input input--sm" type="text" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description" />
       <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
           <span style={{ fontSize: 12, color: '#64748b', width: '100%' }}>
-            Suggestions are triggered by the Description above.
+            Suggested POs for this draft.
           </span>
           {editDisplay.map((r) => (
             <span key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
@@ -702,9 +696,8 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </label>
         <label className="field">
           <span>Description</span>
-          <textarea className="input input--sm" rows={2} placeholder="e.g. Compare and contrast..." ref={autoResize}
-            value={form.description}
-            onChange={(e) => { setForm({ ...form, description: e.target.value }); autoResize(e.target) }} />
+          <input className="input input--sm" type="text" placeholder="e.g. Compare and contrast..." value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </label>
         <label className="field">
           <span>Program Outcomes</span>
@@ -718,7 +711,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         {createDisplay.length > 0 ? (
           <div className="field" style={{ marginTop: -4 }}>
             <span style={{ fontSize: 12, color: '#64748b' }}>
-              Suggestions are triggered by the Description above.
+              Suggested POs for this draft.
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               {createDisplay.map((r) => (
