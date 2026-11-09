@@ -33,7 +33,7 @@ import type {
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
-import { fuseRanked, toRelative } from '../../utils/poRank'
+import { fuseRanked } from '../../utils/poRank'
 import { pickedBefore, recordPick, recordRejection, draftSig } from '../../utils/poMemory'
 import SyllabusReport from '../../components/SyllabusReport'
 import { splitReportPos, buildGroups, outcomeCodeKey, type PoGroup } from '../../utils/report'
@@ -71,7 +71,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     deleteFn: deleteCourseLearningOutcomeStandalone,
     scope: 'Course Learning Outcome',
   })
-  const { items, loading, error, message, busy, handleCreate, handleUpdate, handleToggleStatus } = crud
+  const { items, loading, error, message, busy, handleCreate, handleUpdate, handleToggleStatus, handleDelete } = crud
 
   const [poSuggestions, setPoSuggestions] = useState<SuggestionOption[]>([])
   const [poTexts, setPoTexts] = useState<PoText[]>([])
@@ -95,6 +95,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [viewMode, setViewMode] = useViewMode('cqi.viewMode.clo')
   // Bumps to re-render fused lists after local reject/memory writes.
   const [memTick, setMemTick] = useState(0)
+  // ✕ hides the chip immediately for this page session — rejection memory
+  // still demotes it for later drafts (poRank fusion reads it). Keyed per
+  // form ("create"/"edit") so each form's list tracks independently.
+  const [hiddenPos, setHiddenPos] = useState<Record<string, boolean>>({})
   // Course syllabus reader: the card's eye button opens the linked subject's
   // full syllabus document — the same printable report Generate Map
   // renders, in a scrollable overlay with PDF / Word downloads.
@@ -401,10 +405,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     if (sig) void recordPoFeedback(sig, code, 'picked')
     setMemTick((t) => t + 1)
   }
-  const logReject = (draft: string, code: string) => {
+  const logReject = (draft: string, formKey: 'create' | 'edit', code: string) => {
     recordRejection(draft, code)
     const sig = draftSig(draft)
     if (sig) void recordPoFeedback(sig, code, 'rejected')
+    setHiddenPos((h) => ({ ...h, [`${formKey}:${code}`]: true }))
     setMemTick((t) => t + 1)
   }
 
@@ -415,13 +420,6 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     if (!parts.some((p) => p.toLowerCase() === code.toLowerCase())) parts.push(code)
     return parts.join(', ')
   }
-
-  // The suggestion chip's body text: the outcome's official wording (the
-  // title the Curriculum Mapping rows carry — the same text the map's
-  // description strip prints). Codes match by construction: chips rank the
-  // same poTexts list the reference panel reads.
-  const poChipText = (code: string) =>
-    poTexts.find((t) => (t.code || '').trim().toLowerCase() === (code || '').trim().toLowerCase())?.title ?? ''
 
   // Suggestions wait for real content: short drafts score trivia in the
   // keyword ranker, so nothing renders — chips or the no-match hint — until
@@ -449,13 +447,16 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Hybrid fusion: keyword + semantic + exact-phrase + Bloom + click memory.
   // memTick re-runs fusion after local reject/memory writes (read sync).
   void memTick
+  // Rejected chips leave the filtered list before rendering — remove them
+  // all and the row falls back to the no-match hint. Chips show just the PO
+  // code (the b05 style): no bar, no body text. Auto-fill reads the same
+  // filtered lists, so a removed chip never auto-fills either.
   const createShown = fuseRanked(form.description, createClosest, createSemantic, poTexts, 3)
+    .filter((r) => !hiddenPos[`create:${r.code}`])
   const editShown = fuseRanked(editForm.description, editClosest, editSemantic, poTexts, 3)
-  // Bars stay on a relative scale (top suggestion paints the full bar); the
-  // chip label itself shows only the PO code — no percentages on screen.
-  // All gates still read the raw lists.
-  const createDisplay = toRelative(createShown)
-  const editDisplay = toRelative(editShown)
+    .filter((r) => !hiddenPos[`edit:${r.code}`])
+  const createDisplay = createShown
+  const editDisplay = editShown
 
   // Warm the semantic model in the background once the page settles, so by
   // the time faculty type a description the premium re-rank is already live.
@@ -578,25 +579,13 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           {editDisplay.map((r) => (
             <span key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
               <button type="button" className="btn btn--ghost btn--sm"
-                style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', gap: 3 }}
                 title={r.label}
                 onClick={() => { logPick(editForm.description, r.code); setEditForm((f) => ({ ...f, programOutcomes: appendPo(f.programOutcomes, r.code) })) }}>
-                <span>{r.code}</span>
-                <span aria-hidden="true" style={{ height: 3, borderRadius: 999, background: '#f1f5f9', overflow: 'hidden' }}>
-                  <span style={{
-                    display: 'block', height: '100%', width: `${Math.min(100, r.shown)}%`,
-                    background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
-                  }} />
-                </span>
-                {poChipText(r.code) && (
-                  <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
-                    {poChipText(r.code)}
-                  </span>
-                )}
+                {r.code}
               </button>
-              <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
-                aria-label={`Reject ${r.code} for this description`}
-                onClick={() => logReject(editForm.description, r.code)}>✕</button>
+              <button type="button" className="btn btn--ghost btn--sm" title={`Remove this ${r.code} suggestion`}
+                aria-label={`Remove the ${r.code} suggestion for this description`}
+                onClick={() => logReject(editForm.description, 'edit', r.code)}>✕</button>
             </span>
           ))}
         </div>
@@ -755,25 +744,13 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               {createDisplay.map((r) => (
                 <span key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
                   <button type="button" className="btn btn--ghost btn--sm"
-                    style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'stretch', gap: 3 }}
                     title={r.label}
                     onClick={() => { logPick(form.description, r.code); setForm((f) => ({ ...f, programOutcomes: appendPo(f.programOutcomes, r.code) })) }}>
-                    <span>{r.code}</span>
-                    <span aria-hidden="true" style={{ height: 3, borderRadius: 999, background: '#f1f5f9', overflow: 'hidden' }}>
-                      <span style={{
-                        display: 'block', height: '100%', width: `${Math.min(100, r.shown)}%`,
-                        background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
-                      }} />
-                    </span>
-                    {poChipText(r.code) && (
-                      <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
-                        {poChipText(r.code)}
-                      </span>
-                    )}
+                    {r.code}
                   </button>
-                  <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
-                    aria-label={`Reject ${r.code} for this description`}
-                    onClick={() => logReject(form.description, r.code)}>✕</button>
+                  <button type="button" className="btn btn--ghost btn--sm" title={`Remove this ${r.code} suggestion`}
+                    aria-label={`Remove the ${r.code} suggestion for this description`}
+                    onClick={() => logReject(form.description, 'create', r.code)}>✕</button>
                 </span>
               ))}
             </div>
@@ -958,6 +935,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                         <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(item, `clo.${isActive(item) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>
                           <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
                         </button>
+                        {(!isActive(item)) && (
+                          <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'clo.deleted', item)} disabled={busy || !!editingId} title="Delete">
+                            <Icon name="trash" size={13} />
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -987,6 +969,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                         <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(item, `clo.${isActive(item) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>
                           <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
                         </button>
+                        {(!isActive(item)) && (
+                          <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'clo.deleted', item)} disabled={busy || !!editingId} title="Delete">
+                            <Icon name="trash" size={13} />
+                          </button>
+                        )}
                       </div>
                     </>
                   )}

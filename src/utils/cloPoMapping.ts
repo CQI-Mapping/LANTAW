@@ -162,19 +162,52 @@ export function chartableOutcomes(report: MappingReport, limit = 12): {
   uncoveredCodes: string[]
   hidden: number
 } {
-  // Chart order is outcome order, not entry order -- the codes sort
-  // numerically, so PO 12 does not land before PO 6 however the rows arrived.
-  const byCode = (a: { outcome: PoOutcome }, b: { outcome: PoOutcome }) =>
-    a.outcome.code.localeCompare(b.outcome.code, undefined, { numeric: true })
-  const covered = report.coverage.filter((r) => r.cloCount > 0).sort(byCode)
+  // Chart order is outcome order, not entry order: the fold keys are uniform
+  // "PO 6" shapes, so numeric collation walks 1, 6, 8, 12, 14 in one run. The
+  // display code cannot be the sort key — canonical spellings mix separators
+  // across families ("PO 12" beside "PO-14"), and the collation reads that
+  // separator before it reads the digits, so space-spelled families cluster
+  // before hyphen-spelled ones instead of the numbers deciding.
+  const byKey = (a: { outcome: PoOutcome }, b: { outcome: PoOutcome }) =>
+    a.outcome.key.localeCompare(b.outcome.key, undefined, { numeric: true })
+  const covered = report.coverage.filter((r) => r.cloCount > 0).sort(byKey)
   const rows = covered.slice(0, limit)
   const uncoveredCodes = report.coverage
     .filter((r) => r.cloCount === 0)
-    .sort(byCode)
+    .sort(byKey)
     .map((r) => poLabel(r.outcome.code))
   const uncovered = uncoveredCodes.length
   const hidden = Math.max(covered.length - limit, 0)
   return { rows, uncovered, uncoveredCodes, hidden }
+}
+
+/**
+ * The complete axis: every outcome on file draws as its own bar, in outcome
+ * order — uncovered outcomes stay in the chart as 0% stubs instead of folding
+ * into one "None" bar. chartableOutcomes folds to spare a panel's width; the
+ * brief's coverage chart wanted the opposite (the official 17-PO column
+ * list), so the reader can point at the exact grey PO and hover it for the
+ * same pointer the covered bars get. The universe stays the caller's to
+ * narrow: hand it a report built on the official outcomes only, or the axis
+ * grows past the framework the Program Outcomes page offers.
+ */
+export function chartCompleteOutcomes(report: MappingReport): {
+  rows: PoCoverageRow[]
+  uncovered: number
+  /** The zero-coverage codes themselves, chart order — the footnote can
+   *  spell them out once the width question is off. */
+  uncoveredCodes: string[]
+  hidden: number
+} {
+  // Same key-based run as chartableOutcomes: display spellings mix
+  // separators, and the collation reads a separator before it reads digits.
+  const byKey = (a: { outcome: PoOutcome }, b: { outcome: PoOutcome }) =>
+    a.outcome.key.localeCompare(b.outcome.key, undefined, { numeric: true })
+  const rows = [...report.coverage].sort(byKey)
+  const uncoveredCodes = rows
+    .filter((r) => r.cloCount === 0)
+    .map((r) => poLabel(r.outcome.code))
+  return { rows, uncovered: uncoveredCodes.length, uncoveredCodes, hidden: 0 }
 }
 
 /** Anchor keys in play, for the matrix's column list. */
