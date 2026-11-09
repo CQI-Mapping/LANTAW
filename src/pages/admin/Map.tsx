@@ -3533,6 +3533,14 @@ export default function SubjectView() {
                   </button>
                 </div>
               </div>
+              {/* The Year · Semester strip rides inside the control bar, so the
+                  pinning that keeps the filters and toolbar on screen keeps
+                  the strip with them — the wrap's overflow:hidden used to
+                  neutralize sticky on an in-box strip, and the labels silently
+                  scrolled away with the map in both panel and fullscreen. */}
+              {rootType === 'curriculum' && (
+                <svg ref={mapHeadRef} className="subject-view__map-head" viewBox="0 0 1878 44" />
+              )}
               </div>
               {graphHint && (
                 <p className="subject-view__graph-hint">{graphHint}{isFullscreen ? ' Press Esc to exit fullscreen.' : ''}</p>
@@ -3553,9 +3561,6 @@ export default function SubjectView() {
                 </div>
               )}
               <div className={`subject-view__graph-wrap${rootType === 'curriculum' ? ' subject-view__graph-wrap--scroll' : ''}`}>
-                {rootType === 'curriculum' && (
-                  <svg ref={mapHeadRef} className="subject-view__map-head" viewBox="0 0 10 10" />
-                )}
                 <svg ref={svgRef} className="subject-view__svg" />
               </div>
               <div ref={tooltipRef} className="subject-view__tooltip" />

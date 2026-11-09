@@ -5625,7 +5625,7 @@ button.reports-panel__more:hover {
   overflow: auto;
   max-height: min(70vh, 640px);
   overscroll-behavior: contain;
-  background: #fff;
+  background: var(--bg-panel, #fff);
   /* A hair more than the header strip's rule width so the rounded corners
      never clip the outermost column separators. */
   padding-bottom: 2px;
@@ -5638,7 +5638,7 @@ button.reports-panel__more:hover {
   position: sticky;
   top: 0;
   z-index: 3;
-  background: #fff;
+  background: var(--bg-panel, #fff);
 }
 
 /* The two svgs (header strip + tall body) scale at width: 100% of this inner
@@ -7472,18 +7472,14 @@ button.reports-panel__more:hover {
   display: block;
 }
 
-/* OBE Curriculum Map — header inside the box: the strip svg is the first
-   child of the bordered canvas, sticky at the box's top edge, so the
-   Year · Semester labels stay pinned over the grid while it scrolls. The
-   --scroll modifier turns the canvas into its own vertical scroller — in
-   fullscreen the box fills the overlay below the pinned control bar and
-   scrolls internally (wheel stays native); in the panel it just sizes to
-   its content with the strip sitting at the top edge. */
+/* OBE Curriculum Map — header inside the control bar: the strip svg lives
+   with the filters and toolbar and travels wherever they pin to, so the
+   Year · Semester labels stay over the grid while it scrolls in both the
+   panel and the fullscreen overlay. (It used to be the first child of the
+   bordered canvas with its own sticky, which the wrap's overflow:hidden
+   quietly neutralized — the labels scrolled away with the map.) */
 .subject-view__map-head {
   display: block;
-  position: sticky;
-  top: 0;
-  z-index: 3;
   width: 100%;
   height: auto;
   background: var(--bg-panel, #fff);
@@ -7525,11 +7521,20 @@ button.reports-panel__more:hover {
   min-height: calc(100vh - var(--hdr-h, 70px) - 260px);
 }
 
-/* Sticky map controls — in fullscreen the tall map scrolls the overlay, so
-   the filters (OBE Curriculum Map) and the title/buttons toolbar stay pinned
-   at the top while the canvas passes underneath. The pinned bar shares the
-   overlay's own background so the graph never shows through the seam, and
-   the bottom padding gives moving content room to slide under cleanly. */
+/* Sticky map controls — the filters (OBE Curriculum Map), the title/buttons
+   toolbar AND the Year · Semester header strip pin as one bar while the
+   canvas passes underneath. In the normal panel the pin offsets by the app
+   navbar's own height; the fullscreen rule below re-pins to the overlay's
+   top edge, which already starts below the navbar. The pinned bar shares
+   its background with the panel so the graph never shows through the seam,
+   and the bottom padding gives moving content room to slide under cleanly. */
+.subject-view__graph-controls {
+  position: sticky;
+  top: var(--hdr-h, 70px);
+  z-index: 8;
+  background: var(--bg-panel, #fff);
+}
+
 .subject-view__right--fullscreen .subject-view__graph-controls {
   position: sticky;
   top: 0;
