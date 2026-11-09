@@ -25,6 +25,19 @@ export const standingPrereqYear = (token: string): number | null => {
   return year >= 1 && year <= 6 ? year : null
 }
 
+// And some skip the classification and demand the whole program up front:
+// IT44 (On-Job-Training) records "100% of the Profession Subjects are Taken"
+// — the DB spells it "Profession", and both that and "Professional" must be
+// caught. Same lenient recognition as standingPrereqYear (normalized first,
+// so spacing, periods and commas don't matter). The two curriculum maps
+// expand a true one into lines from EVERY subject dot whose column is
+// strictly before the dependent's own column — "everything taken" applies
+// up to the subject's own term, nothing later.
+export const everythingTakenPrereq = (token: string): boolean => {
+  const norm = normalizeCode(token)
+  return norm.startsWith('100') && norm.includes('PROFESSION') && norm.includes('SUBJECTS') && norm.includes('TAKEN')
+}
+
 // ── Pre-/co-requisite reference helpers shared by the report and the graph ──
 // References are free text ("IT13", "IT13 - Fundamentals of Programming 2"),
 // so each token is resolved to "CODE - Title" from the loaded course list and

@@ -54,7 +54,7 @@ import type {
   StrategicGoal,
   ChedMemoOrder,
 } from '../../services/database'
-import { normalizeCode, cloMatchesSubject, standingPrereqYear } from '../../utils/courseCodes'
+import { normalizeCode, cloMatchesSubject, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
@@ -2116,9 +2116,12 @@ export default function SubjectView() {
           continue
         }
         const bandYear = standingPrereqYear(key)
-        if (bandYear == null || nCol < 0) continue
+        const takesEverything = bandYear == null && everythingTakenPrereq(key)
+        if (bandYear == null && !takesEverything) continue
+        if (nCol < 0) continue
         for (const src of nodes) {
-          if (src === n || !src.year || !src.sem || src.year > bandYear) continue
+          if (src === n || !src.year || !src.sem) continue
+          if (bandYear != null && src.year > bandYear) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
           if (sCol < 0 || sCol >= nCol) continue
           prereqLinks.push({ from: src, to: n, standing: true })

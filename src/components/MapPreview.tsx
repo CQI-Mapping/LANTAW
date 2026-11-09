@@ -20,7 +20,7 @@ import {
   fetchResources,
 } from '../services/database'
 import type { Program, Course, Resource, UserRole } from '../services/database'
-import { normalizeCode, standingPrereqYear } from '../utils/courseCodes'
+import { normalizeCode, standingPrereqYear, everythingTakenPrereq } from '../utils/courseCodes'
 import { CURRENT_SY_START, labelSchoolYearStart } from '../utils/schoolYear'
 
 /** Stands in for program assignments the account may not carry yet — the same
@@ -369,9 +369,12 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
           continue
         }
         const bandYear = standingPrereqYear(key)
-        if (bandYear == null || dCol < 0) continue
+        const takesEverything = bandYear == null && everythingTakenPrereq(key)
+        if (bandYear == null && !takesEverything) continue
+        if (dCol < 0) continue
         for (const src of dots) {
-          if (src === d || !src.year || !src.sem || src.year > bandYear) continue
+          if (src === d || !src.year || !src.sem) continue
+          if (bandYear != null && src.year > bandYear) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
           if (sCol < 0 || sCol >= dCol) continue
           prereqLinks.push({ from: src, to: d, standing: true })

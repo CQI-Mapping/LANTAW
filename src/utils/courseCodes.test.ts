@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalizeCode, standingPrereqYear } from './courseCodes'
+import { everythingTakenPrereq, normalizeCode, standingPrereqYear } from './courseCodes'
 
 // The prerequisite parser sees the tokens exactly as the maps do: after
 // normalizeCode has stripped spaces, periods and dashes, so both spellings
@@ -34,5 +34,25 @@ describe('standingPrereqYear', () => {
     expect(standingPrereqYear('6th Yr Standing')).toBe(6)
     expect(standingPrereqYear('0th Yr Standing')).toBeNull()
     expect(standingPrereqYear('7th Yr Standing')).toBeNull()
+  })
+})
+
+// IT44 stores its gate as "100% of the Profession Subjects are Taken" — the
+// DB's own spelling drops the "al", so both spellings must parse, and the
+// phrase must never swallow ordinary subject codes or the standing tokens.
+describe('everythingTakenPrereq', () => {
+  it('catches the exact text the database stores and its cleaner cousin', () => {
+    expect(everythingTakenPrereq('100% of the Profession Subjects are Taken')).toBe(true)
+    expect(everythingTakenPrereq('100% of the Professional Subjects are Taken')).toBe(true)
+    expect(everythingTakenPrereq('100 % of professional subjects taken')).toBe(true)
+  })
+
+  it('refuses subject codes, standings, and other prose', () => {
+    expect(everythingTakenPrereq('IT44')).toBe(false)
+    expect(everythingTakenPrereq('3rd Yr Standing')).toBe(false)
+    expect(everythingTakenPrereq('4th Yr. Standing')).toBe(false)
+    expect(everythingTakenPrereq('')).toBe(false)
+    expect(everythingTakenPrereq('50% of the Subjects are Taken')).toBe(false)
+    expect(everythingTakenPrereq('IT13, IT15')).toBe(false)
   })
 })
