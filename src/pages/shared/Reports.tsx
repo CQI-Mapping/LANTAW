@@ -446,12 +446,6 @@ function Reports({ profile, onNavigate }: ReportsProps) {
             sub: `(${subjectCoverage.fully} / ${subjectCoverage.total} subjects)`,
             tone: 'good',
           },
-          {
-            label: 'Unmapped / Incomplete',
-            value: String(summary.unaligned + mapping.gaps.length),
-            sub: 'CLOs / Relationships',
-            tone: 'warn',
-          },
           { label: 'CQI Actions', value: String(openCqiActions), sub: 'Open Recommendations', tone: 'good' },
         ],
         mapping: {
