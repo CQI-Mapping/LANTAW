@@ -1951,7 +1951,7 @@ export default function SubjectView() {
     }
 
     const COL_W = 200
-    const ROW_H = 96
+    const ROW_H = 120
     const MARGIN_X = 70
     const RULE_Y = 30
     const FIRST_ROW_Y = 58
@@ -2255,7 +2255,7 @@ export default function SubjectView() {
       .attr('x', (d) => d.x)
       .attr('y', (d) => d.y - 13)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '10px')
+      .attr('font-size', '12px')
       .attr('font-weight', '700')
       .attr('fill', '#0f172a')
       .attr('opacity', (d) => (focusNode ? (focusPeerIds.has(d.id) ? 1 : 0.12) : d.dim ? 0.25 : 1))
