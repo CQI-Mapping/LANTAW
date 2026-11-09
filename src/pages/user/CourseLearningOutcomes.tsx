@@ -95,6 +95,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [viewMode, setViewMode] = useViewMode('cqi.viewMode.clo')
   // Bumps to re-render fused lists after local reject/memory writes.
   const [memTick, setMemTick] = useState(0)
+  // ✕ hides the chip immediately for this page session — rejection memory
+  // still demotes it for later drafts (poRank fusion reads it). Keyed per
+  // form ("create"/"edit") so each form's list tracks independently.
+  const [hiddenPos, setHiddenPos] = useState<Record<string, boolean>>({})
   // Course syllabus reader: the card's eye button opens the linked subject's
   // full syllabus document — the same printable report Generate Map
   // renders, in a scrollable overlay with PDF / Word downloads.
@@ -401,10 +405,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     if (sig) void recordPoFeedback(sig, code, 'picked')
     setMemTick((t) => t + 1)
   }
-  const logReject = (draft: string, code: string) => {
+  const logReject = (draft: string, formKey: 'create' | 'edit', code: string) => {
     recordRejection(draft, code)
     const sig = draftSig(draft)
     if (sig) void recordPoFeedback(sig, code, 'rejected')
+    setHiddenPos((h) => ({ ...h, [`${formKey}:${code}`]: true }))
     setMemTick((t) => t + 1)
   }
 
@@ -449,8 +454,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Hybrid fusion: keyword + semantic + exact-phrase + Bloom + click memory.
   // memTick re-runs fusion after local reject/memory writes (read sync).
   void memTick
+  // Rejected chips leave the list before the relative rescale, so the bars
+  // stay anchored to the top suggestion still on screen.
   const createShown = fuseRanked(form.description, createClosest, createSemantic, poTexts, 3)
+    .filter((r) => !hiddenPos[`create:${r.code}`])
   const editShown = fuseRanked(editForm.description, editClosest, editSemantic, poTexts, 3)
+    .filter((r) => !hiddenPos[`edit:${r.code}`])
   // Bars stay on a relative scale (top suggestion paints the full bar); the
   // chip label itself shows only the PO code — no percentages on screen.
   // All gates still read the raw lists.
@@ -594,9 +603,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                   </span>
                 )}
               </button>
-              <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
-                aria-label={`Reject ${r.code} for this description`}
-                onClick={() => logReject(editForm.description, r.code)}>✕</button>
+              <button type="button" className="btn btn--ghost btn--sm" title={`Remove this ${r.code} suggestion`}
+                aria-label={`Remove the ${r.code} suggestion for this description`}
+                onClick={() => logReject(editForm.description, 'edit', r.code)}>✕</button>
             </span>
           ))}
         </div>
@@ -773,7 +782,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                   </button>
                   <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
                     aria-label={`Reject ${r.code} for this description`}
-                    onClick={() => logReject(form.description, r.code)}>✕</button>
+                    onClick={() => logReject(form.description, 'create', r.code)}>✕</button>
                 </span>
               ))}
             </div>
