@@ -42,7 +42,7 @@ import {
   coursesInProgram,
   poOutcomes,
 } from '../utils/alignment'
-import { buildMappingReport, chartableOutcomes } from '../utils/cloPoMapping'
+import { buildMappingReport, chartCompleteOutcomes } from '../utils/cloPoMapping'
 import { isManagerCmCategory, isManagerOutcome } from '../utils/report'
 import type { MappingStatus } from '../utils/reportsPdfModel'
 import { normalizeCode } from '../utils/courseCodes'
@@ -312,7 +312,20 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
   // Mapping runs against the active outcome set: a CLO quoting a parked code
   // is a gap worth surfacing, not a silent match against nothing.
   const mapping = useMemo(() => buildMappingReport(programClos, activeOutcomes), [programClos, activeOutcomes])
-  const charted = useMemo(() => chartableOutcomes(mapping), [mapping])
+
+  // The coverage chart reads the OFFICIAL framework alone — the verbatim CMO
+  // read (officialOutcomes), the 17-PO axis the Program Outcomes page offers
+  // — and draws every PO as its own bar, gaps as 0% stubs. Mapping on the
+  // active union put the off-page rows into the count as well: 6 covered
+  // bars beside "21 outcomes no CLO reaches" hid the real sparse POs in a
+  // folded bar instead of naming them. A program with no official rows yet
+  // falls back to the active set, so the chart still draws something.
+  const chartUniverse = officialOutcomes.length > 0 ? officialOutcomes : activeOutcomes
+  const chartMapping = useMemo(
+    () => buildMappingReport(programClos, chartUniverse),
+    [programClos, chartUniverse],
+  )
+  const charted = useMemo(() => chartCompleteOutcomes(chartMapping), [chartMapping])
 
   // What sits behind each bar: the learning outcomes naming the outcome, with
   // their subject and description — so the chart's hover can point at the work
@@ -561,6 +574,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
                   hidden={charted.hidden}
                   totalClos={mapping.totalClos}
                   details={poDetails}
+                  unfold
                 />
               )}
             </section>

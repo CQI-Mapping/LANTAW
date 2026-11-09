@@ -3,6 +3,7 @@ import {
   anchorKeysOf,
   buildMappingReport,
   chartableOutcomes,
+  chartCompleteOutcomes,
   extractPoCodes,
   matrixRows,
   poLabel,
@@ -123,8 +124,7 @@ describe('buildMappingReport', () => {
   })
 })
 
-describe('chartableOutcomes', () => {
-  it('charts the covered outcomes and counts the ones nothing reaches', () => {
+describe('chartableOutcomes', () => {  it('charts the covered outcomes and counts the ones nothing reaches', () => {
     const report = buildMappingReport([clo()], outcomes)
     const { rows, uncovered, uncoveredCodes } = chartableOutcomes(report)
     // In outcome order, which is parsed-number order: PO 6 before PO 12.
@@ -142,6 +142,29 @@ describe('chartableOutcomes', () => {
     const { rows, hidden } = chartableOutcomes(buildMappingReport(clos, many), 8)
     expect(rows).toHaveLength(8)
     expect(hidden).toBe(12)
+  })
+})
+
+describe('chartCompleteOutcomes', () => {
+  it('draws every outcome its own bar — the zero ones stay, none folds into "None"', () => {
+    const report = buildMappingReport([clo()], outcomes)
+    const { rows, hidden, uncoveredCodes } = chartCompleteOutcomes(report)
+    // The complete axis holds everything, in outcome order.
+    expect(rows.map((r) => r.outcome.key)).toEqual(['PO1', 'PO6', 'PO8', 'PO12', 'PO14'])
+    expect(rows.find((r) => r.outcome.key === 'PO8')?.cloCount).toBe(0)
+    expect(hidden).toBe(0)
+    // The footnote can still name the gaps: the zero codes, chart order.
+    expect(uncoveredCodes).toEqual(['PO 1', 'PO 8', 'PO 14'])
+  })
+
+  it('keeps a 20-outcome axis whole — no cap, no fold', () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      outcome({ key: `PO${i + 1}`, code: `PO-${i + 1}` }),
+    )
+    const clos = many.map((o) => clo({ id: o.key, title: o.code }))
+    const { rows, hidden } = chartCompleteOutcomes(buildMappingReport(clos, many))
+    expect(rows).toHaveLength(20)
+    expect(hidden).toBe(0)
   })
 })
 

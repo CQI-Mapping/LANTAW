@@ -47,6 +47,10 @@ interface PoCoverageBarsProps {
   totalClos: number
   /** Learning outcomes behind each bar, keyed by the outcome's code. */
   details?: Record<string, PoCoverageDetail[]>
+  /** Every outcome on file is charted as its own bar, so the uncovered ones
+   *  stay 0% stubs — the folded "None" bar never joins, and the footnote
+   *  still counts what no CLO reaches. */
+  unfold?: boolean
 }
 
 // 320 tall: the panel's row height is set by the 33-row summary beside it,
@@ -81,6 +85,7 @@ function PoCoverageBars({
   hidden,
   totalClos,
   details,
+  unfold = false,
 }: PoCoverageBarsProps) {
   // Hover state: which bar and where the cursor sits, so the bubble can follow.
   const [hover, setHover] = useState<{ index: number; x: number; y: number } | null>(null)
@@ -105,7 +110,7 @@ function PoCoverageBars({
       key: r.code,
     }),
   )
-  if (uncovered > 0) {
+  if (uncovered > 0 && !unfold) {
     bars.push({
       label: 'None',
       percent: 0,
