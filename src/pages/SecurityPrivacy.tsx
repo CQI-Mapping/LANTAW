@@ -15,6 +15,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../utils/supabaseClient'
 import { addActivityLog, fetchActivityLogs } from '../services/database'
 import { friendlyPasswordError } from '../utils/passwordErrors'
+import { truthfulAuthError } from '../utils/authErrors'
 import { MIN_PASSWORD_LENGTH, passwordStrength, passwordVariety } from '../utils/passwordPolicy'
 import { parseUserAgent } from '../utils/device'
 import { formatDayTime } from '../utils/time'
@@ -97,10 +98,28 @@ function SecurityPrivacy({ profile, onNavigate }: SecurityPrivacyProps) {
         password: currentPassword,
       })
       if (verifyError) {
-        setPasswordError('Your current password is incorrect — the password was not changed.')
+        // Truthful, step-appropriate wording: a Google-only account has no
+        // password at all (the verify can never succeed), and the rate
+        // limiter / unconfirmed-address rejections deserve their honest
+        // sentences instead of a blanket "incorrect".
+        const providers = user?.app_metadata?.providers ?? []
+        if (providers.includes('google') && !providers.includes('email')) {
+          setPasswordError(
+            'This account signs in with Google — no password exists yet. Use the emailed invite link or "Forgot password" on the sign-in page to set one.',
+          )
+          return
+        }
+        const truthful = truthfulAuthError(verifyError)
+        setPasswordError(
+          truthful?.message ?? 'Your current password is incorrect — the password was not changed.',
+        )
         return
       }
-      const { error: updateError } = await supabase!.auth.updateUser({ password })
+      // Secure password change (GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD):
+      // GoTrue rejects the swap unless the request carries the current
+      // password itself. The verify sign-in above proves the secret, but
+      // the update must still present it — so pass it through.
+      const { error: updateError } = await supabase!.auth.updateUser({ password, current_password: currentPassword })
       if (updateError) throw updateError
       await addActivityLog('profile.password_changed', {
         entity: 'profile',

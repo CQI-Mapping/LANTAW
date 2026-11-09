@@ -26,7 +26,9 @@ export function friendlyPasswordError(err: unknown): string | null {
   }
   // "Secure password change"/re-authentication policy: the session must be
   // a genuinely fresh sign-in before the server accepts a password swap.
-  if (/reauthenticat/i.test(raw)) {
+  // GoTrue's exact wording for the same rule is "Current password required
+  // when setting new password." — both land here.
+  if (/reauthenticat|current password required/i.test(raw)) {
     return 'Sign out and back in once (or use the reset link), then try again — the server wants a fresh sign-in before changing your password.'
   }
   return null

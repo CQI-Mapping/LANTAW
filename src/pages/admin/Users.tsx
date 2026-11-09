@@ -4,17 +4,25 @@
 // delete: the account stays restorable, sign-in is refused while archived,
 // and only archived rows can be hard-deleted.
 //
-// The add form collects only the email (plus the role, and for the
-// manager/faculty roles the program they scope): the Edge Function
-// generates a random password nobody sees and emails the new user a
-// one-time link to set their own — the same invite flow the manager's
-// Add Faculty form uses. Names get filled in on the user's Profile page.
+// The add form collects the email (plus the role, and for the
+// manager/faculty roles the program they scope), with an optional
+// temporary password — mirroring the manager's Add Faculty form, two
+// ways land the first sign-in:
+//   * default (email-only) — the Edge Function generates a random
+//     password nobody sees and emails the new user a one-time link to
+//     set their own.
+//   * optional temporary password — the inviter types one (policy-checked
+//     like every other password form), shares it privately, and the
+//     mailbox still receives the one-time link either way; after the
+//     user sets their own password the temporary one stops working.
+// Names get filled in on the user's Profile page.
 
 import { useState, useEffect } from 'react'
 import Icon from '../../components/icons'
 import { useDraft } from '../../hooks/useDraft'
 import { adminCreateUser, adminDeleteUser, adminResendInvite, addActivityLog, fetchAllProfilesWithProgram, fetchPrograms, profileProgramOf, updateProfile, updateUserProgram, updateUserRole, updateUserStatus } from '../../services/database'
 import { isActive } from '../../utils/report'
+import { MIN_PASSWORD_LENGTH, passwordVariety, suggestStrongPassword } from '../../utils/passwordPolicy'
 import { supabase } from '../../utils/supabaseClient'
 import type { ProfileWithProgram, Program, UserRole } from '../../services/database'
 
@@ -53,12 +61,20 @@ function friendlyCreateError(e: unknown): string {
 }
 
 export default function Users() {
-  // Draft persists the email across page navigation. No password state:
-  // the Edge Function generates one server-side (nobody sees it) and
-  // emails the new user a one-time link to set their own.
+  // Draft persists the email across page navigation; the optional temporary
+  // password deliberately does NOT join it — session storage never carries
+  // passwords (same rule the Security & privacy card follows), so it lives
+  // in component state only.
   const [draft, setDraft, clearDraft] = useDraft('cqi.draft.Users', { email: '' })
   const { email } = draft
   const setEmail = (v: string) => setDraft((d) => ({ ...d, email: v }))
+  // Optional temporary password: when set, it becomes the account's starting
+  // password (the inviter shares it privately) while the mailbox still
+  // receives the one-time set-password link. Empty = the Edge Function
+  // generates a random password nobody sees (the original flow).
+  const [useTempPassword, setUseTempPassword] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
+  const [showTempPassword, setShowTempPassword] = useState(false)
   // Role starts unselected: the placeholder option forces a conscious
   // pick (Manager/Admin/Faculty) instead of a silent default.
   const [role, setRole] = useState<UserRole | ''>('')
@@ -86,7 +102,9 @@ export default function Users() {
   // placeholder name like "test") without waiting for that user to sign in
   // and fix their own Profile page. Mirrors the Program page's modal.
   const [editingUser, setEditingUser] = useState<ProfileWithProgram | null>(null)
-  const [editForm, setEditForm] = useState({ fullName: '', nickname: '', department: '', designation: '' })
+  const [editForm, setEditForm] = useState<{ fullName: string; nickname: string; department: string; designation: string; role: UserRole; programId: string }>(
+    { fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' },
+  )
   const [editBusy, setEditBusy] = useState(false)
 
   const loadUsers = async () => {
@@ -119,14 +137,24 @@ export default function Users() {
     // Managers and faculty are program-scoped accounts — the program is
     // required so the dropdown choice can't silently be forgotten.
     if (roleNeedsProgram && !programId) { setError('Choose the program this account belongs to.'); return }
+    if (useTempPassword && tempPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`A temporary password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
+    }
+    if (useTempPassword && passwordVariety(tempPassword) < 4) {
+      setError('A temporary password must mix uppercase, lowercase, number and symbol.')
+      return
+    }
     setBusy(true)
     try {
       const createdEmail = email.trim()
-      // Empty password/name by design: the Edge Function generates a random
-      // password the inviter never sees and emails a one-time set-password
-      // link; the name is left blank until the user fills it in on their
-      // Profile page.
-      const created = await adminCreateUser(createdEmail, '', '', role, programId || null)
+      // The name stays blank until the user fills it in on their Profile
+      // page. The password is either empty (Edge Function generates a
+      // random one nobody sees and emails a one-time set-password link) or
+      // the typed temporary one (validated above; shared privately after
+      // creation), and the inbox gets the one-time link either way.
+      const handingTempPassword = useTempPassword && tempPassword.length > 0
+      const created = await adminCreateUser(createdEmail, handingTempPassword ? tempPassword : '', '', role, programId || null)
       // An administrator mint gets its own louder trail entry: promoting a
       // colleague into the highest tier must read differently from the
       // routine faculty adds that dominate the log.
@@ -136,6 +164,7 @@ export default function Users() {
           entity: 'user',
           entity_id: created?.id,
           label: createdEmail,
+          ...(handingTempPassword ? { mode: 'temporary_password' } : {}),
         },
       )
       const creator = users.find((u) => u.email === currentEmail)
@@ -143,16 +172,29 @@ export default function Users() {
       const base = creatorName
         ? `${ROLE_LABELS[role]} ${createdEmail} has been added to the system by ${creatorName}.`
         : `${ROLE_LABELS[role]} ${createdEmail} has been added to the system.`
-      setSuccess(
-        created.welcomeEmailSent
-          ? `${base} A welcome email was sent to ${createdEmail} with a one-time link to set their password.`
-          : `${base} No welcome email was sent (email service not set up) — use "Resend invite" on their row, or set a password for them in the Supabase dashboard (Authentication → Users) and share it privately.`,
-      )
+      if (handingTempPassword) {
+        const deliveryNote = created.welcomeEmailSent
+          ? ' a welcome email with a one-time link also went out, so they can replace it with their own right away.'
+          : ' the one-time link email could not be sent (service limits) — they can still sign in with the temporary password.'
+        setSuccess(
+          `${base} Share the temporary password with them privately.${deliveryNote} ` +
+            `After they set their own password, the temporary one stops working — they can change it anytime from their Security & privacy page.`,
+        )
+      } else {
+        setSuccess(
+          created.welcomeEmailSent
+            ? `${base} A welcome email was sent to ${createdEmail} with a one-time link to set their password.`
+            : `${base} No welcome email was sent (email service not set up) — use "Resend invite" on their row, or set a temporary password for them in the Supabase dashboard (Authentication → Users) and share it privately.`,
+        )
+      }
       clearDraft()
-      // The next creation is a fresh conscious pick: role and program reset
-      // with the credentials so an earlier assignment can't be reused.
+      // The next creation is a fresh conscious pick: role, program and
+      // password reset with the credentials so an earlier assignment can't
+      // be reused.
       setRole('')
       setProgramId('')
+      setTempPassword('')
+      setUseTempPassword(false)
       loadUsers()
     } catch (e) {
       setError('Failed to create user: ' + friendlyCreateError(e))
@@ -306,7 +348,9 @@ export default function Users() {
   // ----- Fix profile -----
 
   // Seeded from the row so the fields open pre-filled, exactly the identity
-  // the user sees on their own Profile page.
+  // the user sees on their own Profile page. Role + program join the form
+  // so they only surface inside this modal — the table itself reads
+  // read-only.
   const openEdit = (u: ProfileWithProgram) => {
     setEditingUser(u)
     setEditForm({
@@ -314,6 +358,8 @@ export default function Users() {
       nickname: u.nickname ?? '',
       department: u.department ?? '',
       designation: u.designation ?? '',
+      role: u.role,
+      programId: profileProgramOf(u)?.id ?? '',
     })
   }
 
@@ -321,7 +367,7 @@ export default function Users() {
     // Mid-save the modal must stay put: the save writes the fields it shows.
     if (editBusy) return
     setEditingUser(null)
-    setEditForm({ fullName: '', nickname: '', department: '', designation: '' })
+    setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
   }
 
   // Saves the repaired identity through the same updateProfile the Profile
@@ -329,7 +375,9 @@ export default function Users() {
   // trigger (migration 013) allows admins to repair OTHER people's academic
   // fields — a user could never send department/designation through here.
   // Nickname follows the Profile page's normalization: trimmed, and empty
-  // becomes null rather than an empty string in the DB.
+  // becomes null rather than an empty string in the DB. Role and program
+  // changes ride the same Save — they only exist inside this modal, so
+  // there is no always-on select to misuse in the table.
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -338,6 +386,11 @@ export default function Users() {
     const nickname = editForm.nickname.trim()
     const department = editForm.department.trim()
     const designation = editForm.designation.trim()
+    const nextRole = editForm.role
+    const nextProgramId = nextRole === 'admin' ? '' : editForm.programId
+    if (editingUser.email === currentEmail && nextRole !== editingUser.role) {
+      if (!window.confirm(`Change your own role to ${nextRole}? You could lose admin access.`)) return
+    }
     setError('')
     setSuccess('')
     setEditBusy(true)
@@ -349,11 +402,41 @@ export default function Users() {
         department: department || null,
         designation: designation || null,
       })
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id ? { ...u, full_name: name, nickname: nickname || null } : u,
-        ),
-      )
+      // Role change: same updateUserRole the table used to fire inline.
+      if (nextRole !== editingUser.role) {
+        const updated = await updateUserRole(editingUser.id, nextRole)
+        if (nextRole === 'admin') await updateUserProgram(editingUser.id, null)
+        await addActivityLog('role.updated', {
+          entity: 'user',
+          entity_id: editingUser.id,
+          label: `${editingUser.email} → ${nextRole}`,
+        })
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id
+              ? { ...u, ...updated, full_name: name, nickname: nickname || null, program_id: nextRole === 'admin' ? null : u.program_id }
+              : u,
+          ),
+        )
+      } else {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id ? { ...u, full_name: name, nickname: nickname || null } : u,
+          ),
+        )
+      }
+      // Program change (admins skip — they span every program).
+      const prevProgramId = profileProgramOf(editingUser)?.id ?? ''
+      if (nextRole !== 'admin' && nextProgramId !== prevProgramId) {
+        const assigned = nextProgramId ? programs.find((p) => p.id === nextProgramId) ?? null : null
+        await updateUserProgram(editingUser.id, nextProgramId || null)
+        await addActivityLog('user.program_assigned', {
+          entity: 'user',
+          entity_id: editingUser.id,
+          label: `${editingUser.email} → ${assigned?.code ?? 'none'}`,
+        })
+        await loadUsers()
+      }
       await addActivityLog('user.profile_updated', {
         entity: 'user',
         entity_id: editingUser.id,
@@ -374,7 +457,7 @@ export default function Users() {
     // read against the fields that produced it.
     if (saved) {
       setEditingUser(null)
-      setEditForm({ fullName: '', nickname: '', department: '', designation: '' })
+      setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
     }
   }
 
@@ -526,16 +609,68 @@ export default function Users() {
                       onChange={(e) => setEmail(e.target.value)} />
                   </div>
                 </label>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  style={{ justifySelf: 'start' }}
+                  onClick={() => {
+                    setUseTempPassword((v) => !v)
+                    if (useTempPassword) setTempPassword('')
+                  }}
+                  title="Optional: set the starting password yourself and hand it over privately, instead of relying on the emailed link"
+                >
+                  {useTempPassword ? '↺ Let the email link do it' : 'Set a temporary password instead'}
+                </button>
+                {useTempPassword && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <label className="field" style={{ flex: 1 }}>
+                      <span>Temporary password</span>
+                      <div className="profile-input-wrap">
+                        <input
+                          className="input"
+                          type={showTempPassword ? 'text' : 'password'}
+                          placeholder="At least 8 characters"
+                          value={tempPassword}
+                          autoComplete="new-password"
+                          onChange={(e) => setTempPassword(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="profile-password-toggle"
+                          aria-label={showTempPassword ? 'Hide the temporary password' : 'Show the temporary password'}
+                          title={showTempPassword ? 'Hide the temporary password' : 'Show the temporary password'}
+                          onClick={() => setShowTempPassword((v) => !v)}
+                        >
+                          <Icon name="eye" size={15} />
+                        </button>
+                      </div>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      style={{ marginBottom: 4 }}
+                      onClick={() => setTempPassword(suggestStrongPassword())}
+                      title="Generate a strong temporary password"
+                    >
+                      Suggest one
+                    </button>
+                  </div>
+                )}
                 <p className="au__cred-note">
-                  Only the email is needed. The new user gets an email with a one-time link to set
-                  their password, and can fill in their name on their Profile page.
+                  {useTempPassword
+                    ? 'Both routes reach them: your temporary password (share it privately) and the emailed one-time link. The new user changes or replaces the password anytime from their Security & privacy page.'
+                    : 'Only the email is needed. The new user gets an email with a one-time link to set their password, and can fill in their name on their Profile page.'}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="au__foot">
-            <p>A welcome email with a one-time set-password link is sent when the mail service is configured — otherwise use "Resend invite" on the new user's row after creating them.</p>
+            <p>
+              {useTempPassword
+                ? 'Both routes reach the inbox: the temporary password travels privately, and a one-time set-password link is emailed when the mail service is configured.'
+                : 'A welcome email with a one-time set-password link is sent when the mail service is configured — otherwise use "Resend invite" on the new user\'s row after creating them.'}
+            </p>
             <button className="btn btn--primary" type="submit" disabled={busy}>
               {busy ? 'Creating...' : (<><Icon name="plus" size={13} /> Create User</>)}
             </button>
@@ -584,37 +719,11 @@ export default function Users() {
                     <td>{u.email}</td>
                     <td>
                       <span className={`role-badge role-badge--${u.role}`}>{u.role}</span>
-                      <select
-                        className="input input--sm"
-                        style={{ marginLeft: 8, maxWidth: 130 }}
-                        aria-label={`Change role for ${u.email}`}
-                        value={u.role}
-                        disabled={roleBusyId === u.id || rowArchived}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole, u.email)}
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
-                        <option value="user">Faculty</option>
-                      </select>
                     </td>
                     <td>
-                      {u.role === 'admin' ? (
-                        <span className="users-program-chip users-program-chip--none">All programs</span>
-                      ) : (
-                        <select
-                          className="input input--sm"
-                          style={{ maxWidth: 130 }}
-                          aria-label={`Assign program for ${u.email}`}
-                          value={assigned?.id ?? ''}
-                          disabled={programBusyId === u.id || programs.length === 0 || rowArchived}
-                          onChange={(e) => handleProgramChange(u.id, e.target.value, u.email)}
-                        >
-                          <option value="">None</option>
-                          {programs.map((p) => (
-                            <option key={p.id} value={p.id}>{p.code}</option>
-                          ))}
-                        </select>
-                      )}
+                      <span className={u.role === 'admin' ? 'users-program-chip users-program-chip--none' : 'users-program-chip'}>
+                        {u.role === 'admin' ? 'All programs' : (assigned?.code ?? 'None')}
+                      </span>
                     </td>
                     <td>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
@@ -624,7 +733,7 @@ export default function Users() {
                             <button
                               className="btn btn--ghost btn--sm"
                               onClick={() => openEdit(u)}
-                              title="Fix their name & nickname — the same fields their Profile page shows"
+                              title="Fix name, nickname, role & program — the dropdowns only appear here"
                             >
                               Edit
                             </button>
@@ -650,7 +759,7 @@ export default function Users() {
                             <button
                               className="btn btn--ghost btn--sm"
                               onClick={() => openEdit(u)}
-                              title="Fix their name & nickname — the same fields their Profile page shows"
+                              title="Fix name, nickname, role & program — the dropdowns only appear here"
                             >
                               Edit
                             </button>
@@ -748,9 +857,41 @@ export default function Users() {
                     />
                   </label>
                 </div>
+                <div className="modal__grid-2" style={{ marginTop: 12 }}>
+                  <label className="field" style={{ marginBottom: 0 }}>
+                    <span>Role</span>
+                    <select
+                      className="input input--sm"
+                      aria-label={`Change role for ${editingUser.email}`}
+                      value={editForm.role}
+                      disabled={editBusy || !isActive(editingUser)}
+                      onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="user">Faculty</option>
+                    </select>
+                  </label>
+                  <label className="field" style={{ marginBottom: 0 }}>
+                    <span>Program</span>
+                    <select
+                      className="input input--sm"
+                      aria-label={`Assign program for ${editingUser.email}`}
+                      value={editForm.role === 'admin' ? '' : editForm.programId}
+                      disabled={editBusy || editForm.role === 'admin' || programs.length === 0 || !isActive(editingUser)}
+                      onChange={(e) => setEditForm((f) => ({ ...f, programId: e.target.value }))}
+                    >
+                      <option value="">{editForm.role === 'admin' ? 'All programs' : 'None'}</option>
+                      {programs.map((p) => (
+                        <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <p className="au__cred-note" style={{ marginTop: 10 }}>
                   Reports and audit logs use the full name; the nickname shows in quotes. Department and designation
                   are admin-managed — the account holder sees them read-only on their Profile.
+                  {editForm.role === 'admin' && ' Admins span every program — the assignment is cleared on save.'}
                 </p>
               </div>
               <div className="modal__footer">

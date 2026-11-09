@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Course, CourseLearningOutcomeStandalone } from '../services/database'
-import { groupOutcomesBySubject, ownFigures, planNextStep, weeklyEditTrend } from './facultyDashboard'
+import { groupOutcomesBySubject, ownFigures, planNextStep, subjectsCovered, weeklyEditTrend } from './facultyDashboard'
 
 const subject = (code: string, title: string, year: number | null, semester: number | null) =>
   ({ id: code, code, title, year_level: year, semester }) as unknown as Course
@@ -90,6 +90,35 @@ describe('planNextStep', () => {
   it('reports done when every subject has outcomes', () => {
     const clos = courses.map((c, i) => outcome(`CLO${i}`, c.code, '2026-11-02T08:00:00.000Z'))
     expect(planNextStep(courses, clos)).toEqual({ kind: 'done', total: 3 })
+  })
+})
+
+describe('subjectsCovered', () => {
+  const courses = [subject('IT10', 'Intro to IT', 1, 1), subject('IT20', 'Programming 1', 1, 2)]
+
+  it('counts every subject the pool actively covers, colleagues included', () => {
+    const clos = [
+      outcome('CLO1', 'IT10', '2026-11-02T08:00:00.000Z'),
+      outcome('CLO7', 'IT 20', '2026-11-01T08:00:00.000Z', 'archived'),
+      outcome('CLO9', 'it20', '2026-11-03T08:00:00.000Z'),
+    ]
+    expect(subjectsCovered(clos, courses)).toBe(2)
+  })
+
+  it('does not let archived outcomes cover a subject', () => {
+    const clos = [
+      outcome('CLO1', 'IT10', '2026-11-01T08:00:00.000Z', 'archived'),
+      outcome('CLO2', 'IT20', '2026-11-01T08:00:00.000Z', 'archived'),
+    ]
+    expect(subjectsCovered(clos, courses)).toBe(0)
+  })
+
+  it('ignores codes the curriculum does not list and empty course rows', () => {
+    const clos = [
+      outcome('CLO1', 'GE99', '2026-11-02T08:00:00.000Z'),
+      outcome('CLO2', '', '2026-11-01T08:00:00.000Z'),
+    ]
+    expect(subjectsCovered(clos, courses)).toBe(0)
   })
 })
 

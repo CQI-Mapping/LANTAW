@@ -21,6 +21,7 @@ import {
   fetchProgramOutcomesStandalone,
   fetchProgramEducationalObjectives,
   fetchCourseLearningOutcomesStandalone,
+  fetchCourseLearningOutcomePoolForMap,
   fetchStrategicGoals,
   fetchChedMemoOrders,
 } from '../services/database'
@@ -62,6 +63,11 @@ interface MapBriefProps {
       (Programs, Courses, Coverage, Unmapped stay; those are the brief's own
       dividend and none of the tiles duplicate them). */
   dedupeCoreCounts?: boolean
+  /** Tiles to hide on this host, named one by one — a shorthand-free way to
+      pick a combination the dedupe flag does not cover (the faculty brief
+      hides Programs and the PO/PEO governance figures while keeping its own
+      CLO count and the coverage tile). */
+  hideTiles?: Array<'programs' | 'courses' | 'clos' | 'pos' | 'peos'>
 }
 
 /** Stands in for program assignments the account may not carry yet, the way
@@ -167,7 +173,10 @@ function KpiCard({
   )
 }
 
-function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefProps) {
+function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }: MapBriefProps) {
+  // Which KPI tiles to leave out of the row: the admin's dedupe flag is
+  // shorthand for the CLO/PO/PEO trio, hideTiles names tiles individually.
+  const skipTiles = new Set(dedupeCoreCounts ? ['clos', 'pos', 'peos'] : (hideTiles ?? []))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
@@ -176,6 +185,12 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
   const [pos, setPos] = useState<ProgramOutcomeStandalone[]>([])
   const [peos, setPeos] = useState<ProgramEducationalObjective[]>([])
   const [clos, setClos] = useState<CourseLearningOutcomeStandalone[]>([])
+  // The whole outcome pool — every faculty member's rows — backing the
+  // faculty brief's Total CLO's tile. Admin and manager read every row
+  // through table RLS already, so the pool hop only serves role 'user',
+  // whose owner-scoped read would otherwise count a personal figure in a
+  // program-inventory tile.
+  const [poolClos, setPoolClos] = useState<CourseLearningOutcomeStandalone[]>([])
   const [goals, setGoals] = useState<StrategicGoal[]>([])
   const [cmos, setCmos] = useState<ChedMemoOrder[]>([])
 
@@ -192,8 +207,17 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
       fetchCourseLearningOutcomesStandalone(),
       fetchStrategicGoals(),
       fetchChedMemoOrders(),
+      // Whole-pool read for the faculty Total CLO's tile: the committee-level
+      // fetch the Generate Map uses. Falls back to the owner's own rows (and
+      // to a personal-looking figure) until migration 019 installs the RPC.
+      profile?.role === 'user'
+        ? fetchCourseLearningOutcomePoolForMap().catch((e) => {
+            console.warn('map_outcome_pool unavailable; Total CLOs counts you only:', e?.message)
+            return fetchCourseLearningOutcomesStandalone()
+          })
+        : Promise.resolve([] as CourseLearningOutcomeStandalone[]),
     ])
-      .then(([p, c, po, peo, clo, sg, cmo]) => {
+      .then(([p, c, po, peo, clo, sg, cmo, pool]) => {
         setPrograms(p)
         setCourses(c)
         setPos(po)
@@ -201,6 +225,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
         setClos(clo)
         setGoals(sg)
         setCmos(cmo)
+        setPoolClos(pool)
         setProgramId((current) => {
           if (current) return current
           if (viewerProgramId && p.some((row) => row.id === viewerProgramId)) return viewerProgramId
@@ -268,6 +293,17 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
     return clos.filter((cl) => codes.has(normalizeCode(cl.course)))
   }, [program, programCourseList, clos])
 
+  // The same program filter over the pool: what "Total CLO's" names for a
+  // faculty viewer. The chart, coverage tile and summary table keep reading
+  // programClos — per-role truth — so only this tile widens.
+  const programPoolClos = useMemo(() => {
+    if (!program) return []
+    const codes = new Set(programCourseList.map((c) => normalizeCode(c.code)))
+    return poolClos.filter((cl) => codes.has(normalizeCode(cl.course)))
+  }, [program, programCourseList, poolClos])
+
+  const totalClos = profile?.role === 'user' ? programPoolClos.length : programClos.length
+
   const yearsOffered = useMemo(
     () => new Set(programCourseList.map((c) => c.year_level).filter((y) => y != null)).size,
     [programCourseList],
@@ -309,22 +345,34 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
     return record
   }, [mapping, programCourseList])
 
+  // Coverage reads per role: the figures, the summary table and its status
+  // badges describe the program for a faculty viewer (the whole pool, the
+  // same committee-level truth the Generate Map serves), while admins and
+  // managers keep their RLS table read, which is already program-wide. The
+  // PO Coverage Chart is the deliberate exception — it stays on the
+  // viewer's own slice, a personal lens inside a program brief.
+  const readsPool = profile?.role === 'user'
+
+  const coverageMapping = useMemo(
+    () => (readsPool ? buildMappingReport(programPoolClos, activeOutcomes) : mapping),
+    [readsPool, programPoolClos, activeOutcomes, mapping],
+  )
   const courseOutcomeRows = useMemo(
-    () => courseOutcomes(programCourseList, programClos),
-    [programCourseList, programClos],
+    () => courseOutcomes(programCourseList, readsPool ? programPoolClos : programClos),
+    [programCourseList, readsPool, programPoolClos, programClos],
   )
   const mappedByCourse = useMemo(() => {
     const byCourse = new Map<string, { mapped: number; total: number }>()
     for (const course of programCourseList) {
       const key = normalizeCode(course.code)
       const total = courseOutcomeRows.find((r) => r.course.id === course.id)?.outcomeCount ?? 0
-      const mapped = mapping.links.filter(
+      const mapped = coverageMapping.links.filter(
         (l) => normalizeCode(l.clo.course) === key && l.poKeys.length > 0,
       ).length
       byCourse.set(course.id, { mapped, total })
     }
     return byCourse
-  }, [programCourseList, courseOutcomeRows, mapping])
+  }, [programCourseList, courseOutcomeRows, coverageMapping])
 
   // Coverage the way a coordinator reads it: subjects, not learning
   // outcomes — a subject counts when every learning outcome it holds names
@@ -345,7 +393,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
   // CLO, the Coverage qualifier names the state ("0 / 33 subjects — no CLOs
   // yet") instead of a plain "(0 / 33)" — the same convention the totals-0
   // branch uses. The value itself keeps the literal 0%.
-  const pipelineEmpty = programClos.length === 0
+  const pipelineEmpty = (readsPool ? programPoolClos : programClos).length === 0
 
   return (
     <div className="map-brief">
@@ -363,27 +411,34 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
               figure mean something — a count on its own invites the reader
               to assume it is the answer. */}
           <div className="stat-grid stat-grid--2026 reports-kpis">
-            <KpiCard label="Total Programs" value={programs.length} sub={program.code} />
-            <KpiCard
-              label="Total Courses"
-              value={programCourseList.length}
-              sub={
-                yearsOffered
-                  ? `Across ${yearsOffered} year${yearsOffered === 1 ? '' : 's'}`
-                  : 'Across all academic years'
-              }
-            />
+            {!skipTiles.has('programs') && (
+              <KpiCard label="Total Programs" value={programs.length} sub={program.code} />
+            )}
+            {!skipTiles.has('courses') && (
+              <KpiCard
+                label="Total Courses"
+                value={programCourseList.length}
+                sub={
+                  yearsOffered
+                    ? `Across ${yearsOffered} year${yearsOffered === 1 ? '' : 's'}`
+                    : 'Across all academic years'
+                }
+              />
+            )}
             {/* The host dashboard's live tiles already count CLOs, POs and
                 PEOs directly above — its dedupe flag skips the brief's
-                copies so the figures appear once, not twice. */}
-            {!dedupeCoreCounts && (
+                copies so the figures appear once, not twice. A faculty
+                viewer gets the whole program's figure (pool read), admins
+                and managers their table read — same tile, program-wide for
+                both. */}
+            {!skipTiles.has('clos') && (
               <KpiCard
                 label="Total CLO's"
-                value={programClos.length}
+                value={totalClos}
                 sub={program ? `${program.code} courses` : 'From all courses'}
               />
             )}
-            {!dedupeCoreCounts && (
+            {!skipTiles.has('pos') && (
               <KpiCard
                 label="Total PO's"
                 value={officialOutcomes.length}
@@ -393,7 +448,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts }: MapBriefP
                 ].filter(Boolean).join(' · ') || 'Program Outcomes'}
               />
             )}
-            {!dedupeCoreCounts && (
+            {!skipTiles.has('peos') && (
               <KpiCard
                 label="Total PEO's"
                 value={peos.length}

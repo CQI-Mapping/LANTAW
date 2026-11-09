@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
 import {
   fetchCourses,
+  fetchCourseLearningOutcomePoolForMap,
   fetchCourseLearningOutcomesStandalone,
 } from '../../services/database'
 import type {
@@ -23,7 +24,7 @@ import MapPreview from '../../components/MapPreview'
 import { useClock } from '../../hooks/useClock'
 import { localISODate, timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
-import { groupOutcomesBySubject, ownFigures, weeklyEditTrend } from '../../utils/facultyDashboard'
+import { groupOutcomesBySubject, ownFigures, subjectsCovered, weeklyEditTrend } from '../../utils/facultyDashboard'
 import type { EditWeek } from '../../utils/facultyDashboard'
 
 interface DashboardProps {
@@ -191,6 +192,11 @@ function EditTrend({ weeks }: { weeks: EditWeek[] }) {
 function Dashboard({ profile, onNavigate }: DashboardProps) {
   const [courses, setCourses] = useState<Course[]>([])
   const [clos, setClos] = useState<CourseLearningOutcomeStandalone[]>([])
+  // The whole outcome pool — own rows plus every colleague's — backing the
+  // "Subjects covered" headline, so the tile counts the program's ground,
+  // not just this account's. Falls back to the owner-scoped rows (and to a
+  // colleagues-free subtitle) until migration 019 installs map_outcome_pool.
+  const [poolClos, setPoolClos] = useState<CourseLearningOutcomeStandalone[]>([])
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
   const [viewItem, setViewItem] = useState<CourseLearningOutcomeStandalone | null>(null)
@@ -199,12 +205,19 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
   const lastLoad = useRef(0)
   const load = useCallback(async (opts: { silent?: boolean } = {}) => {
     try {
-      const [courses, outs] = await Promise.all([
+      const [courses, outs, pool] = await Promise.all([
         fetchCourses(),
         fetchCourseLearningOutcomesStandalone(),
+        fetchCourseLearningOutcomePoolForMap().catch((e) => {
+          // Without migration 019 the RPC is missing: count this account's
+          // rows only and let the subtitle drop the colleagues clause.
+          console.warn('map_outcome_pool unavailable; coverage counts you only:', e?.message)
+          return fetchCourseLearningOutcomesStandalone()
+        }),
       ])
       setCourses(courses)
       setClos(outs)
+      setPoolClos(pool)
       setFailed(false)
       lastLoad.current = Date.now()
     } catch {
@@ -242,6 +255,11 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
   const ready = !loading && !failed
   const pending = loading ? 'Loading…' : 'Unavailable right now'
   const figures = useMemo(() => ownFigures(clos, courses, now), [clos, courses, now])
+  // Program ground: subjects any faculty member actively covers, and how
+  // many of those come from colleagues alone. The pool carries this
+  // account's rows too, so colleagues is pool minus personal.
+  const poolCovered = useMemo(() => subjectsCovered(poolClos, courses), [poolClos, courses])
+  const colleagueCovered = Math.max(0, poolCovered - figures.covered)
   const trend = useMemo(() => weeklyEditTrend(clos, now), [clos, now])
   const subjects = useMemo(() => groupOutcomesBySubject(clos, courses), [clos, courses])
   const name = profile?.nickname || profile?.full_name || profile?.email?.split('@')[0] || 'Welcome'
@@ -298,12 +316,14 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
           }
           tone="#4d7c0f"
           label="Subjects covered"
-          value={ready ? figures.covered : '—'}
+          value={ready ? poolCovered : '—'}
           sub={
             !ready
               ? pending
               : courses.length > 0
-                ? `of the ${courses.length} subject${courses.length === 1 ? '' : 's'} in the curriculum`
+                ? colleagueCovered > 0
+                  ? `you cover ${figures.covered} · colleagues cover ${colleagueCovered} of the ${courses.length} subjects`
+                  : `you cover ${figures.covered} of the ${courses.length} subjects in the curriculum`
                 : 'No subjects in the program yet'
           }
         />
@@ -347,7 +367,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
       <MapPreview profile={profile} onNavigate={onNavigate} />
 
       <section className="fac-program">
-        <MapBrief profile={profile} onNavigate={onNavigate} />
+        <MapBrief profile={profile} onNavigate={onNavigate} hideTiles={['programs', 'pos', 'peos']} />
       </section>
 
       <div className="fac-main">

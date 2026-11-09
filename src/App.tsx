@@ -238,6 +238,12 @@ function App() {
   // form's own archived check.
   const [signOutNotice, setSignOutNotice] = useState<string | null>(null)
 
+  // One-shot request from the dead-link screen: reopen the sign-in card on
+  // its "Forgot password" view so a fresh link is self-service too. Login
+  // consumes the flag on mount (its view state moves on), so the next plain
+  // visit shows Sign in again.
+  const [forgotRequested, setForgotRequested] = useState(false)
+
   // Failed auth returns. A bounced OAuth round-trip or a dead recovery link
   // lands back on this origin carrying ?error= / #error_description= in the
   // address bar. App reads them exactly once, renders the verdict, and wipes
@@ -444,12 +450,22 @@ function App() {
         onBackToLogin={() => {
           setExpiredResetLink(false)
         }}
+        onResendLink={() => {
+          setExpiredResetLink(false)
+          setForgotRequested(true)
+        }}
       />
     )
   }
 
   if (!session) {
-    return <Login notice={signOutNotice ?? oauthNotice} />
+    return (
+      <Login
+        notice={signOutNotice ?? oauthNotice}
+        forgotRequested={forgotRequested}
+        onForgotHandled={() => setForgotRequested(false)}
+      />
+    )
   }
 
   // Mid-recovery → the Set-a-new-password screen alone, with no app shell and

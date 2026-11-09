@@ -1,5 +1,5 @@
 
-Design and development of a data-driven CQI monitoring system for curriculum mapping and outcomes alignment. Built on a role-based web app starter (React + Vite + Supabase) with three roles — **admin**, **manager**, and **user** — each with their own navigation, pages, and permissions enforced at both the UI and the database (Row Level Security) level.
+Design and development of **LANTAW** — a data-driven system for curriculum mapping and outcomes alignment. Built on a role-based web app starter (React + Vite + Supabase) with three roles — **admin**, **manager**, and **user** — each with their own navigation, pages, and permissions enforced at both the UI and the database (Row Level Security) level.
 
 This README is a full development reference: how to set the project up, how the database and service layer work, and how to extend the system with new role-restricted features.
 
@@ -34,7 +34,7 @@ The system uses three application roles, each mapped to the people who actually 
 |---|---|
 | Build tool | Vite 8 |
 | Framework | React 18 (function components + hooks) |
-| Tests | Vitest 2 — 335 unit tests (`npm test`) |
+| Tests | Vitest 2 — 342 unit tests (`npm test`) |
 | Styling | Plain CSS with CSS custom properties in `src/index.css` |
 | Graph | d3 7 — Subject Graph (`admin/Map.tsx`) |
 | Documents | ExcelJS (TOS workbooks), `docx` (Word syllabus exports), `jspdf` + `html2canvas` (report PDFs), `xlsx` (report workbooks) |
