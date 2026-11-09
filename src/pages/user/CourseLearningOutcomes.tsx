@@ -549,7 +549,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
           <span style={{ fontSize: 12, color: '#64748b', width: '100%' }}>
-            Suggested POs for this draft.
+            Suggestions are triggered by the Description above.
           </span>
           {editDisplay.map((r) => (
             <span key={r.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
@@ -718,7 +718,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         {createDisplay.length > 0 ? (
           <div className="field" style={{ marginTop: -4 }}>
             <span style={{ fontSize: 12, color: '#64748b' }}>
-              Suggested POs for this draft.
+              Suggestions are triggered by the Description above.
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               {createDisplay.map((r) => (
