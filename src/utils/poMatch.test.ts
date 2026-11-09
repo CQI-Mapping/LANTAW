@@ -95,4 +95,13 @@ describe('letter-salad guard (realContentTokens)', () => {
   it('pure letter salad yields zero real words', () => {
     expect(realContentTokens('sdasdsdfsjdvsjdvbsdj adhiucsfviurhvusvnseic')).toHaveLength(0)
   })
+
+  it('the follow-up screenshot draft is gated to one real word (needs two)', () => {
+    // b02.jpg: chips still showed for this salad after the shape rule landed.
+    // Trace: lkmx… (8-run, fails), opokomwpomwp (all runs ≤3, passes), and
+    // mionoimpmowpmq (tail "wpmq" 4-run, fails) => 1 real token; the page
+    // gate requires 2, so the chips can only come from a stale bundle.
+    const draft = "lkmxkvkkpoijij-opokomwpomwp';:p;l[p(|mionoimpmowpmq|"
+    expect(realContentTokens(draft)).toHaveLength(1)
+  })
 })
