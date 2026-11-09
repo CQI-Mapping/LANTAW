@@ -7388,6 +7388,25 @@ button.reports-panel__more:hover {
   min-width: 220px;
 }
 
+/* Selected PO description strip — the row under the two map selects showing
+   the picked Program Outcome's official text. Same pill styling as the
+   filter bar itself, since one row of the same controls family. */
+.subject-view__po-desc {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.subject-view__po-desc b {
+  color: var(--text);
+  white-space: nowrap;
+}
+
 .subject-view__graph-actions {
   display: flex;
   gap: 6px;

@@ -1643,6 +1643,14 @@ export default function SubjectView() {
     return { pos: map.pos }
   }, [datasets, rootType, selectedCurriculum, buildCurriculumMapModel])
 
+  // The picked PO's full record (code + official text) for the description
+  // strip under the map selects — empty when "— All outcomes —" is chosen or
+  // when the filters aren't on the page at all (any non-curriculum root).
+  const selectedMapPo = useMemo(() => {
+    if (rootType !== 'curriculum' || !mapPoId) return null
+    return mapFilterOptions.pos.find((p) => p.id === mapPoId) ?? null
+  }, [rootType, mapPoId, mapFilterOptions])
+
   // Unique node counts per kind once a graph is on screen (used in the legend).
   const graphStats = useMemo(() => {
     if (!datasets) return null
@@ -3490,42 +3498,53 @@ export default function SubjectView() {
                   one sticky control bar. */}
               <div className="subject-view__graph-controls">
               {rootType === 'curriculum' && (
-                <div className="subject-view__map-filters">
-                  <label>
-                    <b>1. Curriculum:</b>
-                    <select
-                      className="input input--sm"
-                      value={selectedCurriculumId ?? ''}
-                      onChange={(e) => {
-                        // A picker press is a manual pick: it may name a year
-                        // no subject carries, and it survives refreshes.
-                        manualPickRef.current = true
-                        setSelectedCurriculumId(e.target.value || null)
-                        // A fresh curriculum starts unfiltered; the page keeps
-                        // its fullscreen state since the map stays on screen.
-                        setMapPoId('')
-                        setMapCloId('')
-                      }}
-                    >
-                      {allCurricula.map((r) => (
-                        <option key={r.id} value={r.id}>{curriculumLabel(r)}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <b>2. Program Outcomes (PO):</b>
-                    <select
-                      className="input input--sm"
-                      value={mapPoId}
-                      onChange={(e) => { setMapPoId(e.target.value); setMapCloId('') }}
-                    >
-                      <option value="">— All outcomes —</option>
-                      {mapFilterOptions.pos.map((p) => (
-                        <option key={p.id} value={p.id}>{poCode(p.code)}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <>
+                  <div className="subject-view__map-filters">
+                    <label>
+                      <b>1. Curriculum:</b>
+                      <select
+                        className="input input--sm"
+                        value={selectedCurriculumId ?? ''}
+                        onChange={(e) => {
+                          // A picker press is a manual pick: it may name a year
+                          // no subject carries, and it survives refreshes.
+                          manualPickRef.current = true
+                          setSelectedCurriculumId(e.target.value || null)
+                          // A fresh curriculum starts unfiltered; the page keeps
+                          // its fullscreen state since the map stays on screen.
+                          setMapPoId('')
+                          setMapCloId('')
+                        }}
+                      >
+                        {allCurricula.map((r) => (
+                          <option key={r.id} value={r.id}>{curriculumLabel(r)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <b>2. Program Outcomes (PO):</b>
+                      <select
+                        className="input input--sm"
+                        value={mapPoId}
+                        onChange={(e) => { setMapPoId(e.target.value); setMapCloId('') }}
+                      >
+                        <option value="">— All outcomes —</option>
+                        {mapFilterOptions.pos.map((p) => (
+                          <option key={p.id} value={p.id}>{poCode(p.code)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {selectedMapPo && (
+                    /* The picked outcome's official text (the row's title in
+                       admin_program_outcomes) right where the picker lives,
+                       so the reader sees what the narrowed map is looking at
+                       without opening the manager's Program Outcomes page. */
+                    <p className="subject-view__po-desc" aria-live="polite">
+                      <b>{poCode(selectedMapPo.code)}:</b> {selectedMapPo.title}
+                    </p>
+                  )}
+                </>
               )}
               <div className="subject-view__graph-toolbar">
                 <h3 className="subject-view__graph-title">{graphTitle}</h3>
