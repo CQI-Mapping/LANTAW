@@ -2090,15 +2090,16 @@ export default function SubjectView() {
     //    belonging to another curriculum (or a typo) stays silent.
     //
     //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
-    //    it is a classification — refined 2026-11-09 as "the gate is the
-    //    column immediately LEFT of the dependent's own column": IT38 (S2)
-    //    feeds from S1, the Summer pair feeds from S2. One carve-out: when
-    //    that left column is the Summer strip — which only happens for the
-    //    Yr4·S1 standing pair — the band collapses onto the same-column
-    //    cohort, excluding standing-gated siblings, so IT42/IT43 wire to
-    //    their peer IT41 rather than each other. When the PO filter dims a
-    //    side, its connectors dim with it so the filtered view never draws
-    //    loud links to ghosts.
+    //    it is a classification — refined 2026-11-09 (final) as "the gate is
+    //    the column immediately LEFT of the dependent's own column": IT38
+    //    (S2) feeds from S1, the Summer pair from S2, and IT44's "100% of
+    //    the Profession Subjects are Taken" from the Yr4·S1 cohort. One
+    //    carve-out: when that left column is the Summer strip — which only
+    //    happens for the Yr4·S1 standing pair — the band collapses onto the
+    //    same-column cohort, excluding standing-gated siblings, so IT42/IT43
+    //    wire to their peer IT41 rather than each other. When the
+    //    PO filter dims a side, its connectors dim with it so the filtered
+    //    view never draws loud links to ghosts.
     //
     // Press-to-reveal: while a dot is focused (mapFocusId), its forward
     // prerequisite chain — pressed subject through everything it eventually
@@ -2115,37 +2116,32 @@ export default function SubjectView() {
           prereqLinks.push({ from: target, to: n })
           continue
         }
-        const bandYear = standingPrereqYear(key)
-        const takesEverything = bandYear == null && everythingTakenPrereq(key)
-        if (bandYear == null && !takesEverything) continue
+        const isStandingBand = standingPrereqYear(key) != null || everythingTakenPrereq(key)
+        if (!isStandingBand) continue
         if (nCol < 0) continue
         for (const src of nodes) {
           if (src === n || !src.year || !src.sem) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
           if (sCol < 0) continue
-          if (takesEverything) {
-            // "100% taken": every subject chronologically before the
-            // dependent's own term, no year cap.
-            if (sCol >= nCol) continue
+          // One band rule for the whole standing family (refined 2026-11-09,
+          // final): the gate is the column IMMEDIATELY LEFT of the dependent's
+          // own column — IT38 (S2) feeds from S1, the Summer pair from S2,
+          // and IT44's "100% of the Profession Subjects are Taken" from the
+          // Yr4·S1 cohort. The single carve-out: a dependent whose left
+          // column is the Summer strip (only the Yr4·S1 standing pair lands
+          // there) wires inside its own column instead, excluding itself and
+          // other standing-gated siblings — IT42/IT43 reach their peer IT41.
+          const leftIsSummer =
+            n.sem === 1 && colIndexOf(`y${n.year}s3`) === nCol - 1
+          if (leftIsSummer) {
+            if (sCol !== nCol) continue
+            const siblingStanding =
+              (src.prereqCodes ?? []).some(
+                (tok) => standingPrereqYear(tok) != null || everythingTakenPrereq(tok),
+              )
+            if (siblingStanding) continue
           } else {
-            // Standing (refined 2026-11-09): the gate is the column
-            // IMMEDIATELY LEFT of the dependent's own column — the semester
-            // that ends the roll-in (IT38 in S2 feeds from S1; the Summer
-            // pair feeds from S2). One confirmed carve-out: when that left
-            // column is the Summer strip (Yr4·S1 is the only such column),
-            // the band collapses onto the dependent's own column cohort,
-            // excluding itself and other standing-gated siblings — so
-            // IT42/IT43 wire to their peer IT41 rather than each other.
-            const leftIsSummer =
-              n.sem === 1 && colIndexOf(`y${n.year}s3`) === nCol - 1
-            if (leftIsSummer) {
-              if (sCol !== nCol) continue
-              const siblingStanding =
-                (src.prereqCodes ?? []).some((tok) => standingPrereqYear(tok) != null)
-              if (siblingStanding) continue
-            } else {
-              if (sCol !== nCol - 1) continue
-            }
+            if (sCol !== nCol - 1) continue
           }
           prereqLinks.push({ from: src, to: n, standing: true })
         }
