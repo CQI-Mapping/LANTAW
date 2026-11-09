@@ -47,7 +47,7 @@ import type {
   UserRole,
   CqiResult,
 } from '../../services/database'
-import { SCHOOL } from '../../utils/report'
+import { SCHOOL, isManagerCmCategory, isManagerOutcome } from '../../utils/report'
 import { saveBlob } from '../../utils/download'
 import { buildReportsPdf, overallReportPdfFileName } from '../../utils/reportsPdf'
 import type { ReportsPdfModel, MappingStatus } from '../../utils/reportsPdfModel'
@@ -227,7 +227,23 @@ function Reports({ profile, onNavigate }: ReportsProps) {
     () => (pos.length > 0 ? poOutcomes(pos, anchors) : []),
     [pos, anchors],
   )
-  const summary = alignmentSummary(outcomes)
+  const activeOutcomes = useMemo(() => outcomes.filter((o) => o.status === 'active'), [outcomes])
+  // The alignment figures report the OFFICIAL universe — the verbatim CMO
+  // read (manager-sourced rows in the recognised categories, active only),
+  // the same read the curriculum brief tiles and coverage chart count
+  // against — so the paper and the screen verify each other instead of the
+  // report counting off-page rows into "unanchored". A program holding no
+  // official rows yet falls back to the active set.
+  const officialOutcomes = useMemo(
+    () =>
+      poOutcomes(
+        pos.filter((r) => isManagerOutcome(r) && isManagerCmCategory(r)),
+        anchors,
+      ).filter((o) => o.status === 'active'),
+    [pos, anchors],
+  )
+  const chartUniverse = officialOutcomes.length > 0 ? officialOutcomes : activeOutcomes
+  const summary = alignmentSummary(chartUniverse)
 
   const programCourseList = useMemo(
     () => (program ? coursesInProgram(courses, program.id) : []),
@@ -256,7 +272,7 @@ function Reports({ profile, onNavigate }: ReportsProps) {
   // outcome names. clo_po_matrix holds no rows and nothing writes to it, so this
   // reads the codes out of the learning outcomes themselves -- see
   // utils/cloPoMapping.ts for why that is narrow enough to trust.
-  const mapping = useMemo(() => buildMappingReport(programClos, outcomes), [programClos, outcomes])
+  const mapping = useMemo(() => buildMappingReport(programClos, chartUniverse), [programClos, chartUniverse])
   const charted = useMemo(() => chartableOutcomes(mapping), [mapping])
   // The course a learning outcome belongs to, as a code: the gaps panel and
   // the network's node labels resolve the learning outcomes' course text
@@ -429,12 +445,6 @@ function Reports({ profile, onNavigate }: ReportsProps) {
             value: subjectCoverage.total === 0 ? '—' : `${subjectCoverage.percent}%`,
             sub: `(${subjectCoverage.fully} / ${subjectCoverage.total} subjects)`,
             tone: 'good',
-          },
-          {
-            label: 'Unmapped / Incomplete',
-            value: String(summary.unaligned + mapping.gaps.length),
-            sub: 'CLOs / Relationships',
-            tone: 'warn',
           },
           { label: 'CQI Actions', value: String(openCqiActions), sub: 'Open Recommendations', tone: 'good' },
         ],

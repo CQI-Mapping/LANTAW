@@ -36,7 +36,6 @@ import type {
   UserRole,
 } from '../services/database'
 import {
-  alignmentSummary,
   buildAnchors,
   courseOutcomes,
   coursesInProgram,
@@ -281,7 +280,13 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
     [pos, anchors],
   )
   const otherActiveOutcomes = activeOutcomes.length - officialOutcomes.length
-  const summary = alignmentSummary(activeOutcomes)
+  // The OFFICIAL universe — the verbatim CMO read, the 17-PO axis the
+  // Program Outcomes page offers — is what the coverage chart counts
+  // against; a program with no official rows yet falls back to the active
+  // set. The off-page rows (the "10 additional" qualifier discloses them
+  // above) stay out of the figures instead of inflating the axis with work
+  // the brief never offers to fix.
+  const chartUniverse = officialOutcomes.length > 0 ? officialOutcomes : activeOutcomes
 
   const programCourseList = useMemo(
     () => (program ? coursesInProgram(courses, program.id) : []),
@@ -313,14 +318,10 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
   // is a gap worth surfacing, not a silent match against nothing.
   const mapping = useMemo(() => buildMappingReport(programClos, activeOutcomes), [programClos, activeOutcomes])
 
-  // The coverage chart reads the OFFICIAL framework alone — the verbatim CMO
-  // read (officialOutcomes), the 17-PO axis the Program Outcomes page offers
-  // — and draws every PO as its own bar, gaps as 0% stubs. Mapping on the
-  // active union put the off-page rows into the count as well: 6 covered
-  // bars beside "21 outcomes no CLO reaches" hid the real sparse POs in a
-  // folded bar instead of naming them. A program with no official rows yet
-  // falls back to the active set, so the chart still draws something.
-  const chartUniverse = officialOutcomes.length > 0 ? officialOutcomes : activeOutcomes
+  // The tile's mapping reads the same official universe the chart and the
+  // alignment summary count against, so "X CLOs unmapped · Y outcomes
+  // unanchored" and the 17 stubs verify each other. The union mapping above
+  // still serves the hover details, which resolve a wider set of code claims.
   const chartMapping = useMemo(
     () => buildMappingReport(programClos, chartUniverse),
     [programClos, chartUniverse],
@@ -479,21 +480,6 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
                     : `(${subjectCoverage.fully} / ${subjectCoverage.total} subjects)`
               }
             />
-            {/* Gap tile for admin and manager oversight only: to a faculty
-                reader "unmapped / unanchored" is an unactionable accusation
-                (their own lists and the coverage tile already tell them
-                where the work stands), so the faculty brief skips it. */}
-            {profile?.role !== 'user' && (
-              <KpiCard
-                label="Unmapped / Incomplete"
-                value={summary.unaligned + mapping.gaps.length}
-                sub={
-                  pipelineEmpty
-                    ? `${summary.unaligned} unanchored outcomes · no CLOs yet`
-                    : `${mapping.gaps.length} CLOs unmapped · ${summary.unaligned} outcomes unanchored`
-                }
-              />
-            )}
           </div>
 
           {/* ---- slotted children between the tiles and the panels ---- */}
