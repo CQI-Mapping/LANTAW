@@ -4,7 +4,7 @@
 // calibration probe).
 
 import { describe, expect, it } from 'vitest'
-import { rankClosestPos, type PoText } from './poMatch'
+import { rankClosestPos, isWordLike, realContentTokens, type PoText } from './poMatch'
 import { buildGoldens, scoreAccuracy } from './poGolden'
 
 const POS: PoText[] = [
@@ -65,5 +65,34 @@ describe('golden accuracy (keyword baseline)', () => {
     )
     expect(acc.top3).toBeGreaterThanOrEqual(95)
     expect(acc.top1).toBeGreaterThanOrEqual(80)
+  })
+})
+
+describe('letter-salad guard (realContentTokens)', () => {
+  it('real outcome verbs pass the shape test', () => {
+    for (const w of ['analyze', 'complex', 'requirements', 'development', 'communicate', 'programming', 'systems'])
+      expect(isWordLike(w), w).toBe(true)
+  })
+
+  it('the user-reported keyboard mash fails the shape test', () => {
+    expect(isWordLike('sdasdsdfsjdvsjdvbsdj')).toBe(false)
+    expect(isWordLike('adhiucsfviurhvusvnseic')).toBe(false)
+  })
+
+  it('even the run-scattered mush fails once four consonants line up ("…wdsdaw sdw")', () => {
+    // "asdawasdawdsdawsdw" reads harmless char by char, but its tail
+    // "w-s-d-w" is a 4-long vowels-free run — the shape rule catches it by
+    // itself, no count gate needed.
+    expect(isWordLike('asdawasdawdsdawsdw')).toBe(false)
+    expect(realContentTokens('asdawasdawdsdawsdw')).toHaveLength(0)
+  })
+
+  it('counts real words in mixed drafts', () => {
+    expect(realContentTokens('Design and develop a software system')).toHaveLength(4)
+    expect(realContentTokens('Design sda1516 2026 evaluate')).toHaveLength(2)
+  })
+
+  it('pure letter salad yields zero real words', () => {
+    expect(realContentTokens('sdasdsdfsjdvsjdvbsdj adhiucsfviurhvusvnseic')).toHaveLength(0)
   })
 })
