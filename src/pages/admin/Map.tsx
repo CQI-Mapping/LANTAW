@@ -2090,13 +2090,12 @@ export default function SubjectView() {
     //    belonging to another curriculum (or a typo) stays silent.
     //
     //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
-    //    it is a classification — the subject may only be taken once the
-    //    whole standing-year band is cleared. It expands to a line from
-    //    every subject dot in years 1..N lying in a column strictly before
-    //    the dependent's own column. The strict compare keeps same-term
-    //    peers and later columns out — IT40 and MATH31N both sit in
-    //    3rd Year · Summer under "3rd Yr Standing", and without it they
-    //    would draw lines at each other inside the same column. When the
+    //    it is a classification — confirmed 2026-11-09 as "the standing year's
+    //    1st-Semester subjects are the gate". A standing year N expands to a
+    //    line from every dot in THAT year's 1st-Semester column, nothing
+    //    before or after — and never to the dependent's own column cohort, so
+    //    IT42/IT43 (themselves Yr4·S1 subjects) wire to their peer IT41
+    //    rather than criss-crossing the column they live in. When the
     //    PO filter dims a side, its connectors dim with it so the filtered
     //    view never draws loud links to ghosts.
     //
@@ -2121,9 +2120,19 @@ export default function SubjectView() {
         if (nCol < 0) continue
         for (const src of nodes) {
           if (src === n || !src.year || !src.sem) continue
-          if (bandYear != null && src.year > bandYear) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
-          if (sCol < 0 || sCol >= nCol) continue
+          if (sCol < 0) continue
+          if (takesEverything) {
+            // "100% taken": every subject chronologically before the
+            // dependent's own term, no year cap.
+            if (sCol >= nCol) continue
+          } else {
+            // Standing (confirmed 2026-11-09): the gate IS that year's
+            // 1st-Semester column, nothing before or after it — and a
+            // standing subject never wires to its own column's cohort,
+            // so IT42/IT43 reach IT41 rather than criss-crossing Yr4·S1.
+            if (src.year !== bandYear || src.sem !== 1 || sCol === nCol) continue
+          }
           prereqLinks.push({ from: src, to: n, standing: true })
         }
       }
