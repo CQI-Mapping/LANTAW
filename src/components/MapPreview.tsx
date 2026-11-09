@@ -212,7 +212,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     if (subjects.length === 0) return teardown
 
     const COL_W = 200
-    const ROW_H = 46
+    const ROW_H = 60
     const MARGIN_X = 70
     const RULE_Y = 30
     const FIRST_ROW_Y = 58
