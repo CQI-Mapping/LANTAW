@@ -54,7 +54,7 @@ import type {
   StrategicGoal,
   ChedMemoOrder,
 } from '../../services/database'
-import { normalizeCode, cloMatchesSubject, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
+import { normalizeCode, cloMatchesSubject, cloLabel, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
@@ -1011,7 +1011,7 @@ export default function SubjectView() {
       for (const clo of subjectClos) {
         const cloNode: GraphNodeData = {
           id: `clo-${clo.id}`,
-          code: clo.code,
+          code: cloLabel(clo.code) || clo.code,
           title: clo.description || clo.code,
           kind: 'clo',
           placeholder: false,
@@ -1152,7 +1152,7 @@ export default function SubjectView() {
       for (const clo of linkedClos) {
         const cloNode: GraphNodeData = {
           id: `clo-${clo.id}`,
-          code: clo.code,
+          code: cloLabel(clo.code) || clo.code,
           title: clo.description || clo.title || clo.code,
           kind: 'clo',
           placeholder: false,
@@ -2916,7 +2916,7 @@ export default function SubjectView() {
       rootType === 'subject' && selectedCourse
         ? { action: 'course.viewed', entity: 'course', entity_id: selectedCourse.id, label: `${selectedCourse.code} — ${selectedCourse.title}` }
         : rootType === 'clo' && selectedClo
-          ? { action: 'course_learning_outcome.viewed', entity: 'course_learning_outcome', entity_id: selectedClo.id, label: `${selectedClo.code} — ${selectedClo.description || ''}`.trim() }
+          ? { action: 'course_learning_outcome.viewed', entity: 'course_learning_outcome', entity_id: selectedClo.id, label: `${cloLabel(selectedClo.code) || selectedClo.code} — ${selectedClo.description || ''}`.trim() }
           : rootType === 'po' && selectedPo
             ? { action: 'program_outcome.viewed', entity: 'program_outcome', entity_id: selectedPo.id, label: `${selectedPo.code} — ${selectedPo.title}` }
             : rootType === 'peo' && selectedPeo
@@ -2968,7 +2968,7 @@ export default function SubjectView() {
   }
 
   const graphTitle = selectedCourse ? `${selectedCourse.code} — ${selectedCourse.title}`
-    : selectedClo ? `${selectedClo.code} — ${selectedClo.description || selectedClo.code}`
+    : selectedClo ? `${cloLabel(selectedClo.code) || selectedClo.code} — ${selectedClo.description || selectedClo.code}`
     : selectedPo ? `${selectedPo.code} — ${selectedPo.title || selectedPo.description}`
     : selectedPeo ? `${selectedPeo.code} — ${selectedPeo.title || selectedPeo.code}`
     : selectedSg ? `${selectedSg.code} — ${selectedSg.title || selectedSg.code}`
