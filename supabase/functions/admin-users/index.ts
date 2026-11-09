@@ -57,6 +57,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const ALLOWED_ORIGINS: readonly string[] = [
+  'https://cqi-mapping.vercel.app',
   'https://mapping.vercel.app',
   'http://localhost:5173',
 ]
