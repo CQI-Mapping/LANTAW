@@ -379,19 +379,20 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       }
     }
 
-    // Press-to-reveal: the pressed subject plus its FORWARD prerequisite
-    // chain — what it unlocks, and everything those unlock onward, through
-    // the semesters to the chain's end. The backward walk (the prereqs that
-    // unlock the pressed subject) stays out, matching Generate Map. Standing
-    // bands stay out of the walk too: they are standing-wide nets, and a
-    // chain that ran through them would light half the map for any press.
+    // Standing bands now run inside the walk too: they are real unlock
+    // relationships — a subject sitting inside a "3rd Yr Standing" band IS
+    // unlocked by everything in years 1..N before it — so a pressed subject's
+    // forward chain keeps going into the standing dots (IT38, IT40, MATH31N)
+    // and marches on through them to the standalone standers further right,
+    // instead of the story dying at the last code link. Every band member
+    // crackdown lights its own band edge, so the reaching web into each
+    // standing subject reads as the fan it is.
     const focusDot = focusId ? dots.find((d) => d.courseId === focusId) ?? null : null
     const chainIds = new Set<string>()
     if (focusDot) {
       chainIds.add(focusDot.id)
       const unlocks = new Map<string, string[]>()
-      for (const { from, to, standing } of prereqLinks) {
-        if (standing) continue
+      for (const { from, to } of prereqLinks) {
         unlocks.set(from.id, [...(unlocks.get(from.id) ?? []), to.id])
       }
       const queue = [focusDot.id]

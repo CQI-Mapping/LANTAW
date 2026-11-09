@@ -2138,10 +2138,7 @@ export default function SubjectView() {
     if (focusNode) {
       focusPeerIds.add(focusNode.id)
       const unlocks = new Map<string, string[]>()
-      for (const { from, to, standing } of prereqLinks) {
-        // Standing bands stay out of the walk: they are standing-wide nets,
-        // and a chain that ran through them would light half the map.
-        if (standing) continue
+      for (const { from, to } of prereqLinks) {
         unlocks.set(from.id, [...(unlocks.get(from.id) ?? []), to.id])
       }
       const queue = [focusNode.id]
