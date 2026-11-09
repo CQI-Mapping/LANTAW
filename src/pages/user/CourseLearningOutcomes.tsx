@@ -422,7 +422,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // keyword ranker, so nothing renders — chips or the no-match hint — until
   // the description reaches DRAFT_MIN characters. The semantic engine
   // shares this floor.
-  const DRAFT_MIN = 15
+  const DRAFT_MIN = 35
   const createClosest = form.description.trim().length >= DRAFT_MIN
     ? rankClosestPos(form.description, poTexts, Math.max(3, poTexts.length))
     : []
