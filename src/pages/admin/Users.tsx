@@ -20,7 +20,7 @@
 import { useState, useEffect } from 'react'
 import Icon from '../../components/icons'
 import { useDraft } from '../../hooks/useDraft'
-import { adminCreateUser, adminDeleteUser, adminResendInvite, addActivityLog, fetchAllProfilesWithProgram, fetchPrograms, profileProgramOf, updateProfile, updateUserProgram, updateUserRole, updateUserStatus } from '../../services/database'
+import { adminCreateUser, adminDeleteUser, adminResendInvite, addActivityLog, fetchAllProfilesWithProgram, fetchPrograms, profileProgramOf, updateUserProgram, updateUserRole, updateUserStatus } from '../../services/database'
 import { isActive } from '../../utils/report'
 import { MIN_PASSWORD_LENGTH, passwordVariety, suggestStrongPassword } from '../../utils/passwordPolicy'
 import { supabase } from '../../utils/supabaseClient'
@@ -31,15 +31,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   manager: 'Manager',
   user: 'Faculty',
 }
-
-/** Same caps the Profile page's display-name editor stamps on the fields —
-    fixing someone's name here must never exceed what they could set there. */
-const NAME_MAX_LENGTH = 80
-const NICKNAME_MAX_LENGTH = 40
-
-/** Academic context is admin-only territory (migration 013) — generous caps
-    since a designation like "Department Chairperson" is a mouthful. */
-const ACADEMIC_MAX_LENGTH = 100
 
 // GoTrue's vague blanket error for a failed account INSERT. Everything in the
 // creation transaction is already verified working by the time it reaches the
@@ -102,8 +93,12 @@ export default function Users() {
   // placeholder name like "test") without waiting for that user to sign in
   // and fix their own Profile page. Mirrors the Program page's modal.
   const [editingUser, setEditingUser] = useState<ProfileWithProgram | null>(null)
-  const [editForm, setEditForm] = useState<{ fullName: string; nickname: string; department: string; designation: string; role: UserRole; programId: string }>(
-    { fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' },
+  // The edit modal changes the ROLE and the PROGRAM they scope — only. The
+  // identity fields (name, nickname, department, designation) render as a
+  // read-only strip: the display name and nickname belong to the holder's
+  // own Profile page.
+  const [editForm, setEditForm] = useState<{ role: UserRole; programId: string }>(
+    { role: 'user', programId: '' },
   )
   const [editBusy, setEditBusy] = useState(false)
 
@@ -347,17 +342,12 @@ export default function Users() {
 
   // ----- Fix profile -----
 
-  // Seeded from the row so the fields open pre-filled, exactly the identity
-  // the user sees on their own Profile page. Role + program join the form
-  // so they only surface inside this modal — the table itself reads
-  // read-only.
+  // Seeded from the row: the modal opens on the role + program the account
+  // already carries (the two fields it can change) and reads the identity
+  // fields straight off the row, read-only.
   const openEdit = (u: ProfileWithProgram) => {
     setEditingUser(u)
     setEditForm({
-      fullName: u.full_name || '',
-      nickname: u.nickname ?? '',
-      department: u.department ?? '',
-      designation: u.designation ?? '',
       role: u.role,
       programId: profileProgramOf(u)?.id ?? '',
     })
@@ -367,25 +357,19 @@ export default function Users() {
     // Mid-save the modal must stay put: the save writes the fields it shows.
     if (editBusy) return
     setEditingUser(null)
-    setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
+    setEditForm({ role: 'user', programId: '' })
   }
 
-  // Saves the repaired identity through the same updateProfile the Profile
-  // page uses. RLS lets admins update any profile row, and the edit-guard
-  // trigger (migration 013) allows admins to repair OTHER people's academic
-  // fields — a user could never send department/designation through here.
-  // Nickname follows the Profile page's normalization: trimmed, and empty
-  // becomes null rather than an empty string in the DB. Role and program
-  // changes ride the same Save — they only exist inside this modal, so
-  // there is no always-on select to misuse in the table.
+  // Saves the ROLE and the PROGRAM — only. The identity strip above the
+  // selects shows who the account is, read-only: the display name and
+  // nickname belong to the holder's own Profile page, and the academic pair
+  // keeps what the row records. Role changes ride updateUserRole — the same
+  // call the table's inline select fires; program changes ride
+  // updateUserProgram. Pressing Save with both already matching reports so
+  // instead of logging phantom changes.
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
-    const name = editForm.fullName.trim()
-    if (!name) return
-    const nickname = editForm.nickname.trim()
-    const department = editForm.department.trim()
-    const designation = editForm.designation.trim()
     const nextRole = editForm.role
     const nextProgramId = nextRole === 'admin' ? '' : editForm.programId
     if (editingUser.email === currentEmail && nextRole !== editingUser.role) {
@@ -396,14 +380,11 @@ export default function Users() {
     setEditBusy(true)
     let saved = false
     try {
-      await updateProfile(editingUser.id, {
-        full_name: name,
-        nickname: nickname || null,
-        department: department || null,
-        designation: designation || null,
-      })
-      // Role change: same updateUserRole the table used to fire inline.
-      if (nextRole !== editingUser.role) {
+      const roleChanged = nextRole !== editingUser.role
+      // Program change (admins skip — they span every program).
+      const prevProgramId = profileProgramOf(editingUser)?.id ?? ''
+      const programChanged = nextRole !== 'admin' && nextProgramId !== prevProgramId
+      if (roleChanged) {
         const updated = await updateUserRole(editingUser.id, nextRole)
         if (nextRole === 'admin') await updateUserProgram(editingUser.id, null)
         await addActivityLog('role.updated', {
@@ -414,20 +395,12 @@ export default function Users() {
         setUsers((prev) =>
           prev.map((u) =>
             u.id === editingUser.id
-              ? { ...u, ...updated, full_name: name, nickname: nickname || null, program_id: nextRole === 'admin' ? null : u.program_id }
+              ? { ...u, ...updated, program_id: nextRole === 'admin' ? null : u.program_id }
               : u,
           ),
         )
-      } else {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id ? { ...u, full_name: name, nickname: nickname || null } : u,
-          ),
-        )
       }
-      // Program change (admins skip — they span every program).
-      const prevProgramId = profileProgramOf(editingUser)?.id ?? ''
-      if (nextRole !== 'admin' && nextProgramId !== prevProgramId) {
+      if (programChanged) {
         const assigned = nextProgramId ? programs.find((p) => p.id === nextProgramId) ?? null : null
         await updateUserProgram(editingUser.id, nextProgramId || null)
         await addActivityLog('user.program_assigned', {
@@ -437,19 +410,18 @@ export default function Users() {
         })
         await loadUsers()
       }
-      await addActivityLog('user.profile_updated', {
-        entity: 'user',
-        entity_id: editingUser.id,
-        label: `${editingUser.email} → ${name}`,
-      })
       setSuccess(
-        nickname
-          ? `Profile of ${editingUser.email} fixed — reports will show ${name} "${nickname}".`
-          : `Profile of ${editingUser.email} fixed — reports will show ${name}.`,
+        roleChanged && programChanged
+          ? `${ROLE_LABELS[nextRole]} role set for ${editingUser.email} — program assignment updated.`
+          : roleChanged
+            ? `Role updated to ${ROLE_LABELS[nextRole]} for ${editingUser.email}.`
+            : programChanged
+              ? `Program assignment updated for ${editingUser.email}.`
+              : `Nothing changed — role and program already match for ${editingUser.email}.`,
       )
       saved = true
     } catch (e) {
-      setError('Failed to update profile: ' + (e instanceof Error ? e.message : String(e)))
+      setError('Failed to update account: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setEditBusy(false)
     }
@@ -457,7 +429,7 @@ export default function Users() {
     // read against the fields that produced it.
     if (saved) {
       setEditingUser(null)
-      setEditForm({ fullName: '', nickname: '', department: '', designation: '', role: 'user', programId: '' })
+      setEditForm({ role: 'user', programId: '' })
     }
   }
 
@@ -792,70 +764,25 @@ export default function Users() {
         )}
       </div>
 
-      {/* Fix profile — same modal the Programs page uses. Fields mirror the
-          Profile page's display-name editor (same caps, same nickname
-          normalization), so what the admin sets here is exactly what the
-          user could have set themselves. */}
+      {/* Edit account — the same modal the Programs page uses, scoped to
+          what an edit here may change: the ROLE and the PROGRAM they scope.
+          The identity fields print read-only so the admin can still tell
+          who the row is; name and nickname belong to the holder's Profile
+          page, and the academic pair keeps what the row records. */}
       {editingUser && (
         <div className="modal-overlay" onClick={closeEdit}>
           <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modal__header">
-              <h3>Edit profile</h3>
+              <h3>Edit account</h3>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{editingUser.email}</p>
             </div>
             <form onSubmit={handleEditSubmit}>
               <div className="modal__body">
-                <div className="modal__grid-2">
-                  <label className="field" style={{ marginBottom: 0 }}>
-                    <span>Full name</span>
-                    <input
-                      className="input input--sm"
-                      type="text"
-                      placeholder="Juan Dela Cruz"
-                      value={editForm.fullName}
-                      maxLength={NAME_MAX_LENGTH}
-                      onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
-                      required
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 0 }}>
-                    <span>Nickname</span>
-                    <input
-                      className="input input--sm"
-                      type="text"
-                      placeholder='optional — e.g. "Bebot"'
-                      autoComplete="off"
-                      value={editForm.nickname}
-                      maxLength={NICKNAME_MAX_LENGTH}
-                      onChange={(e) => setEditForm((f) => ({ ...f, nickname: e.target.value }))}
-                    />
-                  </label>
-                </div>
-                <div className="modal__grid-2" style={{ marginTop: 12 }}>
-                  <label className="field" style={{ marginBottom: 0 }}>
-                    <span>Academic department</span>
-                    <input
-                      className="input input--sm"
-                      type="text"
-                      placeholder="e.g. Institute of Computer Studies"
-                      autoComplete="off"
-                      value={editForm.department}
-                      maxLength={ACADEMIC_MAX_LENGTH}
-                      onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))}
-                    />
-                  </label>
-                  <label className="field" style={{ marginBottom: 0 }}>
-                    <span>Position / designation</span>
-                    <input
-                      className="input input--sm"
-                      type="text"
-                      placeholder="e.g. Instructor I"
-                      autoComplete="off"
-                      value={editForm.designation}
-                      maxLength={ACADEMIC_MAX_LENGTH}
-                      onChange={(e) => setEditForm((f) => ({ ...f, designation: e.target.value }))}
-                    />
-                  </label>
+                <div style={{ fontSize: 12.5, color: '#475569', background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                  <div><strong style={{ color: '#334155' }}>Full name:</strong> {editingUser.full_name || '—'}</div>
+                  {editingUser.nickname && <div><strong style={{ color: '#334155' }}>Nickname:</strong> "{editingUser.nickname}"</div>}
+                  {editingUser.department && <div><strong style={{ color: '#334155' }}>Academic department:</strong> {editingUser.department}</div>}
+                  {editingUser.designation && <div><strong style={{ color: '#334155' }}>Position / designation:</strong> {editingUser.designation}</div>}
                 </div>
                 <div className="modal__grid-2" style={{ marginTop: 12 }}>
                   <label className="field" style={{ marginBottom: 0 }}>
@@ -889,16 +816,16 @@ export default function Users() {
                   </label>
                 </div>
                 <p className="au__cred-note" style={{ marginTop: 10 }}>
-                  Reports and audit logs use the full name; the nickname shows in quotes. Department and designation
-                  are admin-managed — the account holder sees them read-only on their Profile.
+                  This modal changes the role and the program only. The display name and the nickname are the holder's to set on their own Profile page.
                   {editForm.role === 'admin' && ' Admins span every program — the assignment is cleared on save.'}
+                  {!isActive(editingUser) && ' This account is archived — restore it before changing its scope.'}
                 </p>
               </div>
               <div className="modal__footer">
                 <button type="button" className="btn btn--ghost btn--sm" onClick={closeEdit} disabled={editBusy}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn--primary btn--sm" disabled={editBusy || !editForm.fullName.trim()}>
+                <button type="submit" className="btn btn--primary btn--sm" disabled={editBusy}>
                   {editBusy ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
