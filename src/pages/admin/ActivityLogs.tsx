@@ -217,9 +217,11 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
     // entries only, and this filter keeps the page honest even before that
     // migration has been applied — manager, admin and unattributable ("Unknown")
     // rows never render for a manager, whichever side of the migration the
-    // database is on.
+    // database is on. The admin carries no such clause: their RLS reads every
+    // row, so the table and the "Who's been active" rollup show all three
+    // tiers and the Admins/Managers/Faculty options each return what they name.
     const roleOk = (e: ActivityLogEntry) =>
-      (!isAdminViewer || roleOf(e.user_email) === 'user') &&
+      (isAdminViewer || roleOf(e.user_email) === 'user') &&
       (!roleFilter || roleOf(e.user_email) === roleFilter)
 
     const q = search.trim().toLowerCase()
