@@ -3,7 +3,7 @@
 // the program-outcomes string is stored in the `title` column.
 // Owned by the `user` role — the admin no longer has this page.
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useEntityCrud } from '../admin/curriculum/useEntityCrud.js'
 import { useViewMode } from '../../hooks/useViewMode'
 import ViewModeToggle from '../../components/ViewModeToggle'
@@ -115,6 +115,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Null = model not loaded / failed — the keyword-only floor keeps suggesting.
   const [createSemantic, setCreateSemantic] = useState<RankedPo[] | null>(null)
   const [editSemantic, setEditSemantic] = useState<RankedPo[] | null>(null)
+
+  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [])
 
   const isActive = (i: CourseLearningOutcomeStandalone) => !i.status || i.status === 'active'
   // A CLO's place in the curriculum — its year and term — comes from its
@@ -405,6 +411,13 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return parts.join(', ')
   }
 
+  // The suggestion chip's body text: the outcome's official wording (the
+  // title the Curriculum Mapping rows carry — the same text the map's
+  // description strip prints). Codes match by construction: chips rank the
+  // same poTexts list the reference panel reads.
+  const poChipText = (code: string) =>
+    poTexts.find((t) => (t.code || '').trim().toLowerCase() === (code || '').trim().toLowerCase())?.title ?? ''
+
   // Suggestions wait for real content: short drafts score trivia in the
   // keyword ranker, so nothing renders — chips or the no-match hint — until
   // the description reaches DRAFT_MIN characters. The semantic engine
@@ -538,7 +551,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="CLO Code (e.g. 1)" />
         </div>
       </div>
-      <input className="input input--sm" type="text" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description" />
+      <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
       <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
@@ -558,6 +571,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                     background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
                   }} />
                 </span>
+                {poChipText(r.code) && (
+                  <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
+                    {poChipText(r.code)}
+                  </span>
+                )}
               </button>
               <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
                 aria-label={`Reject ${r.code} for this description`}
@@ -696,8 +714,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </label>
         <label className="field">
           <span>Description</span>
-          <input className="input input--sm" type="text" placeholder="e.g. Compare and contrast..." value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <textarea className="input input--sm" rows={2} placeholder="e.g. Compare and contrast..." ref={autoResize}
+            value={form.description}
+            onChange={(e) => { setForm({ ...form, description: e.target.value }); autoResize(e.target) }} />
         </label>
         <label className="field">
           <span>Program Outcomes</span>
@@ -727,6 +746,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                         background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
                       }} />
                     </span>
+                    {poChipText(r.code) && (
+                      <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
+                        {poChipText(r.code)}
+                      </span>
+                    )}
                   </button>
                   <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
                     aria-label={`Reject ${r.code} for this description`}
