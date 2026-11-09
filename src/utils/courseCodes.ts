@@ -9,6 +9,22 @@
 export const normalizeCode = (code: string) =>
   code.trim().toUpperCase().replace(/[\s\-–—._/,]+/g, '')
 
+// ── Standing-typed prerequisites ──
+// Some prerequisites name a classification, not a subject: "3rd Yr. Standing",
+// "3rd Yr Standing", "3rd Year Standing", "4th Yr Standing". Normalized they
+// all collapse to one shape ("3RDYRSTANDING"), so a typed token is enough to
+// recognize every spelling the courses table actually stores. Returns the
+// standing year (1–6) when the token IS a standing requirement, null when it
+// is an ordinary course code. The two curriculum maps use this to expand a
+// standing band into connector lines from every subject in years 1..N that
+// falls before the dependent subject's own term.
+export const standingPrereqYear = (token: string): number | null => {
+  const m = normalizeCode(token).match(/^(\d+)(?:ST|ND|RD|TH)?(?:YR|YEARS?)STANDING$/)
+  if (!m) return null
+  const year = Number(m[1])
+  return year >= 1 && year <= 6 ? year : null
+}
+
 // ── Pre-/co-requisite reference helpers shared by the report and the graph ──
 // References are free text ("IT13", "IT13 - Fundamentals of Programming 2"),
 // so each token is resolved to "CODE - Title" from the loaded course list and

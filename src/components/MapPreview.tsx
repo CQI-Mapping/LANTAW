@@ -20,7 +20,7 @@ import {
   fetchResources,
 } from '../services/database'
 import type { Program, Course, Resource, UserRole } from '../services/database'
-import { normalizeCode } from '../utils/courseCodes'
+import { normalizeCode, standingPrereqYear } from '../utils/courseCodes'
 import { CURRENT_SY_START, labelSchoolYearStart } from '../utils/schoolYear'
 
 /** Stands in for program assignments the account may not carry yet — the same
@@ -47,8 +47,9 @@ type PreviewSubject = {
   prereqCodes: string[]
 }
 
-/** A drawn dot — position, color and the normalized prerequisite hooks the
- *  connectors read. Same shape as Map.tsx's MapNode minus the filter fields. */
+/** A drawn dot — position, color, term placement and the normalized
+ *  prerequisite hooks the connectors read. Same shape as Map.tsx's MapNode
+ *  minus the filter fields. */
 interface PreviewDot {
   id: string
   code: string
@@ -58,6 +59,8 @@ interface PreviewDot {
   x: number
   y: number
   r: number
+  year: number | null
+  sem: number | null
   prereqCodes: string[]
 }
 
@@ -333,35 +336,62 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
           x: x0,
           y: y0 + i * ROW_H,
           r: 7,
+          year: s.year,
+          sem: s.sem,
           prereqCodes: s.prereqCodes,
         })
       })
     }
 
-    // Connectors: a solid amber line runs from every subject dot to the dot
-    // that unlocks it. Only prerequisites that exist as dots on this map
-    // connect — a code from another curriculum (or a typo) stays silent.
+    // Connector rules. Two kinds of line share the amber color:
+    //
+    //  - CODE links: from a subject dot to the dot whose code unlocks it.
+    //    Only prerequisites that exist as dots on this map connect — a code
+    //    from another curriculum (or a typo) stays silent.
+    //
+    //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
+    //    it is a classification — the subject may only be taken once a
+    //    student has cleared the whole standing-year band. It expands to a
+    //    line from every subject dot in years 1..N that falls in a column
+    //    strictly before the dependent's own column. The strict compare is
+    //    what keeps same-term peers and later columns out: IT40 and MATH31N
+    //    both sit in 3rd Year · Summer under "3rd Yr Standing", and without
+    //    it they would draw lines at each other inside the same column.
     const dotByCode = new Map<string, PreviewDot>()
     for (const d of dots) dotByCode.set(normalizeCode(d.code), d)
-    const prereqLinks: Array<{ from: PreviewDot; to: PreviewDot }> = []
+    const prereqLinks: Array<{ from: PreviewDot; to: PreviewDot; standing?: boolean }> = []
     for (const d of dots) {
+      const dCol = d.year && d.sem ? colIndexOf(`y${d.year}s${d.sem}`) : -1
       for (const key of d.prereqCodes) {
         const target = dotByCode.get(key)
-        if (!target || target.id === d.id) continue
-        prereqLinks.push({ from: target, to: d })
+        if (target && target.id !== d.id) {
+          prereqLinks.push({ from: target, to: d })
+          continue
+        }
+        const bandYear = standingPrereqYear(key)
+        if (bandYear == null || dCol < 0) continue
+        for (const src of dots) {
+          if (src === d || !src.year || !src.sem || src.year > bandYear) continue
+          const sCol = colIndexOf(`y${src.year}s${src.sem}`)
+          if (sCol < 0 || sCol >= dCol) continue
+          prereqLinks.push({ from: src, to: d, standing: true })
+        }
       }
     }
 
     // Press-to-reveal: the pressed subject plus its FORWARD prerequisite
     // chain — what it unlocks, and everything those unlock onward, through
     // the semesters to the chain's end. The backward walk (the prereqs that
-    // unlock the pressed subject) stays out, matching Generate Map.
+    // unlock the pressed subject) stays out, matching Generate Map. Standing
+    // bands stay out of the walk too: they are standing-wide nets, and a
+    // chain that ran through them would light half the map for any press.
     const focusDot = focusId ? dots.find((d) => d.courseId === focusId) ?? null : null
     const chainIds = new Set<string>()
     if (focusDot) {
       chainIds.add(focusDot.id)
       const unlocks = new Map<string, string[]>()
-      for (const { from, to } of prereqLinks) {
+      for (const { from, to, standing } of prereqLinks) {
+        if (standing) continue
         unlocks.set(from.id, [...(unlocks.get(from.id) ?? []), to.id])
       }
       const queue = [focusDot.id]

@@ -54,7 +54,7 @@ import type {
   StrategicGoal,
   ChedMemoOrder,
 } from '../../services/database'
-import { normalizeCode, cloMatchesSubject } from '../../utils/courseCodes'
+import { normalizeCode, cloMatchesSubject, standingPrereqYear } from '../../utils/courseCodes'
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
@@ -1945,6 +1945,8 @@ export default function SubjectView() {
       x: number
       y: number
       r: number
+      year?: number | null
+      sem?: number | null
       prereqCodes?: string[]
     }
 
@@ -2046,6 +2048,8 @@ export default function SubjectView() {
           x: x0,
           y: y0 + i * ROW_H,
           r: 7,
+          year: s.year,
+          sem: s.sem,
           prereqCodes: s.prereqCodes,
         })
       })
@@ -2079,12 +2083,22 @@ export default function SubjectView() {
         .attr('stroke', '#94a3b8').attr('stroke-width', 1).attr('vector-effect', 'non-scaling-stroke')
     }
 
-    // Prerequisite connectors: a solid amber line runs straight back from
-    // every subject dot to the dot that unlocks it, drawn under the dots so
-    // the nodes stay crisp above it. Only prerequisites that exist as dots
-    // on this map connect — a code belonging to another curriculum (or a
-    // typo) stays silent. When the PO filter dims a side, its connectors
-    // dim with it so the filtered view never draws loud links to ghosts.
+    // Prerequisite connectors. Two kinds of line share the solid amber look:
+    //
+    //  - CODE links run from every subject dot to the dot that unlocks it.
+    //    Only prerequisites that exist as dots on this map connect — a code
+    //    belonging to another curriculum (or a typo) stays silent.
+    //
+    //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
+    //    it is a classification — the subject may only be taken once the
+    //    whole standing-year band is cleared. It expands to a line from
+    //    every subject dot in years 1..N lying in a column strictly before
+    //    the dependent's own column. The strict compare keeps same-term
+    //    peers and later columns out — IT40 and MATH31N both sit in
+    //    3rd Year · Summer under "3rd Yr Standing", and without it they
+    //    would draw lines at each other inside the same column. When the
+    //    PO filter dims a side, its connectors dim with it so the filtered
+    //    view never draws loud links to ghosts.
     //
     // Press-to-reveal: while a dot is focused (mapFocusId), its forward
     // prerequisite chain — pressed subject through everything it eventually
@@ -2092,12 +2106,23 @@ export default function SubjectView() {
     // connector and dot fades to a whisper.
     const dotByCode = new Map<string, MapNode>()
     for (const n of nodes) dotByCode.set(normalizeCode(n.code), n)
-    const prereqLinks: Array<{ from: MapNode; to: MapNode }> = []
+    const prereqLinks: Array<{ from: MapNode; to: MapNode; standing?: boolean }> = []
     for (const n of nodes) {
+      const nCol = n.year && n.sem ? colIndexOf(`y${n.year}s${n.sem}`) : -1
       for (const key of n.prereqCodes ?? []) {
         const target = dotByCode.get(key)
-        if (!target || target.id === n.id) continue
-        prereqLinks.push({ from: target, to: n })
+        if (target && target.id !== n.id) {
+          prereqLinks.push({ from: target, to: n })
+          continue
+        }
+        const bandYear = standingPrereqYear(key)
+        if (bandYear == null || nCol < 0) continue
+        for (const src of nodes) {
+          if (src === n || !src.year || !src.sem || src.year > bandYear) continue
+          const sCol = colIndexOf(`y${src.year}s${src.sem}`)
+          if (sCol < 0 || sCol >= nCol) continue
+          prereqLinks.push({ from: src, to: n, standing: true })
+        }
       }
     }
     const focusNode = mapFocusId
@@ -2113,7 +2138,10 @@ export default function SubjectView() {
     if (focusNode) {
       focusPeerIds.add(focusNode.id)
       const unlocks = new Map<string, string[]>()
-      for (const { from, to } of prereqLinks) {
+      for (const { from, to, standing } of prereqLinks) {
+        // Standing bands stay out of the walk: they are standing-wide nets,
+        // and a chain that ran through them would light half the map.
+        if (standing) continue
         unlocks.set(from.id, [...(unlocks.get(from.id) ?? []), to.id])
       }
       const queue = [focusNode.id]
