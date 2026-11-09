@@ -5617,10 +5617,28 @@ button.reports-panel__more:hover {
 }
 
 .map-preview__scroll {
-  overflow-x: auto;
+  /* The map is tall enough now (ROW_H 120) that its own body must scroll
+     instead of stretching the page — this box carries the vertical scroll,
+     and .map-preview__head pins itself inside it. Also papered white so the
+     pinned strip and the scrolled dots share one clean surface, whatever
+     the page behind them is. */
+  overflow: auto;
+  max-height: min(70vh, 640px);
+  overscroll-behavior: contain;
+  background: #fff;
   /* A hair more than the header strip's rule width so the rounded corners
      never clip the outermost column separators. */
   padding-bottom: 2px;
+}
+
+/* The Year · Semester header strip: sticky while the dot grid scrolls under
+   it, matching Generate Map's pinned header band — "which column is which"
+   never scrolls out of view again. */
+.map-preview__head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #fff;
 }
 
 /* The two svgs (header strip + tall body) scale at width: 100% of this inner

@@ -507,7 +507,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       ) : (
         <div className="map-preview__scroll">
           <div className="map-preview__inner">
-            <svg ref={headRef} role="img" aria-label="Year and semester columns" />
+            <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
             <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
           </div>
         </div>
