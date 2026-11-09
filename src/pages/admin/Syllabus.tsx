@@ -201,7 +201,7 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
   return (
     <div className="syllabus-doc">
       {/* Screen-only page banner; the document's own letterhead follows. */}
-      <PageBanner title={title} sub="The official course syllabus for one subject, ready to print." />
+      <PageBanner title={title} sub="The course syllabus for one subject, ready to print." />
       <div className="syllabus-doc__toolbar no-print">
         <span className="syllabus-doc__meta">
           Generated: {new Date().toLocaleDateString()} &middot; {userEmail}

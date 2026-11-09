@@ -541,10 +541,12 @@ function App() {
     if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} />
     if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} />
     if (page === 'view') {
-      // One shared page, per-role banner wording: the admin's sidebar calls it
-      // Curriculum Report, the manager's View Syllabus. (The faculty nav has no
-      // 'view' item, so the gating above never routes them here.)
-      return <Page userEmail={profile?.email} title={role === 'manager' ? 'View Syllabus' : undefined} />
+      // One shared page, one banner wording: every sidebar that opens it names
+      // the page "View Syllabus" (admin nav line 76, manager line 92), so the
+      // banner matches its nav item instead of the page's file-level default.
+      // (The faculty nav has no 'view' item, so the gating above never routes
+      // them here.)
+      return <Page userEmail={profile?.email} title="View Syllabus" />
     }
     // The log page filters by role, and which roles it may offer depends on
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
