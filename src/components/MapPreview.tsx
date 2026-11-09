@@ -407,14 +407,17 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     }
     const inChainIds = (id: string) => chainIds.has(id)
 
-    for (const { from, to } of prereqLinks) {
+    for (const { from, to, standing } of prereqLinks) {
       const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
       body.append('line')
         .attr('x1', from.x).attr('y1', from.y)
         .attr('x2', to.x).attr('y2', to.y)
         .attr('stroke', '#b45309')
-        .attr('stroke-width', inChain ? 2 : 1.25)
-        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : 0.75)
+        // Standing bands run thinner and dimmer in the home state so the
+        // band wires never drown the code wires they share the page with —
+        // the whole net stays visible, just quieter.
+        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
         .attr('vector-effect', 'non-scaling-stroke')
     }
 

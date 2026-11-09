@@ -2160,7 +2160,7 @@ export default function SubjectView() {
       if (focusPeerIds.has(d.id)) return d.dim ? 0.45 : 1
       return 0.12
     }
-    for (const { from, to } of prereqLinks) {
+    for (const { from, to, standing } of prereqLinks) {
       const dim = from.dim || to.dim
       // A wire stays in the chain when BOTH ends are on the forward path —
       // segments beyond the first hop don't touch the pressed dot directly
@@ -2170,8 +2170,11 @@ export default function SubjectView() {
         .attr('x1', from.x).attr('y1', from.y)
         .attr('x2', to.x).attr('y2', to.y)
         .attr('stroke', '#b45309')
-        .attr('stroke-width', inChain ? 2 : 1.25)
-        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : 0.75)
+        // Standing bands run thinner and dimmer in the home state so the
+        // ~125 band wires never drown the ~20 code wires they share the page
+        // with — the whole net stays visible, just quieter.
+        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
         .attr('vector-effect', 'non-scaling-stroke')
     }
 
