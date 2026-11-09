@@ -227,8 +227,8 @@ function Users() {
           </div>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
-            style={{ marginTop: 4 }}
+            className="pf-link"
+            style={{ marginTop: 6, alignSelf: 'flex-start' }}
             onClick={() => {
               setUseTempPassword((v) => !v)
               if (useTempPassword) setTempPassword('')

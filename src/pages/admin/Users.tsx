@@ -611,8 +611,8 @@ export default function Users() {
                 </label>
                 <button
                   type="button"
-                  className="btn btn--ghost btn--sm"
-                  style={{ justifySelf: 'start' }}
+                  className="pf-link"
+                  style={{ justifySelf: 'start', marginTop: -6 }}
                   onClick={() => {
                     setUseTempPassword((v) => !v)
                     if (useTempPassword) setTempPassword('')
