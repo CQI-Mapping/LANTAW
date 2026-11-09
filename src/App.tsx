@@ -9,7 +9,7 @@
 //   Dashboard, Program, CHED Memorandum Orders, Strategic Goals,
 //   Program Educational Objectives, Program Outcomes,
 //   Curriculum, Course Learning Outcomes, Subject Graph,
-//   Curriculum Report (View), Reports, Users & Accounts, Activity Logs,
+//   View Syllabus (View), Reports, Users & Accounts, Activity Logs,
 //   Profile
 //
 // Manager role pages (sidebar order):
@@ -73,7 +73,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'program-outcomes', label: 'Program Outcomes' },
     { id: 'curriculum', label: 'Curriculum' },
     { id: 'subject-view', label: 'Generate Map' },
-    { id: 'view', label: 'Curriculum Report' },
+    { id: 'view', label: 'View Syllabus' },
     { id: 'users', label: 'Users & Accounts' },
     { id: 'activity-logs', label: 'Activity Logs' },
     { id: 'profile', label: 'Profile' },

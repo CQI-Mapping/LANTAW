@@ -20,7 +20,7 @@ import {
   fetchResources,
 } from '../services/database'
 import type { Program, Course, Resource, UserRole } from '../services/database'
-import { normalizeCode } from '../utils/courseCodes'
+import { normalizeCode, standingPrereqYear, everythingTakenPrereq } from '../utils/courseCodes'
 import { CURRENT_SY_START, labelSchoolYearStart } from '../utils/schoolYear'
 
 /** Stands in for program assignments the account may not carry yet — the same
@@ -47,8 +47,9 @@ type PreviewSubject = {
   prereqCodes: string[]
 }
 
-/** A drawn dot — position, color and the normalized prerequisite hooks the
- *  connectors read. Same shape as Map.tsx's MapNode minus the filter fields. */
+/** A drawn dot — position, color, term placement and the normalized
+ *  prerequisite hooks the connectors read. Same shape as Map.tsx's MapNode
+ *  minus the filter fields. */
 interface PreviewDot {
   id: string
   code: string
@@ -58,6 +59,8 @@ interface PreviewDot {
   x: number
   y: number
   r: number
+  year: number | null
+  sem: number | null
   prereqCodes: string[]
 }
 
@@ -209,7 +212,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     if (subjects.length === 0) return teardown
 
     const COL_W = 200
-    const ROW_H = 46
+    const ROW_H = 120
     const MARGIN_X = 70
     const RULE_Y = 30
     const FIRST_ROW_Y = 58
@@ -333,29 +336,60 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
           x: x0,
           y: y0 + i * ROW_H,
           r: 7,
+          year: s.year,
+          sem: s.sem,
           prereqCodes: s.prereqCodes,
         })
       })
     }
 
-    // Connectors: a solid amber line runs from every subject dot to the dot
-    // that unlocks it. Only prerequisites that exist as dots on this map
-    // connect — a code from another curriculum (or a typo) stays silent.
+    // Connector rules. Two kinds of line share the amber color:
+    //
+    //  - CODE links: from a subject dot to the dot whose code unlocks it.
+    //    Only prerequisites that exist as dots on this map connect — a code
+    //    from another curriculum (or a typo) stays silent.
+    //
+    //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
+    //    it is a classification — the subject may only be taken once a
+    //    student has cleared the whole standing-year band. It expands to a
+    //    line from every subject dot in years 1..N that falls in a column
+    //    strictly before the dependent's own column. The strict compare is
+    //    what keeps same-term peers and later columns out: IT40 and MATH31N
+    //    both sit in 3rd Year · Summer under "3rd Yr Standing", and without
+    //    it they would draw lines at each other inside the same column.
     const dotByCode = new Map<string, PreviewDot>()
     for (const d of dots) dotByCode.set(normalizeCode(d.code), d)
-    const prereqLinks: Array<{ from: PreviewDot; to: PreviewDot }> = []
+    const prereqLinks: Array<{ from: PreviewDot; to: PreviewDot; standing?: boolean }> = []
     for (const d of dots) {
+      const dCol = d.year && d.sem ? colIndexOf(`y${d.year}s${d.sem}`) : -1
       for (const key of d.prereqCodes) {
         const target = dotByCode.get(key)
-        if (!target || target.id === d.id) continue
-        prereqLinks.push({ from: target, to: d })
+        if (target && target.id !== d.id) {
+          prereqLinks.push({ from: target, to: d })
+          continue
+        }
+        const bandYear = standingPrereqYear(key)
+        const takesEverything = bandYear == null && everythingTakenPrereq(key)
+        if (bandYear == null && !takesEverything) continue
+        if (dCol < 0) continue
+        for (const src of dots) {
+          if (src === d || !src.year || !src.sem) continue
+          if (bandYear != null && src.year > bandYear) continue
+          const sCol = colIndexOf(`y${src.year}s${src.sem}`)
+          if (sCol < 0 || sCol >= dCol) continue
+          prereqLinks.push({ from: src, to: d, standing: true })
+        }
       }
     }
 
-    // Press-to-reveal: the pressed subject plus its FORWARD prerequisite
-    // chain — what it unlocks, and everything those unlock onward, through
-    // the semesters to the chain's end. The backward walk (the prereqs that
-    // unlock the pressed subject) stays out, matching Generate Map.
+    // Standing bands now run inside the walk too: they are real unlock
+    // relationships — a subject sitting inside a "3rd Yr Standing" band IS
+    // unlocked by everything in years 1..N before it — so a pressed subject's
+    // forward chain keeps going into the standing dots (IT38, IT40, MATH31N)
+    // and marches on through them to the standalone standers further right,
+    // instead of the story dying at the last code link. Every band member
+    // crackdown lights its own band edge, so the reaching web into each
+    // standing subject reads as the fan it is.
     const focusDot = focusId ? dots.find((d) => d.courseId === focusId) ?? null : null
     const chainIds = new Set<string>()
     if (focusDot) {
@@ -377,14 +411,17 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     }
     const inChainIds = (id: string) => chainIds.has(id)
 
-    for (const { from, to } of prereqLinks) {
+    for (const { from, to, standing } of prereqLinks) {
       const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
       body.append('line')
         .attr('x1', from.x).attr('y1', from.y)
         .attr('x2', to.x).attr('y2', to.y)
         .attr('stroke', '#b45309')
-        .attr('stroke-width', inChain ? 2 : 1.25)
-        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : 0.75)
+        // Standing bands run thinner and dimmer in the home state so the
+        // band wires never drown the code wires they share the page with —
+        // the whole net stays visible, just quieter.
+        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
         .attr('vector-effect', 'non-scaling-stroke')
     }
 
@@ -433,7 +470,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       .attr('x', (d) => d.x)
       .attr('y', (d) => d.y - 13)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '10px')
+      .attr('font-size', '12px')
       .attr('font-weight', '700')
       .attr('fill', '#0f172a')
       .attr('opacity', (d) => (focusDot && !inChainIds(d.id) ? 0.12 : 1))
@@ -473,7 +510,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       ) : (
         <div className="map-preview__scroll">
           <div className="map-preview__inner">
-            <svg ref={headRef} role="img" aria-label="Year and semester columns" />
+            <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
             <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
           </div>
         </div>

@@ -54,7 +54,7 @@ import type {
   StrategicGoal,
   ChedMemoOrder,
 } from '../../services/database'
-import { normalizeCode, cloMatchesSubject } from '../../utils/courseCodes'
+import { normalizeCode, cloMatchesSubject, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
@@ -1945,11 +1945,13 @@ export default function SubjectView() {
       x: number
       y: number
       r: number
+      year?: number | null
+      sem?: number | null
       prereqCodes?: string[]
     }
 
     const COL_W = 200
-    const ROW_H = 46
+    const ROW_H = 120
     const MARGIN_X = 70
     const RULE_Y = 30
     const FIRST_ROW_Y = 58
@@ -2046,6 +2048,8 @@ export default function SubjectView() {
           x: x0,
           y: y0 + i * ROW_H,
           r: 7,
+          year: s.year,
+          sem: s.sem,
           prereqCodes: s.prereqCodes,
         })
       })
@@ -2079,12 +2083,22 @@ export default function SubjectView() {
         .attr('stroke', '#94a3b8').attr('stroke-width', 1).attr('vector-effect', 'non-scaling-stroke')
     }
 
-    // Prerequisite connectors: a solid amber line runs straight back from
-    // every subject dot to the dot that unlocks it, drawn under the dots so
-    // the nodes stay crisp above it. Only prerequisites that exist as dots
-    // on this map connect — a code belonging to another curriculum (or a
-    // typo) stays silent. When the PO filter dims a side, its connectors
-    // dim with it so the filtered view never draws loud links to ghosts.
+    // Prerequisite connectors. Two kinds of line share the solid amber look:
+    //
+    //  - CODE links run from every subject dot to the dot that unlocks it.
+    //    Only prerequisites that exist as dots on this map connect — a code
+    //    belonging to another curriculum (or a typo) stays silent.
+    //
+    //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
+    //    it is a classification — the subject may only be taken once the
+    //    whole standing-year band is cleared. It expands to a line from
+    //    every subject dot in years 1..N lying in a column strictly before
+    //    the dependent's own column. The strict compare keeps same-term
+    //    peers and later columns out — IT40 and MATH31N both sit in
+    //    3rd Year · Summer under "3rd Yr Standing", and without it they
+    //    would draw lines at each other inside the same column. When the
+    //    PO filter dims a side, its connectors dim with it so the filtered
+    //    view never draws loud links to ghosts.
     //
     // Press-to-reveal: while a dot is focused (mapFocusId), its forward
     // prerequisite chain — pressed subject through everything it eventually
@@ -2092,12 +2106,26 @@ export default function SubjectView() {
     // connector and dot fades to a whisper.
     const dotByCode = new Map<string, MapNode>()
     for (const n of nodes) dotByCode.set(normalizeCode(n.code), n)
-    const prereqLinks: Array<{ from: MapNode; to: MapNode }> = []
+    const prereqLinks: Array<{ from: MapNode; to: MapNode; standing?: boolean }> = []
     for (const n of nodes) {
+      const nCol = n.year && n.sem ? colIndexOf(`y${n.year}s${n.sem}`) : -1
       for (const key of n.prereqCodes ?? []) {
         const target = dotByCode.get(key)
-        if (!target || target.id === n.id) continue
-        prereqLinks.push({ from: target, to: n })
+        if (target && target.id !== n.id) {
+          prereqLinks.push({ from: target, to: n })
+          continue
+        }
+        const bandYear = standingPrereqYear(key)
+        const takesEverything = bandYear == null && everythingTakenPrereq(key)
+        if (bandYear == null && !takesEverything) continue
+        if (nCol < 0) continue
+        for (const src of nodes) {
+          if (src === n || !src.year || !src.sem) continue
+          if (bandYear != null && src.year > bandYear) continue
+          const sCol = colIndexOf(`y${src.year}s${src.sem}`)
+          if (sCol < 0 || sCol >= nCol) continue
+          prereqLinks.push({ from: src, to: n, standing: true })
+        }
       }
     }
     const focusNode = mapFocusId
@@ -2132,7 +2160,7 @@ export default function SubjectView() {
       if (focusPeerIds.has(d.id)) return d.dim ? 0.45 : 1
       return 0.12
     }
-    for (const { from, to } of prereqLinks) {
+    for (const { from, to, standing } of prereqLinks) {
       const dim = from.dim || to.dim
       // A wire stays in the chain when BOTH ends are on the forward path —
       // segments beyond the first hop don't touch the pressed dot directly
@@ -2142,8 +2170,11 @@ export default function SubjectView() {
         .attr('x1', from.x).attr('y1', from.y)
         .attr('x2', to.x).attr('y2', to.y)
         .attr('stroke', '#b45309')
-        .attr('stroke-width', inChain ? 2 : 1.25)
-        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : 0.75)
+        // Standing bands run thinner and dimmer in the home state so the
+        // ~125 band wires never drown the ~20 code wires they share the page
+        // with — the whole net stays visible, just quieter.
+        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
         .attr('vector-effect', 'non-scaling-stroke')
     }
 
@@ -2227,7 +2258,7 @@ export default function SubjectView() {
       .attr('x', (d) => d.x)
       .attr('y', (d) => d.y - 13)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '10px')
+      .attr('font-size', '12px')
       .attr('font-weight', '700')
       .attr('fill', '#0f172a')
       .attr('opacity', (d) => (focusNode ? (focusPeerIds.has(d.id) ? 1 : 0.12) : d.dim ? 0.25 : 1))
@@ -3505,6 +3536,14 @@ export default function SubjectView() {
                   </button>
                 </div>
               </div>
+              {/* The Year · Semester strip rides inside the control bar, so the
+                  pinning that keeps the filters and toolbar on screen keeps
+                  the strip with them — the wrap's overflow:hidden used to
+                  neutralize sticky on an in-box strip, and the labels silently
+                  scrolled away with the map in both panel and fullscreen. */}
+              {rootType === 'curriculum' && (
+                <svg ref={mapHeadRef} className="subject-view__map-head" viewBox="0 0 1878 44" />
+              )}
               </div>
               {graphHint && (
                 <p className="subject-view__graph-hint">{graphHint}{isFullscreen ? ' Press Esc to exit fullscreen.' : ''}</p>
@@ -3525,9 +3564,6 @@ export default function SubjectView() {
                 </div>
               )}
               <div className={`subject-view__graph-wrap${rootType === 'curriculum' ? ' subject-view__graph-wrap--scroll' : ''}`}>
-                {rootType === 'curriculum' && (
-                  <svg ref={mapHeadRef} className="subject-view__map-head" viewBox="0 0 10 10" />
-                )}
                 <svg ref={svgRef} className="subject-view__svg" />
               </div>
               <div ref={tooltipRef} className="subject-view__tooltip" />
