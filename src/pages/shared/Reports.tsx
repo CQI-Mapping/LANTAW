@@ -61,7 +61,7 @@ import {
 } from '../../utils/alignment'
 import { buildMappingReport, chartableOutcomes, poLabel } from '../../utils/cloPoMapping'
 import type { PoOutcome } from '../../utils/alignment'
-import { normalizeCode } from '../../utils/courseCodes'
+import { normalizeCode, cloLabel } from '../../utils/courseCodes'
 import Icon from '../../components/icons'
 
 interface ReportsProps {
@@ -364,7 +364,7 @@ function Reports({ profile, onNavigate }: ReportsProps) {
       const matrixKeys = anchorKeysOf(mapping)
       const matrixRows = mapping.links
         .map((link, i) => ({
-          label: `${courseCodeOf(link.clo.course)} · ${link.clo.code || `CLO ${i + 1}`}`,
+          label: `${courseCodeOf(link.clo.course)} · ${cloLabel(link.clo.code) || `CLO ${i + 1}`}`,
           hits: link.poKeys.map((key) => matrixKeys.indexOf(key)).filter((ix) => ix >= 0),
         }))
         .filter((row) => row.hits.length > 0)

@@ -54,7 +54,7 @@ import type {
   StrategicGoal,
   ChedMemoOrder,
 } from '../../services/database'
-import { normalizeCode, cloMatchesSubject, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
+import { normalizeCode, cloMatchesSubject, cloLabel, standingPrereqYear, everythingTakenPrereq } from '../../utils/courseCodes'
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
@@ -2968,7 +2968,7 @@ export default function SubjectView() {
   }
 
   const graphTitle = selectedCourse ? `${selectedCourse.code} — ${selectedCourse.title}`
-    : selectedClo ? `${selectedClo.code} — ${selectedClo.description || selectedClo.code}`
+    : selectedClo ? `${cloLabel(selectedClo.code) || selectedClo.code} — ${selectedClo.description || selectedClo.code}`
     : selectedPo ? `${selectedPo.code} — ${selectedPo.title || selectedPo.description}`
     : selectedPeo ? `${selectedPeo.code} — ${selectedPeo.title || selectedPeo.code}`
     : selectedSg ? `${selectedSg.code} — ${selectedSg.title || selectedSg.code}`

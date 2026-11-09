@@ -24,6 +24,7 @@ import MapPreview from '../../components/MapPreview'
 import { useClock } from '../../hooks/useClock'
 import { localISODate, timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
+import { cloLabel } from '../../utils/courseCodes'
 import { groupOutcomesBySubject, ownFigures, subjectsCovered, weeklyEditTrend } from '../../utils/facultyDashboard'
 import type { EditWeek } from '../../utils/facultyDashboard'
 
@@ -354,7 +355,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
             !ready
               ? pending
               : figures.latest
-                ? [figures.latest.code, figures.latest.course].filter(Boolean).join(' · ')
+                ? [cloLabel(figures.latest.code), figures.latest.course].filter(Boolean).join(' · ')
                 : 'Nothing written yet'
           }
         />

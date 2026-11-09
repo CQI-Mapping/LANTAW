@@ -127,3 +127,18 @@ export const cloMatchesSubject = (cloCourse: string, subjectKey: string) => {
     .filter(Boolean)
   return tokens.includes(subjectKey)
 }
+
+// ── CLO display names ──
+// A CLO's stored code is the bare digit run ("1") — the create/edit form
+// draws "CLO" as the field's visual prefix (clo-code-input__prefix) — so
+// every reader that names an outcome composes the family name here instead
+// of printing the raw column: "CLO1 — IT20 — Data Structures and Algorithm",
+// not "1 — IT20 — …". Older hand-typed rows may already spell the family
+// ("Clo1", "CLO-2"); those print exactly what is on record. Empty in,
+// empty out — the caller picks its own em-dash fallback.
+export const cloLabel = (code: string | null | undefined): string => {
+  const raw = (code ?? '').trim()
+  if (!raw) return ''
+  const digits = /^(?:CLO[-\s.]*)?(\d+)$/i.exec(raw)
+  return digits ? `CLO${digits[1]}` : raw
+}

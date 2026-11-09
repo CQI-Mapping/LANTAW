@@ -45,7 +45,7 @@ import {
 import { buildMappingReport, chartCompleteOutcomes } from '../utils/cloPoMapping'
 import { isManagerCmCategory, isManagerOutcome } from '../utils/report'
 import type { MappingStatus } from '../utils/reportsPdfModel'
-import { normalizeCode } from '../utils/courseCodes'
+import { normalizeCode, cloLabel } from '../utils/courseCodes'
 import PoCoverageBars from './PoCoverageBars'
 import type { PoCoverageDetail } from './PoCoverageBars'
 
@@ -341,7 +341,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
       for (const key of link.poKeys) {
         const list = byKey.get(key) ?? []
         list.push({
-          code: link.clo.code,
+          code: cloLabel(link.clo.code) || link.clo.code,
           course: link.clo.course,
           courseTitle: courseTitleByCode.get(normalizeCode(link.clo.course)) ?? null,
           title: link.clo.title,

@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest'
 
-import { everythingTakenPrereq, normalizeCode, standingPrereqYear } from './courseCodes'
+import { cloLabel, everythingTakenPrereq, normalizeCode, standingPrereqYear } from './courseCodes'
+
+// The bare digit run is what the stored code holds ("1"), and every reader
+// that names an outcome composes the CLO family name here — the same way the
+// create form's input prefix draws it.
+describe('cloLabel', () => {
+  it('composes CLO out of the bare digit run the column stores', () => {
+    expect(cloLabel('1')).toBe('CLO1')
+    expect(cloLabel('12')).toBe('CLO12')
+    expect(cloLabel(' 1 ')).toBe('CLO1')
+  })
+
+  it('normalizes lettered spellings into the one family name', () => {
+    expect(cloLabel('Clo1')).toBe('CLO1')
+    expect(cloLabel('CLO-2')).toBe('CLO2')
+    expect(cloLabel('CLO 3')).toBe('CLO3')
+  })
+
+  it('prints unusual codes as recorded and empty as empty', () => {
+    expect(cloLabel('Activity 4')).toBe('Activity 4')
+    expect(cloLabel('')).toBe('')
+    expect(cloLabel(null)).toBe('')
+    expect(cloLabel(undefined)).toBe('')
+  })
+})
 
 // The prerequisite parser sees the tokens exactly as the maps do: after
 // normalizeCode has stripped spaces, periods and dashes, so both spellings
