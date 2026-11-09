@@ -31,7 +31,7 @@ import type {
   ChedMemoOrder,
 } from '../../services/database'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
-import { rankClosestPos, type PoText, type RankedPo } from '../../utils/poMatch'
+import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
 import { fuseRanked, toRelative } from '../../utils/poRank'
 import { pickedBefore, recordPick, recordRejection, draftSig } from '../../utils/poMemory'
@@ -371,7 +371,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Bulk align: fused top-1 for visible filtered CLOs with empty PO.
   const bulkTargets = visible.filter((i) => !(i.title ?? '').trim() && (i.description ?? '').trim())
     .map((i) => {
-      const [top] = fuseRanked(i.description ?? '', rankClosestPos(i.description ?? '', poTexts, Math.max(1, poTexts.length)), null, poTexts, 1)
+      const raw = i.description ?? ''
+      // Same real-word floor as the interactive chips — bulk never applies a
+      // suggestion to a description that is too short or letter salad.
+      const [top] = suggestable(raw)
+        ? fuseRanked(raw, rankClosestPos(raw, poTexts, Math.max(1, poTexts.length)), null, poTexts, 1)
+        : []
       return { item: i, top }
     })
     .filter((t) => t.top && t.top.score > 0)
@@ -411,15 +416,34 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return parts.join(', ')
   }
 
+  // The suggestion chip's body text: the outcome's official wording (the
+  // title the Curriculum Mapping rows carry — the same text the map's
+  // description strip prints). Codes match by construction: chips rank the
+  // same poTexts list the reference panel reads.
+  const poChipText = (code: string) =>
+    poTexts.find((t) => (t.code || '').trim().toLowerCase() === (code || '').trim().toLowerCase())?.title ?? ''
+
   // Suggestions wait for real content: short drafts score trivia in the
   // keyword ranker, so nothing renders — chips or the no-match hint — until
   // the description reaches DRAFT_MIN characters. The semantic engine
   // shares this floor.
-  const DRAFT_MIN = 15
-  const createClosest = form.description.trim().length >= DRAFT_MIN
+  const DRAFT_MIN = 35
+  // A second, stricter floor: the semantic engine scores similarity for ANY
+  // text, so letter salad ("sdasdsdfsjdv…", "adhiucsfviurhvusvnseic") used to
+  // squeeze out chips at full length. Suggestions only compute when the draft
+  // carries at least MIN_REAL_WORDS English-shaped tokens (utils/poMatch.ts
+  // realContentTokens); salad gets its own honest hint instead of fake scores.
+  const MIN_REAL_WORDS = 2
+  const suggestable = (draft: string) =>
+    draft.trim().length >= DRAFT_MIN && realContentTokens(draft).length >= MIN_REAL_WORDS
+  const mushy = (draft: string) =>
+    draft.trim().length >= DRAFT_MIN && realContentTokens(draft).length < MIN_REAL_WORDS
+  const MUSH_HINT =
+    'The description is mostly random letters — write the outcome in plain English (e.g. "Design and implement a secure login module").'
+  const createClosest = suggestable(form.description)
     ? rankClosestPos(form.description, poTexts, Math.max(3, poTexts.length))
     : []
-  const editClosest = editForm.description.trim().length >= DRAFT_MIN
+  const editClosest = suggestable(editForm.description)
     ? rankClosestPos(editForm.description, poTexts, Math.max(3, poTexts.length))
     : []
   // Hybrid fusion: keyword + semantic + exact-phrase + Bloom + click memory.
@@ -445,7 +469,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Debounced semantic re-rank for the create-form description.
   useEffect(() => {
     const draft = form.description.trim()
-    if (draft.length < DRAFT_MIN || poTexts.length === 0) { setCreateSemantic(null); return }
+    if (!suggestable(draft) || poTexts.length === 0) { setCreateSemantic(null); return }
     let cancelled = false
     const t = setTimeout(() => {
       rankSemantic(draft, poTexts, 3).then((res) => {
@@ -459,7 +483,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // Debounced semantic re-rank for the edit-form description.
   useEffect(() => {
     const draft = editForm.description.trim()
-    if (editingId === null || draft.length < DRAFT_MIN || poTexts.length === 0) { setEditSemantic(null); return }
+    if (editingId === null || !suggestable(draft) || poTexts.length === 0) { setEditSemantic(null); return }
     let cancelled = false
     const t = setTimeout(() => {
       rankSemantic(draft, poTexts, 3).then((res) => {
@@ -564,6 +588,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                     background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
                   }} />
                 </span>
+                {poChipText(r.code) && (
+                  <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
+                    {poChipText(r.code)}
+                  </span>
+                )}
               </button>
               <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
                 aria-label={`Reject ${r.code} for this description`}
@@ -575,7 +604,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         <div style={{ fontSize: 12, color: '#64748b', margin: '6px 0' }}>
           {poTexts.length === 0
             ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
-            : 'No close match — try words like design, develop, evaluate, or pick manually above.'}
+            : mushy(editForm.description)
+              ? MUSH_HINT
+              : 'No close match — try words like design, develop, evaluate, or pick manually above.'}
         </div>
       )}
       {autoEditFor.current === editForm.description && editForm.programOutcomes.trim() && (
@@ -734,6 +765,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                         background: r.raw >= 60 ? '#16a34a' : r.raw >= 30 ? '#d97706' : '#94a3b8',
                       }} />
                     </span>
+                    {poChipText(r.code) && (
+                      <span style={{ fontSize: 11, lineHeight: 1.35, color: '#475569', textAlign: 'left', whiteSpace: 'normal', maxWidth: 240 }}>
+                        {poChipText(r.code)}
+                      </span>
+                    )}
                   </button>
                   <button type="button" className="btn btn--ghost btn--sm" title={`Not this PO for this description`}
                     aria-label={`Reject ${r.code} for this description`}
@@ -747,7 +783,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             <span style={{ fontSize: 12, color: '#64748b' }}>
               {poTexts.length === 0
                 ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
-                : 'No close match — try words like design, develop, evaluate, or pick manually above.'}
+                : mushy(form.description)
+                  ? MUSH_HINT
+                  : 'No close match — try words like design, develop, evaluate, or pick manually above.'}
             </span>
           </div>
         )}

@@ -104,6 +104,11 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
   const [courses, setCourses] = useState<Course[]>([])
   const [curricula, setCurricula] = useState<Resource[]>([])
   const [focusId, setFocusId] = useState<string | null>(null)
+  // The prerequisite-wire switch (added 2026-11-09): one press clears every
+  // amber connector off the block, another brings them back — the dots and
+  // columns stay put either way, and the press-to-reveal spotlight keeps
+  // working so connections can be chased dot-by-dot with the canvas clean.
+  const [showWires, setShowWires] = useState(true)
 
   const headRef = useRef<SVGSVGElement>(null)
   const bodyRef = useRef<SVGSVGElement>(null)
@@ -350,13 +355,13 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     //    from another curriculum (or a typo) stays silent.
     //
     //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
-    //    it is a classification — the subject may only be taken once a
-    //    student has cleared the whole standing-year band. It expands to a
-    //    line from every subject dot in years 1..N that falls in a column
-    //    strictly before the dependent's own column. The strict compare is
-    //    what keeps same-term peers and later columns out: IT40 and MATH31N
-    //    both sit in 3rd Year · Summer under "3rd Yr Standing", and without
-    //    it they would draw lines at each other inside the same column.
+    //    it is a classification — final-final 2026-11-09: a year-typed token
+    //    wires from every column of the standing year before the dependent's
+    //    own (IT38 ← Yr3·S1; the Summer pair ← Yr3·S1 + Yr3·S2); when the
+    //    dependent OPENS the standing year the band is the column immediately
+    //    left, so IT42/IT43 (Yr4·S1) take the Yr3·Summer cohort (IT40,
+    //    MATH31N) — "the 4th Yr Standing = all the 3rd-year Summer subjects";
+    //    IT44's "100% taken" stays on its immediate left (Yr4·S1).
     const dotByCode = new Map<string, PreviewDot>()
     for (const d of dots) dotByCode.set(normalizeCode(d.code), d)
     const prereqLinks: Array<{ from: PreviewDot; to: PreviewDot; standing?: boolean }> = []
@@ -369,14 +374,31 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
           continue
         }
         const bandYear = standingPrereqYear(key)
-        const takesEverything = bandYear == null && everythingTakenPrereq(key)
-        if (bandYear == null && !takesEverything) continue
-        if (dCol < 0) continue
+        const isStandingBand = bandYear != null || everythingTakenPrereq(key)
+        if (!isStandingBand) continue
+        if (dCol < 1) continue
+        // Standing-family band (final-final, 2026-11-09): a year-typed token
+        // wires from EVERY column of the standing year lying before the
+        // dependent's own column — IT38 (Yr3·S2) ← Yr3·S1, and the Yr3·Summer
+        // pair ← Yr3·S1 + Yr3·S2 (the confirmed union). When that range is
+        // empty — the dependent OPENS the standing year, as IT42/IT43 do at
+        // Yr4·S1 — the band is the column IMMEDIATELY LEFT, which for them
+        // is the Yr3·Summer cohort (IT40, MATH31N): "the 4th Yr Standing =
+        // all the 3rd-year Summer subjects are connected". "100% taken"
+        // (IT44) keeps its immediate-left band (the Yr4·S1 cohort).
+        const bandEnd = dCol - 1
+        const bandStart =
+          bandYear != null ? colIndexOf(`y${bandYear}s1`) : dCol - 1
+        const emptyBand = colIndexOf(`y${d.year}s1`) === dCol
         for (const src of dots) {
           if (src === d || !src.year || !src.sem) continue
-          if (bandYear != null && src.year > bandYear) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
-          if (sCol < 0 || sCol >= dCol) continue
+          if (sCol < 0) continue
+          if (emptyBand) {
+            if (sCol !== dCol - 1) continue
+          } else if (sCol < bandStart || sCol > bandEnd) {
+            continue
+          }
           prereqLinks.push({ from: src, to: d, standing: true })
         }
       }
@@ -411,18 +433,23 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     }
     const inChainIds = (id: string) => chainIds.has(id)
 
-    for (const { from, to, standing } of prereqLinks) {
-      const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
-      body.append('line')
-        .attr('x1', from.x).attr('y1', from.y)
-        .attr('x2', to.x).attr('y2', to.y)
-        .attr('stroke', '#b45309')
-        // Standing bands run thinner and dimmer in the home state so the
-        // band wires never drown the code wires they share the page with —
-        // the whole net stays visible, just quieter.
-        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
-        .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
-        .attr('vector-effect', 'non-scaling-stroke')
+    // With the wire switch cleared, nothing draws here — the connectors skip
+    // the canvas entirely while the spotlight logic above stays intact, so a
+    // pressed dot still rings its forward chain through the bare dots.
+    if (showWires) {
+      for (const { from, to, standing } of prereqLinks) {
+        const inChain = focusDot !== null && inChainIds(from.id) && inChainIds(to.id)
+        body.append('line')
+          .attr('x1', from.x).attr('y1', from.y)
+          .attr('x2', to.x).attr('y2', to.y)
+          .attr('stroke', '#b45309')
+          // Standing bands run thinner and dimmer in the home state so the
+          // band wires never drown the code wires they share the page with —
+          // the whole net stays visible, just quieter.
+          .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+          .attr('stroke-opacity', focusDot ? (inChain ? 0.95 : 0.05) : standing ? 0.3 : 0.75)
+          .attr('vector-effect', 'non-scaling-stroke')
+      }
     }
 
     const nodeGroup = body.append('g').attr('stroke', '#fff').attr('stroke-width', 1.5)
@@ -482,7 +509,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       .text((d) => d.code)
 
     return teardown
-  }, [subjects, focusId])
+  }, [subjects, focusId, showWires])
 
   const placedCount = useMemo(
     () =>
@@ -508,12 +535,25 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       ) : subjects.length === 0 ? (
         <p className="reports-empty">No subjects carry this curriculum yet.</p>
       ) : (
-        <div className="map-preview__scroll">
-          <div className="map-preview__inner">
-            <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
-            <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
+        <>
+          <div className="map-preview__toolbar">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setShowWires((v) => !v)}
+              aria-pressed={!showWires}
+              title={showWires ? 'Clear the amber prerequisite lines off the map' : 'Bring the prerequisite lines back'}
+            >
+              {showWires ? 'Hide prereq lines' : 'Show prereq lines'}
+            </button>
           </div>
-        </div>
+          <div className="map-preview__scroll">
+            <div className="map-preview__inner">
+              <svg ref={headRef} className="map-preview__head" role="img" aria-label="Year and semester columns" />
+              <svg ref={bodyRef} role="img" aria-label="Curriculum map dots and prerequisite wires" />
+            </div>
+          </div>
+        </>
       )}
       <PanelFoot
         left={

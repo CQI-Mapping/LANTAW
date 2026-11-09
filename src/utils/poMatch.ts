@@ -58,6 +58,41 @@ function tokenSet(s: string): Set<string> {
   return new Set(tokens(s).map((t) => canonical(t)))
 }
 
+// ---------------------------------------------------------------------------
+// Letter-salad guard — decides whether a draft is made of real-looking words.
+//
+// The semantic engine scores similarity for ANY text, so mush like
+// "sdasdsdfsjdvsjdvbsdj" or "adhiucsfviurhvusvnseic" used to squeeze out
+// suggestions once the draft made the length floor. Real English words have
+// a recognizable SHAPE: vowels (y counts as one) and no four-long unbroken
+// consonant run. Those two rules keep every outcome verb ("analyze",
+// "complex", "requirements", "development") and any normal CLO phrasing
+// alive, while random keyboard mash fails one of them.
+
+/** Raw draft tokens, before stemming — same stop/length filters as tokenSet. */
+function rawTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length > 2 && !STOP.has(t))
+}
+
+/** Shape test for one token: English-looking or not. */
+export function isWordLike(token: string): boolean {
+  if (!/^[a-z]+$/.test(token)) return false
+  if (token.length > 24) return false
+  if (!/[aeiouy]/.test(token)) return false
+  // Four or more vowels-free letters in a row ("csfv…", "sdasd…") is not
+  // English — no real word runs that long.
+  return !/[bcdfghjklmnpqrstvwxz]{4}/.test(token)
+}
+
+/** Draft tokens that look like real words — the suggestion chips' floor. */
+export function realContentTokens(draft: string): string[] {
+  return rawTokens(draft).filter(isWordLike)
+}
+
 // Offline curriculum synonym groups — canonical head is the first entry.
 // Lets "build apps" match "develop software" with zero shared raw words.
 // Expanded to ~40 groups covering the CMO 25 s. 2015 outcome vocabulary

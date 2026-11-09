@@ -15,9 +15,10 @@ export const normalizeCode = (code: string) =>
 // all collapse to one shape ("3RDYRSTANDING"), so a typed token is enough to
 // recognize every spelling the courses table actually stores. Returns the
 // standing year (1–6) when the token IS a standing requirement, null when it
-// is an ordinary course code. The two curriculum maps use this to expand a
-// standing band into connector lines from every subject in years 1..N that
-// falls before the dependent subject's own term.
+// is an ordinary course code. Together with everythingTakenPrereq — the two
+// make up the standing family — the curriculum maps expand a member into
+// connector lines from the column immediately LEFT of the dependent subject's
+// own column, with the Summer-left carve-out spelled out over there.
 export const standingPrereqYear = (token: string): number | null => {
   const m = normalizeCode(token).match(/^(\d+)(?:ST|ND|RD|TH)?(?:YR|YEARS?)STANDING$/)
   if (!m) return null
@@ -29,10 +30,11 @@ export const standingPrereqYear = (token: string): number | null => {
 // IT44 (On-Job-Training) records "100% of the Profession Subjects are Taken"
 // — the DB spells it "Profession", and both that and "Professional" must be
 // caught. Same lenient recognition as standingPrereqYear (normalized first,
-// so spacing, periods and commas don't matter). The two curriculum maps
-// expand a true one into lines from EVERY subject dot whose column is
-// strictly before the dependent's own column — "everything taken" applies
-// up to the subject's own term, nothing later.
+// so spacing, periods and commas don't matter). As a member of the standing
+// family it obeys the same expansion: lines from the column immediately
+// LEFT of the dependent's own column — for IT44 that is the Yr4·S1 cohort
+// (IT41, IT42, IT43), refined 2026-11-09 away from the earlier
+// everything-before-me version.
 export const everythingTakenPrereq = (token: string): boolean => {
   const norm = normalizeCode(token)
   return norm.startsWith('100') && norm.includes('PROFESSION') && norm.includes('SUBJECTS') && norm.includes('TAKEN')

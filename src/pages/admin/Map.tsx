@@ -316,6 +316,11 @@ export default function SubjectView() {
   // it by prerequisite connectors — its unlocks and its dependents — and
   // fades the rest (see the connector block in renderCurriculumMap).
   const [mapFocusId, setMapFocusId] = useState<string | null>(null)
+  // The curriculum map's prerequisite-wire switch (added 2026-11-09): one
+  // press clears every amber connector off the drawing, another brings them
+  // back — dots and columns stay put, and the press-to-reveal spotlight
+  // keeps chasing chains dot-by-dot over the clean canvas.
+  const [showMapPrereqs, setShowMapPrereqs] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [dlOpen, setDlOpen] = useState(false)
   const [dlFormat, setDlFormat] = useState<'pdf' | 'docx'>('pdf')
@@ -1638,6 +1643,14 @@ export default function SubjectView() {
     return { pos: map.pos }
   }, [datasets, rootType, selectedCurriculum, buildCurriculumMapModel])
 
+  // The picked PO's full record (code + official text) for the description
+  // strip under the map selects — empty when "— All outcomes —" is chosen or
+  // when the filters aren't on the page at all (any non-curriculum root).
+  const selectedMapPo = useMemo(() => {
+    if (rootType !== 'curriculum' || !mapPoId) return null
+    return mapFilterOptions.pos.find((p) => p.id === mapPoId) ?? null
+  }, [rootType, mapPoId, mapFilterOptions])
+
   // Unique node counts per kind once a graph is on screen (used in the legend).
   const graphStats = useMemo(() => {
     if (!datasets) return null
@@ -2090,13 +2103,13 @@ export default function SubjectView() {
     //    belonging to another curriculum (or a typo) stays silent.
     //
     //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
-    //    it is a classification — the subject may only be taken once the
-    //    whole standing-year band is cleared. It expands to a line from
-    //    every subject dot in years 1..N lying in a column strictly before
-    //    the dependent's own column. The strict compare keeps same-term
-    //    peers and later columns out — IT40 and MATH31N both sit in
-    //    3rd Year · Summer under "3rd Yr Standing", and without it they
-    //    would draw lines at each other inside the same column. When the
+    //    it is a classification — final-final 2026-11-09: a year-typed token
+    //    wires from every column of the standing year before the dependent's
+    //    own (IT38 ← Yr3·S1; the Summer pair ← Yr3·S1 + Yr3·S2); when the
+    //    dependent OPENS the standing year the band is the column immediately
+    //    left, so IT42/IT43 (Yr4·S1) take the Yr3·Summer cohort (IT40,
+    //    MATH31N) — "the 4th Yr Standing = all the 3rd-year Summer subjects";
+    //    IT44's "100% taken" stays on its immediate left (Yr4·S1). When the
     //    PO filter dims a side, its connectors dim with it so the filtered
     //    view never draws loud links to ghosts.
     //
@@ -2116,14 +2129,31 @@ export default function SubjectView() {
           continue
         }
         const bandYear = standingPrereqYear(key)
-        const takesEverything = bandYear == null && everythingTakenPrereq(key)
-        if (bandYear == null && !takesEverything) continue
-        if (nCol < 0) continue
+        const isStandingBand = bandYear != null || everythingTakenPrereq(key)
+        if (!isStandingBand) continue
+        if (nCol < 1) continue
+        // Standing-family band (final-final, 2026-11-09): a year-typed token
+        // wires from EVERY column of the standing year lying before the
+        // dependent's own column — IT38 (Yr3·S2) ← Yr3·S1, and the Yr3·Summer
+        // pair ← Yr3·S1 + Yr3·S2 (the confirmed union). When that range is
+        // empty — the dependent OPENS the standing year, as IT42/IT43 do at
+        // Yr4·S1 — the band is the column IMMEDIATELY LEFT, which for them
+        // is the Yr3·Summer cohort (IT40, MATH31N): "the 4th Yr Standing =
+        // all the 3rd-year Summer subjects are connected". "100% taken"
+        // (IT44) keeps its immediate-left band (the Yr4·S1 cohort).
+        const bandEnd = nCol - 1
+        const bandStart =
+          bandYear != null ? colIndexOf(`y${bandYear}s1`) : nCol - 1
+        const emptyBand = colIndexOf(`y${n.year}s1`) === nCol
         for (const src of nodes) {
           if (src === n || !src.year || !src.sem) continue
-          if (bandYear != null && src.year > bandYear) continue
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
-          if (sCol < 0 || sCol >= nCol) continue
+          if (sCol < 0) continue
+          if (emptyBand) {
+            if (sCol !== nCol - 1) continue
+          } else if (sCol < bandStart || sCol > bandEnd) {
+            continue
+          }
           prereqLinks.push({ from: src, to: n, standing: true })
         }
       }
@@ -2160,22 +2190,27 @@ export default function SubjectView() {
       if (focusPeerIds.has(d.id)) return d.dim ? 0.45 : 1
       return 0.12
     }
-    for (const { from, to, standing } of prereqLinks) {
-      const dim = from.dim || to.dim
-      // A wire stays in the chain when BOTH ends are on the forward path —
-      // segments beyond the first hop don't touch the pressed dot directly
-      // but still carry the connection toward the chain's end.
-      const inChain = focusNode !== null && focusPeerIds.has(from.id) && focusPeerIds.has(to.id)
-      zoomGroup.append('line')
-        .attr('x1', from.x).attr('y1', from.y)
-        .attr('x2', to.x).attr('y2', to.y)
-        .attr('stroke', '#b45309')
-        // Standing bands run thinner and dimmer in the home state so the
-        // ~125 band wires never drown the ~20 code wires they share the page
-        // with — the whole net stays visible, just quieter.
-        .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
-        .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
-        .attr('vector-effect', 'non-scaling-stroke')
+    // With the wire switch cleared the connectors skip the drawing entirely
+    // while the spotlight walk above stays intact — a pressed dot still
+    // rings its forward chain through the bare dots.
+    if (showMapPrereqs) {
+      for (const { from, to, standing } of prereqLinks) {
+        const dim = from.dim || to.dim
+        // A wire stays in the chain when BOTH ends are on the forward path —
+        // segments beyond the first hop don't touch the pressed dot directly
+        // but still carry the connection toward the chain's end.
+        const inChain = focusNode !== null && focusPeerIds.has(from.id) && focusPeerIds.has(to.id)
+        zoomGroup.append('line')
+          .attr('x1', from.x).attr('y1', from.y)
+          .attr('x2', to.x).attr('y2', to.y)
+          .attr('stroke', '#b45309')
+          // Standing bands run thinner and dimmer in the home state so the
+          // ~125 band wires never drown the ~20 code wires they share the page
+          // with — the whole net stays visible, just quieter.
+          .attr('stroke-width', inChain ? 2 : standing ? 1 : 1.25)
+          .attr('stroke-opacity', focusNode ? (inChain ? 0.95 : 0.05) : dim ? 0.2 : standing ? 0.3 : 0.75)
+          .attr('vector-effect', 'non-scaling-stroke')
+      }
     }
 
     // The Year · Semester header band lives in its own svg — the pinned strip
@@ -2306,7 +2341,7 @@ export default function SubjectView() {
       svg.on('click.mapfocus', null)
       zoomRef.current = null
     }
-  }, [containerSize, datasets, selectedCurriculum, mapPoId, buildCurriculumMapModel, mapFocusId])
+  }, [containerSize, datasets, selectedCurriculum, mapPoId, buildCurriculumMapModel, mapFocusId, showMapPrereqs])
 
   // Dual-root: subject mode (subject → curriculum / prereq / coreq / CLO → PO
   // → PEO/SG/CMO) or PO mode (PO → CLOs → subjects + PEO/SG/CMO), with the
@@ -3463,42 +3498,53 @@ export default function SubjectView() {
                   one sticky control bar. */}
               <div className="subject-view__graph-controls">
               {rootType === 'curriculum' && (
-                <div className="subject-view__map-filters">
-                  <label>
-                    <b>1. Curriculum:</b>
-                    <select
-                      className="input input--sm"
-                      value={selectedCurriculumId ?? ''}
-                      onChange={(e) => {
-                        // A picker press is a manual pick: it may name a year
-                        // no subject carries, and it survives refreshes.
-                        manualPickRef.current = true
-                        setSelectedCurriculumId(e.target.value || null)
-                        // A fresh curriculum starts unfiltered; the page keeps
-                        // its fullscreen state since the map stays on screen.
-                        setMapPoId('')
-                        setMapCloId('')
-                      }}
-                    >
-                      {allCurricula.map((r) => (
-                        <option key={r.id} value={r.id}>{curriculumLabel(r)}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <b>2. Program Outcomes (PO):</b>
-                    <select
-                      className="input input--sm"
-                      value={mapPoId}
-                      onChange={(e) => { setMapPoId(e.target.value); setMapCloId('') }}
-                    >
-                      <option value="">— All outcomes —</option>
-                      {mapFilterOptions.pos.map((p) => (
-                        <option key={p.id} value={p.id}>{poCode(p.code)}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+                <>
+                  <div className="subject-view__map-filters">
+                    <label>
+                      <b>1. Curriculum:</b>
+                      <select
+                        className="input input--sm"
+                        value={selectedCurriculumId ?? ''}
+                        onChange={(e) => {
+                          // A picker press is a manual pick: it may name a year
+                          // no subject carries, and it survives refreshes.
+                          manualPickRef.current = true
+                          setSelectedCurriculumId(e.target.value || null)
+                          // A fresh curriculum starts unfiltered; the page keeps
+                          // its fullscreen state since the map stays on screen.
+                          setMapPoId('')
+                          setMapCloId('')
+                        }}
+                      >
+                        {allCurricula.map((r) => (
+                          <option key={r.id} value={r.id}>{curriculumLabel(r)}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <b>2. Program Outcomes (PO):</b>
+                      <select
+                        className="input input--sm"
+                        value={mapPoId}
+                        onChange={(e) => { setMapPoId(e.target.value); setMapCloId('') }}
+                      >
+                        <option value="">— All outcomes —</option>
+                        {mapFilterOptions.pos.map((p) => (
+                          <option key={p.id} value={p.id}>{poCode(p.code)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {selectedMapPo && (
+                    /* The picked outcome's official text (the row's title in
+                       admin_program_outcomes) right where the picker lives,
+                       so the reader sees what the narrowed map is looking at
+                       without opening the manager's Program Outcomes page. */
+                    <p className="subject-view__po-desc" aria-live="polite">
+                      <b>{poCode(selectedMapPo.code)}:</b> {selectedMapPo.title}
+                    </p>
+                  )}
+                </>
               )}
               <div className="subject-view__graph-toolbar">
                 <h3 className="subject-view__graph-title">{graphTitle}</h3>
@@ -3524,6 +3570,17 @@ export default function SubjectView() {
                         Reset zoom
                       </button>
                     </>
+                  )}
+                  {rootType === 'curriculum' && (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => setShowMapPrereqs((v) => !v)}
+                      aria-pressed={!showMapPrereqs}
+                      title={showMapPrereqs ? 'Clear the amber prerequisite lines off the map' : 'Bring the prerequisite lines back'}
+                    >
+                      {showMapPrereqs ? 'Hide prereq lines' : 'Show prereq lines'}
+                    </button>
                   )}
                   <button
                     type="button"
