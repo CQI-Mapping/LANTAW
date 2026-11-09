@@ -2127,11 +2127,13 @@ export default function SubjectView() {
             // dependent's own term, no year cap.
             if (sCol >= nCol) continue
           } else {
-            // Standing (confirmed 2026-11-09): the gate IS that year's
-            // 1st-Semester column, nothing before or after it — and a
-            // standing subject never wires to its own column's cohort,
-            // so IT42/IT43 reach IT41 rather than criss-crossing Yr4·S1.
-            if (src.year !== bandYear || src.sem !== 1 || sCol === nCol) continue
+            // Standing gate = that year's 1st-Semester column, nothing
+            // before or after it. A standing subject never wires to itself,
+            // and standing SIBLINGS sharing its own column (IT42/IT43 in
+            // Yr4·S1) never wire to each other — each reaches only their
+            // non-standing peer IT41, so the column never criss-crosses.
+            if (src.year !== bandYear || src.sem !== 1) continue
+            if (sCol === nCol && (src.prereqCodes ?? []).some((k) => standingPrereqYear(k) === bandYear)) continue
           }
           prereqLinks.push({ from: src, to: n, standing: true })
         }
