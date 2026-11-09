@@ -2091,13 +2091,12 @@ export default function SubjectView() {
     //
     //  - STANDING links: a token like "3rd Yr. Standing" is no subject code,
     //    it is a classification — refined 2026-11-09 (final) as "the gate is
-    //    the column immediately LEFT of the dependent's own column": IT38
-    //    (S2) feeds from S1, the Summer pair from S2, and IT44's "100% of
-    //    the Profession Subjects are Taken" from the Yr4·S1 cohort. One
-    //    carve-out: when that left column is the Summer strip — which only
-    //    happens for the Yr4·S1 standing pair — the band collapses onto the
-    //    same-column cohort, excluding standing-gated siblings, so IT42/IT43
-    //    wire to their peer IT41 rather than each other. When the
+    //    the standing YEAR's own columns before the dependent's own": IT38
+    //    (Yr3·S2) feeds from S1, the Summer pair from BOTH S1 and S2, and
+    //    IT44's "100% of the Profession Subjects are Taken" from the Yr4·S1
+    //    cohort. A Yr·S1 dependent has no earlier same-year column — its
+    //    band collapses onto the own-column cohort, excluding standing-gated
+    //    siblings, so IT42/IT43 wire to their peer IT41. When the
     //    PO filter dims a side, its connectors dim with it so the filtered
     //    view never draws loud links to ghosts.
     //
@@ -2124,16 +2123,14 @@ export default function SubjectView() {
           const sCol = colIndexOf(`y${src.year}s${src.sem}`)
           if (sCol < 0) continue
           // One band rule for the whole standing family (refined 2026-11-09,
-          // final): the gate is the column IMMEDIATELY LEFT of the dependent's
-          // own column — IT38 (S2) feeds from S1, the Summer pair from S2,
-          // and IT44's "100% of the Profession Subjects are Taken" from the
-          // Yr4·S1 cohort. The single carve-out: a dependent whose left
-          // column is the Summer strip (only the Yr4·S1 standing pair lands
-          // there) wires inside its own column instead, excluding itself and
-          // other standing-gated siblings — IT42/IT43 reach their peer IT41.
-          const leftIsSummer =
-            n.sem === 1 && colIndexOf(`y${n.year}s3`) === nCol - 1
-          if (leftIsSummer) {
+          // final): the gate is the standing YEAR's own columns that lie
+          // BEFORE the dependent's own column — IT38 (Yr3·S2) feeds from S1,
+          // the Summer pair feeds from BOTH S1 and S2, and IT44's "100% of
+          // the Profession Subjects are Taken" from the Yr4·S1 cohort. A
+          // dependent in a Yr·S1 column has no earlier same-year column: its
+          // band collapses onto the own-column cohort, excluding itself and
+          // other standing-gated siblings — IT42/IT43 wire to peer IT41.
+          if (n.sem === 1) {
             if (sCol !== nCol) continue
             const siblingStanding =
               (src.prereqCodes ?? []).some(
@@ -2141,7 +2138,7 @@ export default function SubjectView() {
               )
             if (siblingStanding) continue
           } else {
-            if (sCol !== nCol - 1) continue
+            if (src.year !== n.year || sCol >= nCol) continue
           }
           prereqLinks.push({ from: src, to: n, standing: true })
         }
