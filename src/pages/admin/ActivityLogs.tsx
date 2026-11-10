@@ -381,26 +381,6 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
         </div>
       </div>
 
-      <div className="program-stats">
-        <div className="program-stat">
-          <div className="program-stat__label">Showing</div>
-          <div className="program-stat__value">{rows.length}</div>
-          <div className="program-stat__sub">
-            {hasFilters ? 'Matching filters' : `Latest ${ACTIVITY_LOG_LIMIT}`}
-          </div>
-        </div>
-        <div className="program-stat">
-          <div className="program-stat__label">Actors</div>
-          <div className="program-stat__value" style={{ color: '#0f172a' }}>{summaryByRole.length}</div>
-          <div className="program-stat__sub">In current view</div>
-        </div>
-        <div className="program-stat">
-          <div className="program-stat__label">Actions</div>
-          <div className="program-stat__value" style={{ color: '#0f172a', fontSize: 16 }}>{actions.length}</div>
-          <div className="program-stat__sub">Distinct types</div>
-        </div>
-      </div>
-
       {error && <p className="msg msg--error">{error}</p>}
 
       {/* Filters — all of these narrow the query, not the loaded page. */}
