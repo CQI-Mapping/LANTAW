@@ -280,11 +280,6 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
     return [...set].sort((a, b) => labelAction(a).localeCompare(labelAction(b)))
   }, [entries])
 
-  const failedCount = useMemo(
-    () => rows.filter((e) => e.action === 'auth.login_failed').length,
-    [rows],
-  )
-
   const hasFilters = search || actionFilter || userFilter || roleFilter || dateFrom || dateTo
 
   const clearFilters = () => {
@@ -383,36 +378,6 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
                   : `Audit trail of ${entries.length} entries — faculty activity, filtered by the database.`)}
             </p>
           </div>
-        </div>
-      </div>
-
-      <div className="program-stats">
-        <div className="program-stat">
-          <div className="program-stat__label">Showing</div>
-          <div className="program-stat__value">{rows.length}</div>
-          <div className="program-stat__sub">
-            {hasFilters ? 'Matching filters' : `Latest ${ACTIVITY_LOG_LIMIT}`}
-          </div>
-        </div>
-        <div className="program-stat">
-          <div className="program-stat__label">Actors</div>
-          <div className="program-stat__value" style={{ color: '#0f172a' }}>{summaryByRole.length}</div>
-          <div className="program-stat__sub">In current view</div>
-        </div>
-        <div className="program-stat">
-          <div className="program-stat__label">Actions</div>
-          <div className="program-stat__value" style={{ color: '#0f172a', fontSize: 16 }}>{actions.length}</div>
-          <div className="program-stat__sub">Distinct types</div>
-        </div>
-        <div className="program-stat">
-          <div className="program-stat__label">Failed sign-ins</div>
-          <div
-            className="program-stat__value"
-            style={{ color: failedCount > 0 ? '#b91c1c' : '#0f172a' }}
-          >
-            {failedCount}
-          </div>
-          <div className="program-stat__sub">In current view</div>
         </div>
       </div>
 
