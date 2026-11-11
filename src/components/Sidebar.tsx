@@ -57,6 +57,7 @@ const ICONS: Record<string, string> = {
   peos: 'circle 12 8 6|path M15.5 13l1.5 8-5-3-5 3 1.5-8',
   'program-outcomes': 'path M3 3v18h18|path M7 16l3-3 3 3 5-8',
   'subject-view': 'circle 18 5 3|circle 6 12 3|circle 18 19 3|line 8.6 10.5 15.4 6.5|line 8.6 13.5 15.4 17.5',
+  grasps: 'circle 12 12 9|circle 12 12 5|circle 12 12 1.5',
   tos: 'rect 4 3 16 18 1.5|path M8 8h8|M8 12h8|M8 16h5',
   analytics: 'path M3 3v18h18|rect 7 12 3 6 1|rect 12 7 3 11 1|rect 17 10 3 8 1',
   'activity-logs': 'path M3 12a9 9 0 1 0 3-6.7L3 8|path M3 3v5h5|path M12 7v5l4 2',
@@ -74,7 +75,7 @@ function initialsOf(name: string | null | undefined, fallback: string): string {
 // Academic-related IDs that get grouped under "Academics" — unified dropdown for all roles
 const ACADEMICS_IDS = new Set([
   'program', 'ched-memo', 'strategic-goals', 'peos',
-  'program-outcomes', 'curriculum', 'course', 'clo', 'subject-view', 'tos',
+  'program-outcomes', 'curriculum', 'course', 'clo', 'subject-view', 'grasps', 'tos',
 ])
 
 const ACADEMICS_META: Record<string, { desc: string }> = {
@@ -87,6 +88,7 @@ const ACADEMICS_META: Record<string, { desc: string }> = {
   course: { desc: 'Course catalog & details' },
   clo: { desc: 'Course learning outcomes' },
   'subject-view': { desc: 'Start Visualizing' },
+  grasps: { desc: 'Performance task design' },
   tos: { desc: 'Exam blueprint & Bloom coverage' },
 }
 

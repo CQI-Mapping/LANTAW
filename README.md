@@ -12,7 +12,7 @@ This README is a full development reference: how to set the project up, how the 
 - **Roles:**
   - `admin` — System Administrator / ICT Officer. Full control: manage accounts and roles, create users, manage and delete curriculum records, view the audit log.
   - `manager` — Program Head / CQI Lead. Manages curriculum records (create/edit/archive), browses the faculty directory (read-only), views the audit log.
-  - `user` — Faculty / Instructor. Edits course learning outcomes, builds Table of Specifications (Generate TOS), generates program reports, browses the subject graph, edits own profile.
+  - `user` — Faculty / Instructor. Edits course learning outcomes, builds Table of Specifications (Generate TOS), designs GRASPS performance tasks (Generate GRASPS), browses the subject graph, edits own profile.
 
 The UI hides pages you can't use, but the *real* enforcement is **Row Level Security (RLS)** in the database — a `user` cannot read other users or mutate curriculum records even by calling Supabase directly from the browser.
 
@@ -159,6 +159,7 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
     │   └── user/
     │       ├── Dashboard.tsx         # Faculty home: next step, own-outcome figures, subjects, quick actions, program brief
     │       ├── CourseLearningOutcomes.tsx  # Faculty CLO editor (same bespoke page)
+    │       ├── Grasps.tsx            # Generate GRASPS: performance-task editor + saved-task library
     │       └── TOS.tsx               # Generate TOS: blueprint editor + saved-blueprint library
     ├── services/
     │   └── database.ts       # ALL Supabase queries used by the app
@@ -310,6 +311,17 @@ time, so renaming a record later does not rewrite history.
 
 Both child tables cascade on exam delete, so removing a blueprint from the
 library removes its papers and topics in one statement.
+
+**`grasps_tasks`** — the Generate GRASPS performance tasks (faculty-owned,
+migration `025-grasps-tasks.sql`).
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `grasps_tasks` | `user_id`, `code`, `title`, `task_type`, `term`, `goal` … `standards`, `status` | one performance task per row; the six GRASPS components are plain text; `UNIQUE (user_id, code, task_type, semester, school_year)` |
+
+Private to their owner like the TOS blueprints: one "Users manage own
+grasps_tasks" policy covers every operation, so the page never shows a
+colleague's task and never filters by user itself.
 
 ### 6.2 Row Level Security Policies
 
@@ -515,6 +527,11 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Every edit autosaves on a 600 ms debounce; the **Save pending** button flushes all sheets immediately, **Discard** reloads from the database.
 - The library panel lists every saved blueprint with Edit (inline full editor), Open, Archive/Restore, and **Delete** (red trash, confirms, cascades papers + topics, writes `tos_exam.deleted` to the audit log). Deleting the blueprint that is open in the editor stands down its pending writers first and parks the editor on the next exam.
 - **Export** builds the faculty workbook with ExcelJS (`utils/tosXlsx.ts`): letterhead, green editable cells + gray formula cells, formulas written live (`=SUM(...)`), `fullCalcOnLoad` so Excel computes on open. Tabs are named as the workbook spells them (`Multiple Choice`, `ProductPerformance-Based`); both papers end at the Create column — no extra grand-total column.
+
+### `user/Grasps.tsx` (Generate GRASPS, faculty)
+- A performance-task workspace backed by `grasps_tasks` (migration `025-grasps-tasks.sql`): the six GRASPS components — Goal, Role, Audience, Situation, Product/Performance, Standards — as auto-expanding text areas under one identifying header (Program, Course title, grading period, Semester, School Year), the same pickers the TOS page builds with (`utils/tosOptions.ts`).
+- The TOS page's one-writer rule carries over: the top editor is a draft mirrored to localStorage (`cqic.grasps.draft.v1`), Save files the whole task as one row and starts a blank draft, and a card's Edit button loads that row back into the same editor (a later Save updates it). Archive/Restore are the only removals — nothing is hard-deleted from here.
+- The library panel lists saved tasks with an Active/Archive pair, each card showing the course title, term, document title line, an honest "N of 6 components written" count, and Download-as-Word (`utils/graspsDocx.ts`: letterhead + the six-component GRASPS table, `docx` imported dynamically so it never rides the main bundle).
 
 ### `components/MapBrief.tsx` (embedded on all three role dashboards)
 - The program's curriculum at a glance, moved off the Generate Map page: the seven KPI tiles (Total Programs … Unmapped / Incomplete), the Curriculum Mapping Summary table and the PO Coverage Chart. Self-contained — it fetches its own data, opens on the account's program assignment (then BSIT, then first), and re-uses the shared alignment engines (`utils/alignment.ts`, `utils/cloPoMapping.ts`), so its figures always agree with the report's PDF.

@@ -5130,6 +5130,70 @@ textarea.input {
   color: var(--danger);
 }
 
+/* ---- GRASPS page (user) ---- */
+
+/* The six GRASPS component editors, two per row on wide screens and one per
+   row on a phone, each carrying its letter badge, name and one-line prompt so
+   a first-time user can fill them in without the framework on a bookmark. */
+.grasps-parts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .grasps-parts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grasps-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.grasps-part__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* The acronym letter, stamped in the brand green like the TOS input cells, so
+   the six boxes read as G-R-A-S-P-S down the panel. */
+.grasps-part__letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.grasps-part__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.grasps-part__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.grasps-part__hint {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
 /* Which paper of the exam is on screen. Sits between the header and the grid,
    reads as a tab bar rather than a toolbar: the active tab is underlined and
    tinted, the rest stay quiet. Both papers belong to one exam, so switching

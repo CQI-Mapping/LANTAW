@@ -1104,3 +1104,52 @@ CREATE POLICY "Users manage own tos_topics" ON public.tos_topics FOR ALL
         JOIN public.tos_exams e ON e.id = s.exam_id
         WHERE s.id = tos_topics.sheet_id AND e.user_id = auth.uid()
     ));
+
+-- ============================================================
+-- GRASPS TASKS
+--
+-- The Generate GRASPS page (faculty) saves each performance
+-- task it builds: one row per document, carrying the six
+-- GRASPS components as plain text (Goal, Role, Audience,
+-- Situation, Product/Performance, Standards).
+--
+-- Private to their owner, exactly like the TOS blueprints:
+-- the policy below scopes every read and write to auth.uid().
+--
+-- See supabase/migrations/025-grasps-tasks.sql for the full
+-- header comment.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.grasps_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES public.profiles(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    task_type TEXT NOT NULL DEFAULT 'Prelim',
+    -- Recomposed from semester + school_year on every write, kept so anything
+    -- still reading it (an older export, a card) keeps working.
+    term TEXT NOT NULL,
+    semester TEXT,
+    school_year TEXT,
+    -- The six GRASPS components. Each is optional in storage — a task may be
+    -- filed half-written — and the page decides what counts as saveable.
+    goal TEXT,
+    role TEXT,
+    audience TEXT,
+    situation TEXT,
+    product TEXT,
+    standards TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, code, task_type, semester, school_year)
+);
+
+CREATE INDEX IF NOT EXISTS grasps_tasks_user_idx ON public.grasps_tasks (user_id);
+
+ALTER TABLE public.grasps_tasks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own grasps_tasks" ON public.grasps_tasks;
+CREATE POLICY "Users manage own grasps_tasks" ON public.grasps_tasks FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);

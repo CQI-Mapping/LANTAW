@@ -19,8 +19,8 @@
 //   Activity Logs, Profile
 //
 // Faculty pages (sidebar order):
-//   Dashboard, Course Learning Outcomes, Curriculum, Subject Graph,
-//   Generate TOS, Reports, Profile
+//   Dashboard, Course Learning Outcomes, Subject Graph (Generate Map),
+//   Generate GRASPS, Generate TOS, Profile, Security & Privacy
 //
 // The Program / CHED Memo / Strategic Goals / PEO pages are shared with the admin
 // role (same as Activity Logs and Subject Graph) — only destructive deletes stay
@@ -57,6 +57,7 @@ import AdminSubjectView from './pages/admin/Map'
 import AdminView from './pages/admin/Syllabus'
 
 import UserTOS from './pages/user/TOS'
+import UserGrasps from './pages/user/Grasps'
 import { supabase } from './utils/supabaseClient'
 import { ensureProfile, syncDemoRole, addActivityLog, recordLoginEvent } from './services/database'
 import type { Profile as ProfileType, UserRole, NavItem } from './services/database'
@@ -99,6 +100,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'clo', label: 'Course Learning Outcomes' },
     { id: 'subject-view', label: 'Generate Map' },
+    { id: 'grasps', label: 'Generate GRASPS' },
     { id: 'tos', label: 'Generate TOS' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
@@ -149,6 +151,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     dashboard: UserDashboard,
     clo: UserCourseLearningOutcomes,
     'subject-view': AdminSubjectView,
+    grasps: UserGrasps,
     tos: UserTOS,
     profile: Profile,
     security: SecurityPrivacy,
