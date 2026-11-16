@@ -2,7 +2,7 @@
 // Date constructor, so getHours() reads them back exactly wherever run.
 
 import { describe, expect, it } from 'vitest'
-import { localISODate, timeGreeting } from './clock'
+import { localISODate, philippineNow, timeGreeting } from './clock'
 
 /** A local date at hour `h` on a fixed day. */
 const at = (h: number, m = 0) => new Date(2026, 9, 27, h, m)
@@ -45,5 +45,22 @@ describe('localISODate', () => {
   it('always agrees with the local getFullYear/getMonth/getDate read', () => {
     expect(localISODate(new Date(2026, 9, 27, 23, 0))).toBe('2026-10-27')
     expect(localISODate(new Date(2026, 9, 28, 0, 30))).toBe('2026-10-28')
+  })
+})
+
+describe('philippineNow', () => {
+  it('re-bases the moment onto UTC+8, whatever the device says', () => {
+    const d = new Date('2026-11-17T00:00:00Z')
+    // getTimezoneOffset() is minutes BEHIND UTC (PH reads -480), so the
+    // shift to UTC+8 is 480 + offset.
+    const expectedShift = (8 * 60 + d.getTimezoneOffset()) * 60_000
+    expect(philippineNow(d).getTime() - d.getTime()).toBe(expectedShift)
+  })
+
+  it('is an identity shift on a device already set to Philippine time', () => {
+    const d = new Date('2026-11-17T00:00:00Z')
+    if (d.getTimezoneOffset() === -480) {
+      expect(philippineNow(d).getTime()).toBe(d.getTime())
+    }
   })
 })

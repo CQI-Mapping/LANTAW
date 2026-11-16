@@ -22,7 +22,7 @@ import CloViewModal from '../../components/CloViewModal'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
 import { useClock } from '../../hooks/useClock'
-import { timeGreeting } from '../../utils/clock'
+import { philippineNow, timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
 import { cloLabel } from '../../utils/courseCodes'
 import { groupOutcomesBySubject, ownFigures, subjectsCovered, weeklyEditTrend } from '../../utils/facultyDashboard'
@@ -269,7 +269,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
     <div className="fac-dash page-enter">
       <section className="fac-hero card-enter" aria-labelledby="fac-hero-name">
         <div className="fac-hero__info">
-          <p className="fac-hero__greeting">{timeGreeting(clock)}</p>
+          <p className="fac-hero__greeting">{timeGreeting(philippineNow(clock))}</p>
           <h1 className="fac-hero__name" id="fac-hero-name">{name}</h1>
           <span className="fac-hero__chip">Faculty</span>
           <p className="fac-hero__desc">

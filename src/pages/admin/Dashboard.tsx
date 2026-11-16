@@ -11,7 +11,7 @@ import {
 } from '../../services/database'
 import type { Profile, ActivityLogEntry } from '../../services/database'
 import { useClock } from '../../hooks/useClock'
-import { timeGreeting } from '../../utils/clock'
+import { philippineNow, timeGreeting } from '../../utils/clock'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
 
@@ -179,7 +179,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
     <div className="dashboard dashboard--2026 page-enter">
       <section className="dashbanner" aria-labelledby="dashbanner-name">
         <div className="dashbanner__info">
-          <span className="dashbanner__greeting">{timeGreeting(clock)}</span>
+          <span className="dashbanner__greeting">{timeGreeting(philippineNow(clock))}</span>
           <h1 className="dashbanner__name" id="dashbanner-name">
             {/* Greet by the nickname when one exists (what friends call the
                 user), else the full name, else the email's local part. */}
