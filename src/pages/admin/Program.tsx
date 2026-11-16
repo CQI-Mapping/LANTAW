@@ -153,8 +153,9 @@ export default function Program({ allowDelete = true }: ProgramProps) {
           </div>
         </div>
         <div className="program-hero__action">
-          <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New">
+          <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New Program">
             <Icon name="plus" size={14} />
+            Add New Program
           </button>
         </div>
       </div>
@@ -279,7 +280,7 @@ export default function Program({ allowDelete = true }: ProgramProps) {
         ) : visible.length === 0 ? (
           <div className="program-empty" style={{ marginTop: 14 }}>
             <strong>No {archived ? 'archived' : 'active'} programs yet.</strong>
-            <span>{q ? `No results for "${query}"` : archived ? 'Archived programs will appear here.' : 'Click "Add New" to create your first program.'}</span>
+            <span>{q ? `No results for "${query}"` : archived ? 'Archived programs will appear here.' : 'Click "Add New Program" to create your first program.'}</span>
           </div>
         ) : viewMode === 'list' ? (
           <div className="resource-list">
