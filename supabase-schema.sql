@@ -670,7 +670,9 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- Faculty writes are ALSO scoped to the subjects the manager assigned
 -- them (courses.instructor_id) — see 026-faculty-clo-assigned-subjects.sql.
 -- The subject-match check lives in one SECURITY DEFINER function so the
--- policies only touch NEW/OLD at the top level.
+-- policies reference the row's columns bare (policies have no NEW/OLD —
+-- that is a trigger concept; a bare column reads the existing row in
+-- USING and the proposed row in WITH CHECK).
 
 CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
 RETURNS boolean
@@ -701,7 +703,7 @@ CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), NEW.course)
+                AND public.faculty_teaches_course(auth.uid(), course)
             )
         )
     );
@@ -713,7 +715,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_cours
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), OLD.course)
+                AND public.faculty_teaches_course(auth.uid(), course)
             )
         )
     )
@@ -723,7 +725,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_cours
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), NEW.course)
+                AND public.faculty_teaches_course(auth.uid(), course)
             )
         )
     );
