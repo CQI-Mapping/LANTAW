@@ -19,20 +19,17 @@ import {
   fetchPrograms,
   fetchResources,
   fetchCourses,
-  fetchAllProfiles,
   createCourse,
   updateCourse,
-  assignCourseInstructor,
-  assignCourseInstructorsBulk,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
-import type { Program, Resource, Course, Profile } from '../../services/database'
+import type { Program, Resource, Course } from '../../services/database'
 
 const instructorLabelOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.full_name || v.email : ''
-/** The assigned faculty account's id, '' when none — the comparison key the
-    faculty navbar filters cards by. */
+/** The assigned faculty account's id, '' when none — how the course card
+    reads the assignment the Assign Faculty module wrote. */
 const instructorIdOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.id : (v || '')
 
@@ -189,9 +186,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [curriculums, setCurriculums] = useState<Resource[]>([])
   const [courses, setCourses] = useState<Course[]>([])
-  // The faculty picker's options: active faculty accounts only. An archived
-  // account should not be handed a subject, and managers/admins do not teach.
-  const [faculty, setFaculty] = useState<Profile[]>([])
   const [programId, setProgramId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -210,12 +204,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const setEditForm = (f: CourseForm) => setEditState((s) => ({ ...s, editForm: f }))
   const [archived, setArchived] = useState(false)
   const [query, setQuery] = useState('')
-  // Faculty assignment navbar: '' shows every subject; a profile id filters
-  // the cards to that faculty member's subjects and opens the assign bar.
-  const [facultyFilter, setFacultyFilter] = useState('')
-  // Multi-pick: subjects checked in the assign list, waiting for one Assign
-  // press that files them all as a single write.
-  const [picks, setPicks] = useState<string[]>([])
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // The curriculum-PDF import modal.
@@ -263,15 +251,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
           ),
       )
       setCourses(c)
-      // Faculty list is auxiliary: a profiles read that the network or RLS
-      // refuses must not take the whole page down, so it degrades to an
-      // empty picker instead of a dead page.
-      try {
-        const profiles = await fetchAllProfiles()
-        setFaculty(profiles.filter((p) => p.role === 'user' && p.status !== 'archived'))
-      } catch {
-        setFaculty([])
-      }
       setProgramId((prev) => {
         if (prev && p.some((x) => x.id === prev)) return prev
         return p[0]?.id ?? ''
@@ -290,9 +269,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const visible = courses.filter((c) =>
     typeof c.program_id === 'object' ? c.program_id.id === programId : c.program_id === programId,
   ).filter((c) => (archived ? !isActive(c) : isActive(c))).filter(
-    // Faculty navbar: when a member is picked, only the subjects they hold.
-    (c) => !facultyFilter || instructorIdOf(c.instructor_id) === facultyFilter,
-  ).filter(
     (c) => !q || [c.code, c.title, c.prerequisite, c.corequisite, c.description, instructorLabelOf(c.instructor_id)].some((v) => (v || '').toLowerCase().includes(q)),
   )
 
@@ -326,29 +302,12 @@ export default function ManagerCourse({ profile }: CourseProps) {
       ? `A course with code ${code} already exists in this program.`
       : `${code} exists but is archived — toggle "Archived" on this page and press Restore on that card instead of creating a new one.`
 
-  // ---- Faculty assignment navbar ----
-  // The manager picks a faculty member from the sub-nav and works on their
-  // subjects directly: the pick filters the cards, the assign bar hands out
-  // more, and each card can drop the assignment. Counts stay on the current
-  // program's active subjects so a pill always answers "how many here".
+  // The faculty assignment lives in the Assign Faculty module — this page
+  // stays a pure course catalog. (The stats row still shows how many
+  // subjects have no instructor yet, so the gap stays visible here.)
   const unassignedCount = courses.filter(
     (c) => sameProgram(c) && isActive(c) && !instructorIdOf(c.instructor_id),
   ).length
-  const activeInProgram = courses.filter((c) => sameProgram(c) && isActive(c)).length
-  const facultyCountOf = (fid: string) =>
-    courses.filter((c) => sameProgram(c) && isActive(c) && instructorIdOf(c.instructor_id) === fid).length
-  // Subjects the picked faculty member could take over: every active subject
-  // in this program they do not already hold. A subject someone else teaches
-  // says so in its option label — handing a subject over is a normal move,
-  // but it should never be a silent one.
-  const assignable = courses
-    .filter((c) => sameProgram(c) && isActive(c) && instructorIdOf(c.instructor_id) !== facultyFilter)
-    .sort(
-      (a, b) =>
-        (a.year_level ?? 99) - (b.year_level ?? 99) ||
-        (a.semester ?? 9) - (b.semester ?? 9) ||
-        a.code.localeCompare(b.code, undefined, { numeric: true }),
-    )
 
   const totalCredits = (f: CourseForm) => {
     const lec = parseInt(f.creditLecture, 10) || 0
@@ -548,56 +507,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
     }
   }
 
-  // Navbar quick actions: hand the picked faculty member more subjects in one
-  // press, or take one away. The pick travels as a single bulk write and the
-  // log entry matches the edit form's wording, so the audit trail never
-  // splits its voice.
-  const togglePick = (id: string) =>
-    setPicks((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
-  const handleQuickAssign = async () => {
-    if (!facultyFilter || picks.length === 0) return
-    setError('')
-    setMessage('')
-    setBusy(true)
-    try {
-      const updated = await assignCourseInstructorsBulk(picks, facultyFilter)
-      for (const c of updated) {
-        await addActivityLog('course.instructor_assigned', {
-          entity: 'course',
-          entity_id: c.id,
-          label: `${c.code} → ${facultyNameOf(facultyFilter) || 'faculty'}`,
-        })
-      }
-      setMessage(`Assigned ${updated.length} subject${updated.length === 1 ? '' : 's'} to ${facultyNameOf(facultyFilter)}.`)
-      setPicks([])
-      load()
-    } catch (err) {
-      setError('Failed to assign subjects: ' + errMsg(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleUnassign = async (course: Course) => {
-    setError('')
-    setMessage('')
-    setBusy(true)
-    try {
-      await assignCourseInstructor(course.id, null)
-      await addActivityLog('course.instructor_assigned', {
-        entity: 'course',
-        entity_id: course.id,
-        label: `${course.code} → unassigned`,
-      })
-      setMessage(`Removed ${course.code} from ${facultyNameOf(facultyFilter)}.`)
-      load()
-    } catch (err) {
-      setError('Failed to unassign instructor: ' + errMsg(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   // Credit units (lecture / laboratory) share one clamped numeric input.
   const creditField = (
     label: string,
@@ -613,14 +522,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
         onWheel={(e) => (e.target as HTMLInputElement).blur()} />
     </label>
   )
-
-  // The faculty member's display name, for the audit entry and the assign
-  // panel — active faculty accounts only (the load step filters role +
-  // status).
-  const facultyNameOf = (id: string) => {
-    const f = faculty.find((x) => x.id === id)
-    return f ? (f.full_name || f.email) : ''
-  }
 
   // Inline edit form for a single course card — the same card-expanding editor
   // the CLO page uses: fields stack inside the card and Save/Cancel sit at the
@@ -988,59 +889,12 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 />
               )}
             </div>
-            {/* Faculty assignment navbar: a second tab row, one pill per
-                faculty member with their active-subject count. Picking a pill
-                filters the cards to that person's subjects and opens the
-                multi-pick assign panel, so handing out subjects never needs a
-                form. Counts stay on the current program. */}
-            <div className="program-faculty-tabs sd-tabs">
-              <button className={`sd-tab ${!facultyFilter ? 'sd-tab--active' : ''}`}
-                onClick={() => { setFacultyFilter(''); setPicks([]) }}>
-                All subjects
-                <span className="sd-tab__count">{activeInProgram}</span>
-              </button>
-              {faculty.map((f) => (
-                <button key={f.id} className={`sd-tab ${facultyFilter === f.id ? 'sd-tab--active' : ''}`}
-                  onClick={() => { setFacultyFilter(f.id); setPicks([]) }}>
-                  <Icon name="user" size={13} />
-                  {f.full_name || f.email}
-                  {facultyCountOf(f.id) > 0 && <span className="sd-tab__count">{facultyCountOf(f.id)}</span>}
-                </button>
-              ))}
-              {faculty.length === 0 && (
-                <span className="program-faculty-tabs__empty">
-                  No faculty accounts yet — create them under Users &amp; Accounts, then assign subjects here.
-                </span>
-              )}
-            </div>
-            {facultyFilter && (
-              <SubjectMultiAssign
-                facultyName={facultyNameOf(facultyFilter) || 'faculty'}
-                options={assignable.map((c) => ({
-                  id: c.id,
-                  code: c.code,
-                  title: c.title,
-                  current: instructorLabelOf(c.instructor_id) || null,
-                }))}
-                picks={picks}
-                onToggle={togglePick}
-                onSelectAll={() => setPicks(assignable.map((c) => c.id))}
-                onClear={() => setPicks([])}
-                onAssign={handleQuickAssign}
-                busy={busy}
-                emptyHint={`Every active subject in this program is already ${facultyNameOf(facultyFilter) || 'theirs'}.`}
-              />
-            )}
             {visible.length === 0 ? (
               <div className="clo26-empty" style={{ marginTop: 14 }}>
-                {facultyFilter
-                  ? `${facultyNameOf(facultyFilter) || 'This faculty member'} has no ${archived ? 'archived' : 'active'} subjects here yet.`
-                  : `No ${archived ? 'archived' : 'active'} courses yet.`}
+                {`No ${archived ? 'archived' : 'active'} courses yet.`}
                 <span style={{ display: 'block', marginTop: 4 }}>{query
                   ? `No results for "${query}"`
-                  : facultyFilter
-                    ? 'Use the assign panel above to hand out subjects.'
-                    : `Add your first course for ${programs.find(p => p.id === programId)?.code || 'this program'}.`}</span>
+                  : `Add your first course for ${programs.find(p => p.id === programId)?.code || 'this program'}.`}</span>
               </div>
             ) : (
               <div className="clo26-list">
@@ -1108,11 +962,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
                               </div>
                               <div className="po26-actions">
                                 <button type="button" onClick={() => startEdit(c)} disabled={busy}>Edit</button>
-                                {facultyFilter && (
-                                  <button type="button" onClick={() => handleUnassign(c)} disabled={busy}>
-                                    Remove from {facultyNameOf(facultyFilter) || 'faculty'}
-                                  </button>
-                                )}
                                 <button type="button" onClick={() => handleToggleStatus(c)} disabled={busy || !!editId}>
                                   {isActive(c) ? 'Archive' : 'Restore'}
                                 </button>
