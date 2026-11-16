@@ -774,7 +774,16 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             </div>
           ) : (
             <select className="input input--sm" value={form.course}
-              onChange={(e) => setForm({ ...form, course: e.target.value })} required>
+              onChange={(e) => {
+                const code = e.target.value
+                setForm({ ...form, course: code })
+                // Picking a subject directly auto-fills the Year/Semester
+                // slicers from the subject's own placement, so they read as
+                // the subject's term instead of leftover filters.
+                const picked = myCourses.find((c) => c.code === code)
+                setCourseYear(picked ? String(picked.year_level ?? '') : '')
+                setCourseSem(picked ? String(picked.semester ?? '') : '')
+              }} required>
               <option value="">Select course</option>
               {filteredCourses.map((c) => (
                 <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
@@ -1048,7 +1057,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             <button type="button" className="clo26-textbtn"
                               onClick={() => {
                                 setForm((f) => ({ ...f, course: course.code }))
-                                setCourseYear(''); setCourseSem('')
+                                // Same auto-fill as a direct pick: the
+                                // slicers read the subject's placement.
+                                setCourseYear(String(course.year_level ?? ''))
+                                setCourseSem(String(course.semester ?? ''))
                                 document.querySelector('.clo-create-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                               }}>
                               Add a CLO
