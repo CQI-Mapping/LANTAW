@@ -42,7 +42,7 @@ function CloViewModal({ item, onClose }: CloViewModalProps) {
           </div>
           <div>
             <p style={LABEL}>Program outcomes</p>
-            <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569', marginTop: 4 }}>
+            <div style={{ fontSize: 12.5, background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-muted)', marginTop: 4 }}>
               {item.title || '—'}
             </div>
           </div>
@@ -57,12 +57,12 @@ function CloViewModal({ item, onClose }: CloViewModalProps) {
             </div>
             <div>
               <p style={LABEL}>Last updated</p>
-              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#475569' }}>{new Date(item.updated_at).toLocaleString()}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--text-muted)' }}>{new Date(item.updated_at).toLocaleString()}</p>
             </div>
           </div>
           <div>
             <p style={LABEL}>Created</p>
-            <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#475569' }}>{new Date(item.created_at).toLocaleString()}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--text-muted)' }}>{new Date(item.created_at).toLocaleString()}</p>
           </div>
         </div>
         <div className="modal__footer">

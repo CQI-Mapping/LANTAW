@@ -9397,6 +9397,13 @@ html.lantaw-dark .subject-view__graph-controls {
   background: var(--bg-panel);
 }
 
+/* The subject graph's placeholder nodes ride the theme: neutral dark fill,
+   soft stroke on the dark canvas. */
+html.lantaw-dark {
+  --map-placeholder: #1c1c1c;
+  --map-placeholder-stroke: #5a5a5a;
+}
+
 /* ---- Dark text fixes: accents brighten, dropdowns de-veil ---- */
 html.lantaw-dark .combo__list,
 html.lantaw-dark .suggestion__list {

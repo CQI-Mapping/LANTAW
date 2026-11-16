@@ -2601,8 +2601,10 @@ export default function SubjectView() {
       .data(simNodes, (d) => d.rId)
       .join((enter) => enter.append('circle').attr('class', 'subject-view__node'), (update) => update)
       .attr('r', nodeRadius)
-      .attr('fill', (d) => (d.placeholder ? '#f8fafc' : (colorMap[d.kind] as string) || color(String(d.group))))
-      .attr('stroke', (d) => (d.placeholder ? '#94a3b8' : '#fff'))
+      // Placeholder nodes read from a CSS custom property so the dark theme
+      // can re-ink them (style attr, not attribute — var() needs the cascade).
+      .style('fill', (d) => (d.placeholder ? 'var(--map-placeholder, #f8fafc)' : (colorMap[d.kind] as string) || color(String(d.group))))
+      .attr('stroke', (d) => (d.placeholder ? 'var(--map-placeholder-stroke, #94a3b8)' : '#fff'))
       .attr('cursor', (d) => (d.expandable || d.courseId || (d.kind === 'po' && d.poId) || (d.kind === 'peo' && d.peoId) || (d.kind === 'clo' && d.cloId) || (d.kind === 'sg' && d.sgId) || (d.kind === 'cmo' && d.cmoId) ? 'pointer' : 'grab'))
       .attr('filter', 'url(#subject-view-shadow)')
 

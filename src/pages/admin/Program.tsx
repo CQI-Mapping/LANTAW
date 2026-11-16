@@ -270,9 +270,9 @@ export default function Program({ allowDelete = true }: ProgramProps) {
           <div className="program-grid" style={{ marginTop: 14 }}>
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-                <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-                <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-                <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+                <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+                <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+                <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
               </div>
             ))}
           </div>

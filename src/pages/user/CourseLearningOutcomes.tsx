@@ -821,9 +821,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         <div className="program-grid" style={{ marginTop: 8 }}>
           {[0,1,2].map((i)=> (
             <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-              <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-              <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-              <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+              <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+              <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+              <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
             </div>
           ))}
         </div>
@@ -922,7 +922,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                       <div className="resource-card__body">
                         <h4>{cloLabel(item.code) || '—'} — {item.course || 'No course'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</h4>
                         {item.description && <p>{item.description}</p>}
-                        <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569', marginTop: 6 }}>
+                        <div style={{ fontSize: 12.5, background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-muted)', marginTop: 6 }}>
                           <strong style={{ color: 'var(--text-muted)' }}>POs:</strong> {item.title || '—'}
                         </div>
                         <div className="resource-card__meta" style={{ marginTop: 6 }}>
@@ -954,13 +954,13 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                     <>
                       <div className="program-card__top">
                         <span className="program-card__code">{cloLabel(item.code) || '—'}</span>
-                        <span className="program-card__status" style={{ background: '#f1f5f9', color: 'var(--text-muted)', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>{item.course || '—'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</span>
+                        <span className="program-card__status" style={{ background: 'var(--bg-soft)', color: 'var(--text-muted)', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>{item.course || '—'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</span>
                         <span className={`program-card__status ${isActive(item) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
                           <span className="program-card__status-dot" />{isActive(item) ? 'Active' : 'Archived'}
                         </span>
                       </div>
                       <p className="program-card__desc">{item.description || 'No description.'}</p>
-                      <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569' }}>
+                      <div style={{ fontSize: 12.5, background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', color: 'var(--text-muted)' }}>
                         <strong style={{ color: 'var(--text-muted)' }}>POs:</strong> {item.title || '—'}
                       </div>
                       <div className="program-card__actions">

@@ -656,9 +656,9 @@ export default function Users() {
           <div className="program-grid" style={{ marginTop: 12 }}>
             {[0,1,2].map((i) => (
               <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-                <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-                <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-                <div style={{ height: 12, background: '#f8fafc', borderRadius: 6, width: '60%' }} />
+                <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+                <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+                <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '60%' }} />
               </div>
             ))}
           </div>
@@ -778,7 +778,7 @@ export default function Users() {
             </div>
             <form onSubmit={handleEditSubmit}>
               <div className="modal__body">
-                <div style={{ fontSize: 12.5, color: '#475569', background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
                   <div><strong style={{ color: '#334155' }}>Full name:</strong> {editingUser.full_name || '—'}</div>
                   {editingUser.nickname && <div><strong style={{ color: '#334155' }}>Nickname:</strong> "{editingUser.nickname}"</div>}
                   {editingUser.department && <div><strong style={{ color: '#334155' }}>Academic department:</strong> {editingUser.department}</div>}
