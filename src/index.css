@@ -9444,6 +9444,335 @@ html.lantaw-dark .position-pill.selected {
 }
 
 /* ======================================================================
+   CLO PAGE — the lantaw-clo prototype's course-grouped list (faculty
+   role). Scoped to .clo-2026: Manrope headings over DM Sans text, the
+   toolbar as one white bar with a segmented status control, and the
+   CLOs grouped per subject in accordion cards with a mini-table inside.
+   ====================================================================== */
+
+.clo-2026 {
+  font-family: 'DM Sans', 'Inter', sans-serif;
+  margin-top: 2px;
+}
+
+.clo-2026 .clo26-info strong,
+.clo-2026 .clo26-code,
+.clo-2026 .clo26-id {
+  font-family: 'Manrope', 'Space Grotesk', sans-serif;
+}
+
+.clo26-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 9px;
+  margin-bottom: 22px;
+}
+
+.clo26-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 10px;
+  height: 36px;
+  color: var(--text-muted);
+}
+
+.clo26-search input {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font: 12px 'DM Sans', 'Inter', sans-serif;
+  color: var(--text);
+  background: transparent;
+}
+
+.clo26-select {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  padding: 0 10px;
+  font: 11px 'DM Sans', 'Inter', sans-serif;
+  max-width: 175px;
+}
+
+.clo26-viewtabs {
+  display: flex;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  padding: 3px;
+  margin-left: auto;
+}
+
+.clo26-tab {
+  border: 0;
+  background: transparent;
+  padding: 7px 11px;
+  border-radius: 5px;
+  font: 600 11px 'DM Sans', 'Inter', sans-serif;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.clo26-tab.active {
+  background: var(--bg-panel);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(22, 43, 29, 0.08);
+}
+
+.clo26-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 13px;
+}
+
+.clo26-section-head p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.clo26-textbtn {
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: 600 11px 'DM Sans', 'Inter', sans-serif;
+  cursor: pointer;
+  padding: 0;
+}
+
+.clo26-list {
+  display: grid;
+  gap: 10px;
+}
+
+.clo26-course {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.clo26-course-head {
+  width: 100%;
+  border: 0;
+  background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 16px 18px;
+  gap: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s ease;
+}
+
+.clo26-course-head:hover {
+  background: var(--bg-soft);
+}
+
+.clo26-code {
+  width: 48px;
+  height: 42px;
+  background: var(--g100);
+  border-radius: 7px;
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  font: 700 11px 'Manrope', 'Space Grotesk', sans-serif;
+  flex-shrink: 0;
+}
+
+.clo26-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.clo26-info strong {
+  display: block;
+  font: 700 13px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.clo26-info small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.clo26-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.clo26-count {
+  background: var(--bg-soft);
+  padding: 5px 8px;
+  border-radius: 5px;
+}
+
+.clo26-status {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  background: #eaf4ee;
+  border-radius: 20px;
+  padding: 5px 9px;
+}
+
+.clo26-chevron {
+  color: var(--text-muted);
+  font-size: 15px;
+  transition: transform 0.2s;
+}
+
+.clo26-course.open .clo26-chevron {
+  transform: rotate(90deg);
+}
+
+.clo26-body {
+  border-top: 1px solid var(--border);
+  padding: 0 18px 13px 80px;
+}
+
+.clo26-thead,
+.clo26-row {
+  display: grid;
+  grid-template-columns: 90px minmax(180px, 1fr) 115px 100px;
+  gap: 12px;
+  align-items: center;
+}
+
+.clo26-thead {
+  padding: 12px 10px 9px;
+  color: var(--text-muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 700;
+}
+
+.clo26-row {
+  padding: 13px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.clo26-id {
+  font: 700 11px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--primary);
+}
+
+.clo26-desc {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.clo26-pos {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.clo26-tag {
+  font-size: 9px;
+  color: #4d715d;
+  background: var(--g100);
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.clo26-tag--muted {
+  color: var(--text-muted);
+  background: var(--bg-soft);
+}
+
+.clo26-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.clo26-actions button {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: 600 10px 'DM Sans', 'Inter', sans-serif;
+  cursor: pointer;
+  padding: 3px;
+  font-family: inherit;
+}
+
+.clo26-actions button:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.clo26-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.clo26-actions .clo26-danger {
+  color: var(--danger);
+}
+
+.clo26-empty {
+  padding: 26px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: var(--bg-panel);
+  border: 1px dashed var(--border-strong);
+  border-radius: 9px;
+}
+
+.clo26-editrow {
+  padding: 6px 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* Dark variants: the same structure on the dark panels. */
+html.lantaw-dark .clo26-status {
+  color: #7cc08e;
+  background: rgba(124, 192, 142, 0.12);
+}
+
+html.lantaw-dark .clo26-tag {
+  color: #9fd0ae;
+  background: rgba(124, 192, 142, 0.1);
+}
+
+html.lantaw-dark .clo26-tag--muted {
+  color: var(--text-muted);
+  background: var(--bg-soft);
+}
+
+html.lantaw-dark .clo26-tab.active {
+  background: #262626;
+  color: #7cc08e;
+}
+
+html.lantaw-dark .clo26-code {
+  background: rgba(124, 192, 142, 0.1);
+  color: #7cc08e;
+}
+
+/* ======================================================================
    TOP-BAR BANNERS — with Position = Top bar, the pages carry the old
    design's dark artwork banners again (the watercolor strips with white
    type), the way the app looked before the premium flat heads. The
