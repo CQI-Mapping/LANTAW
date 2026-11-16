@@ -642,7 +642,12 @@ function App() {
             aria-pressed={sidebarMini}
             title={sidebarMini ? 'Expand sidebar' : 'Minimize sidebar'}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* ChatGPT-style collapsed state: the brand mark shows by
+                default; hovering swaps it for the expand icon. */}
+            {role === 'admin'
+              ? <span className="topbar__collapse-mark" aria-hidden="true">C</span>
+              : <img className="topbar__collapse-logo" src="/LOGO.png" alt="" />}
+            <svg className="topbar__collapse-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M9 3v18" />
             </svg>

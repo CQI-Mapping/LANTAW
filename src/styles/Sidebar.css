@@ -508,6 +508,53 @@
 
 .app-layout--mini .topbar__collapse {
   display: inline-flex;
+  /* ChatGPT-style collapsed top-left: the brand mark sits in the button;
+     hovering cross-fades it into the expand icon on a soft tint. */
+  position: relative;
+  overflow: hidden;
+}
+
+.topbar__collapse-logo,
+.topbar__collapse-mark,
+.topbar__collapse-icon {
+  transition: opacity 0.16s ease;
+}
+
+.topbar__collapse-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.topbar__collapse-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--g800);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+.topbar__collapse-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-logo,
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-mark {
+  opacity: 0;
+}
+
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-icon {
+  opacity: 1;
 }
 
 .topbar__collapse:hover {
