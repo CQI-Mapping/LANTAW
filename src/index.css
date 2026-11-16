@@ -9446,3 +9446,21 @@ html.lantaw-dark .assign-multi__code {
 html.lantaw-dark .assign-multi__current {
   color: #d4a24c;
 }
+
+/* The TOS workbook mimics the printed sheet: in dark mode its grid stays a
+   light paper island (mint editable cells, gray formula cells), so the ink
+   inside the table is pinned to the sheet's own dark color — the theme's
+   light text would otherwise land on the light cells unreadably. The
+   black header row carries its own white type, and the panel around the
+   table stays dark like every other card. */
+html.lantaw-dark .tos-table {
+  color: #1f2937;
+}
+
+html.lantaw-dark .tos-table tfoot th {
+  color: #1f2937;
+}
+
+html.lantaw-dark .tos-sheet .tos-cell__input:focus {
+  background: #fff;
+}
