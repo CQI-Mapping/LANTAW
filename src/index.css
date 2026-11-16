@@ -2234,7 +2234,7 @@ code {
 }
 
 .stat-card__icon--skeleton {
-  background: #f1f5f9 !important;
+  background: var(--bg-soft) !important;
   animation: pulse 1.4s ease-in-out infinite;
 }
 
@@ -6958,8 +6958,8 @@ button.reports-panel__more:hover {
 .program-search input {
   padding-left: 32px !important;
   border-radius: 10px !important;
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background: var(--bg-soft) !important;
+  border-color: var(--border) !important;
 }
 
 .program-grid {
@@ -9290,6 +9290,8 @@ html.lantaw-dark {
   --primary-light: #4b9c6d;
   --shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  /* Native chrome follows the theme: scrollbars, form controls, autofill. */
+  color-scheme: dark;
 }
 
 html.lantaw-dark ::selection {
