@@ -6158,6 +6158,38 @@ button.reports-panel__more:hover {
   color: #16a34a;
 }
 
+/* The manager Course page's faculty assignment navbar: a second tab row
+   under the Active/Archive tabs, one pill per faculty member. Pills wrap —
+   a program can carry more faculty than one line fits. */
+.program-faculty-tabs {
+  flex-wrap: wrap;
+}
+
+.program-faculty-tabs__empty {
+  font-size: 12px;
+  color: #64748b;
+  padding: 8px 2px;
+}
+
+/* The hand-out bar shown while a faculty member is picked: subject picker +
+   Assign button, so the assignment happens on the list itself. */
+.program-assign-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -4px 0 14px;
+}
+
+.program-assign-bar > span {
+  font-size: 13px;
+  color: #334155;
+}
+
+.program-assign-bar select {
+  min-width: 280px;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
