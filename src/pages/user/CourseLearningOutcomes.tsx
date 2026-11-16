@@ -147,10 +147,17 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // The manager's assignment is the gate: the faculty member writes CLOs
   // only for subjects handed to them (courses.instructor_id). The embedded
   // join resolves the instructor's email — the identity this page knows.
+  // Strict null check: instructor_id is null on unassigned subjects, and
+  // typeof null === 'object' would otherwise count every unassigned
+  // subject as the faculty member's own.
   const myCourses = useMemo(
-    () => courses.filter(
-      (c) => typeof c.instructor_id === 'object' && c.instructor_id?.email === userEmail,
-    ),
+    () =>
+      courses.filter(
+        (c) =>
+          c.instructor_id !== null &&
+          typeof c.instructor_id === 'object' &&
+          c.instructor_id.email === userEmail,
+      ),
     [courses, userEmail],
   )
 

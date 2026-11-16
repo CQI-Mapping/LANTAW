@@ -690,6 +690,11 @@ function App() {
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
     // so offering them an Admins filter would only ever yield an empty table.
     if (page === 'activity-logs') return <Page viewerRole={role} />
+    if (page === 'clo') {
+      // The faculty CLO page scopes its pickers by the signed-in email —
+      // without it the assignment gate cannot match anything.
+      return <Page userEmail={profile?.email} profile={profile} onNavigate={navigate} />
+    }
     if (page === 'appearance') {
       return (
         <AppearancePage
