@@ -296,21 +296,11 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   ) : null
 
   // Top-bar layout: the whole navigation sits in a sticky horizontal bar —
-  // brand left, pill nav scrolling the middle, avatar menu right.
+  // pill nav left/middle, avatar menu right. The brand block stays out of
+  // the bar (the rail carries it in the left layout).
   if (navLayout === 'top') {
     return (
       <header className="topnav">
-        <div className="brand">
-          {role === 'admin' ? (
-            <span className="brand-mark" aria-hidden="true">C</span>
-          ) : (
-            <img className="brand-mark-img" src={PROGRAM_LOGO} alt="" />
-          )}
-          <div className="brand-text">
-            <b>LANTAW</b>
-            <small>CQI MONITORING SYSTEM</small>
-          </div>
-        </div>
         <nav className="topnav__nav" aria-label="Main navigation">
           {dashboardItem && (
             <button key={dashboardItem.id} type="button"
