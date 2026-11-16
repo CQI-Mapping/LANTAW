@@ -8,6 +8,8 @@
 --
 -- The details blob is written with the course code from migration 026's
 -- era onward; older entries may lack it and simply stay invisible here.
+-- The match goes through faculty_teaches_course() (026) so the policy
+-- touches no nested row references.
 
 BEGIN;
 
@@ -19,12 +21,7 @@ CREATE POLICY "Faculty read CLO history for their assigned subjects"
     USING (
         public.current_user_role() = 'user'
         AND action LIKE 'clo.%'
-        AND EXISTS (
-            SELECT 1 FROM public.courses c
-            WHERE c.instructor_id = auth.uid()
-              AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                = upper(regexp_replace(COALESCE(details ->> 'course', ''), '\s', '', 'g'))
-        )
+        AND public.faculty_teaches_course(auth.uid(), COALESCE(details ->> 'course', ''))
     );
 
 COMMIT;

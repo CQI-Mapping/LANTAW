@@ -4,11 +4,30 @@
 -- (courses.instructor_id). Ownership still applies; admins keep full
 -- control. Run in the Supabase SQL Editor — idempotent (safe to re-run).
 --
+-- The subject-match check lives in one SECURITY DEFINER function so the
+-- policies below only touch NEW/OLD at the top level — the pattern every
+-- Postgres build parses cleanly. (The first draft inlined NEW.course into
+-- the EXISTS subquery, which some builds reject with
+-- 'missing FROM-clause entry for table "new"'.)
+--
 -- The CLO's course column is the subject CODE as text, so the match
 -- normalizes both sides (uppercase, spaces stripped) — "IT 21", "it21"
 -- and "IT21" meet on one value, the same leniency the UI reads with.
 
 BEGIN;
+
+CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.courses c
+    WHERE c.instructor_id = p_uid
+      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+        = upper(regexp_replace(COALESCE(p_course, ''), '\s', '', 'g'))
+  );
+$$;
 
 -- INSERT: ownership stays, and the subject must be assigned to the writer
 -- (admins keep their full control).
@@ -23,12 +42,7 @@ CREATE POLICY "Faculty create CLOs for their assigned subjects"
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), NEW.course)
             )
         )
     );
@@ -46,12 +60,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects"
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(OLD.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), OLD.course)
             )
         )
     )
@@ -61,12 +70,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects"
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), NEW.course)
             )
         )
     );

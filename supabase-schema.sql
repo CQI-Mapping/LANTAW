@@ -605,12 +605,7 @@ CREATE POLICY "Faculty read CLO history for their assigned subjects" ON public.a
     USING (
         public.current_user_role() = 'user'
         AND action LIKE 'clo.%'
-        AND EXISTS (
-            SELECT 1 FROM public.courses c
-            WHERE c.instructor_id = auth.uid()
-              AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                = upper(regexp_replace(COALESCE(details ->> 'course', ''), '\s', '', 'g'))
-        )
+        AND public.faculty_teaches_course(auth.uid(), COALESCE(details ->> 'course', ''))
     );
 
 -- STRATEGIC GOALS
@@ -674,6 +669,21 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- Unowned rows (pre-ownership legacy) are admin/manager-visible only.
 -- Faculty writes are ALSO scoped to the subjects the manager assigned
 -- them (courses.instructor_id) — see 026-faculty-clo-assigned-subjects.sql.
+-- The subject-match check lives in one SECURITY DEFINER function so the
+-- policies only touch NEW/OLD at the top level.
+
+CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.courses c
+    WHERE c.instructor_id = p_uid
+      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+        = upper(regexp_replace(COALESCE(p_course, ''), '\s', '', 'g'))
+  );
+$$;
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
@@ -691,12 +701,7 @@ CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), NEW.course)
             )
         )
     );
@@ -708,12 +713,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_cours
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(OLD.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), OLD.course)
             )
         )
     )
@@ -723,12 +723,7 @@ CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_cours
             public.current_user_role() = 'admin'
             OR (
                 public.current_user_role() = 'user'
-                AND EXISTS (
-                    SELECT 1 FROM public.courses c
-                    WHERE c.instructor_id = auth.uid()
-                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
-                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
-                )
+                AND public.faculty_teaches_course(auth.uid(), NEW.course)
             )
         )
     );
