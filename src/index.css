@@ -9437,6 +9437,133 @@ html.lantaw-dark .position-pill.selected {
   color: #9fd0ae;
 }
 
+/* ======================================================================
+   TOP-BAR BANNERS — with Position = Top bar, the pages carry the old
+   design's dark artwork banners again (the watercolor strips with white
+   type), the way the app looked before the premium flat heads. The
+   left-rail layout keeps the premium flat heads.
+   ====================================================================== */
+
+.app-layout--topnav .dashbanner,
+.app-layout--topnav .dashbanner:not(.dashbanner--page),
+.app-layout--topnav .dashbanner--page,
+.app-layout--topnav .program-hero,
+.app-layout--topnav .page-heading,
+.app-layout--topnav .reports-banner,
+.app-layout--topnav .fac-hero {
+  background-color: #16342a;
+  background-image:
+    linear-gradient(90deg, rgba(9, 24, 17, 0.5) 0%, rgba(9, 24, 17, 0.15) 42%, rgba(9, 24, 17, 0) 64%),
+    url('./assets/banner-bg-page.jpg');
+  background-size: 100% 100%, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(6, 20, 12, 0.25);
+  padding: 16px 20px;
+  color: #fff;
+}
+
+.app-layout--topnav .program-hero::before,
+.app-layout--topnav .page-heading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.app-layout--topnav .program-hero__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  place-items: center;
+  box-shadow: none;
+}
+
+.app-layout--topnav .program-hero__titles h2,
+.app-layout--topnav .page-heading h2,
+.app-layout--topnav .reports-banner h2,
+.app-layout--topnav .dashbanner__name,
+.app-layout--topnav .dashbanner__title,
+.app-layout--topnav .fac-hero__name {
+  color: #fff;
+}
+
+.app-layout--topnav .program-hero__titles p,
+.app-layout--topnav .page-heading p,
+.app-layout--topnav .dashbanner__greeting,
+.app-layout--topnav .dashbanner__realname,
+.app-layout--topnav .dashbanner__desc,
+.app-layout--topnav .fac-hero__greeting,
+.app-layout--topnav .fac-hero__desc {
+  color: rgba(255, 251, 244, 0.75);
+}
+
+.app-layout--topnav .dashbanner__badge,
+.app-layout--topnav .fac-hero__chip {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.app-layout--topnav .dashbanner__sep,
+.app-layout--topnav .dashbanner__role,
+.app-layout--topnav .reports-banner__crumb,
+.app-layout--topnav .reports-filter__label,
+.app-layout--topnav .reports-filter__when {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-layout--topnav .dashbanner__date {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: transparent;
+  color: #fff;
+}
+
+.app-layout--topnav .reports-banner__id,
+.app-layout--topnav .reports-banner__mark {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.app-layout--topnav .program-hero__action .btn--primary {
+  background: #fff;
+  border-color: #fff;
+  color: #14532d;
+}
+
+.app-layout--topnav .program-hero__action .btn--primary:hover {
+  background: #f0fdf4;
+}
+
+/* The faculty next-step card goes back to glass floating on the artwork. */
+.app-layout--topnav .fac-next {
+  background: rgba(9, 24, 17, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.app-layout--topnav .fac-next__label {
+  color: #bbf7d0;
+}
+
+.app-layout--topnav .fac-next__title {
+  color: #fff;
+}
+
+.app-layout--topnav .fac-next__detail {
+  color: rgba(255, 255, 255, 0.76);
+}
+
 /* The subject graph's placeholder nodes ride the theme: neutral dark fill,
    soft stroke on the dark canvas. */
 html.lantaw-dark {
