@@ -497,7 +497,7 @@
 }
 
 .profile-menu__section-body.open {
-  max-height: 130px;
+  max-height: 240px;
   visibility: visible;
   transition:
     max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
@@ -511,10 +511,22 @@
   color: #8b968e;
 }
 
+.profile-menu__mode-row + .profile-menu__mode-row {
+  margin-top: 8px;
+}
+
+.profile-menu__mode-label {
+  margin: 8px 10px 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #425148;
+}
+
 .profile-menu__modes {
   display: flex;
   gap: 8px;
-  margin: 9px 10px 2px;
+  margin: 6px 10px 2px;
 }
 
 .mode-swatch {
@@ -945,6 +957,42 @@
 .page-container {
   max-width: 1600px;
   margin: 0 auto;
+}
+
+/* ---- Dark topbar (Appearance > Navbar, or a dark full theme) ----
+   The topbar re-inks independently of the workspace: the layout carries
+   this class when the Navbar pick resolves dark, or when the full color
+   mode is dark. */
+.app-layout--topbar-dark .topbar {
+  background: rgba(16, 19, 17, 0.96);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--topbar-dark .crumb {
+  color: #8f948f;
+}
+
+.app-layout--topbar-dark .crumb i {
+  color: #4a544d;
+}
+
+.app-layout--topbar-dark .crumb b {
+  color: #e6ebe7;
+}
+
+.app-layout--topbar-dark .topbar__menu:hover,
+.app-layout--topbar-dark .topbar__collapse:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6ebe7;
+}
+
+.app-layout--topbar-dark .term-pill {
+  background: rgba(255, 255, 255, 0.08);
+  color: #9fd0ae;
+}
+
+.app-layout--topbar-dark .top-avatar:hover {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 
 /* ---- Collapsed rail (ChatGPT-style) ----

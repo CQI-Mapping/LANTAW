@@ -21,9 +21,13 @@ interface SidebarProps {
       toggle brings it back. */
   mini?: boolean
   onToggleMini?: () => void
-  /** The rail's color mode: system (follows the OS), light, or dark. */
+  /** The workspace's color mode: system (follows the OS), light, or dark. */
   colorMode?: 'system' | 'light' | 'dark'
   onColorModeChange?: (mode: 'system' | 'light' | 'dark') => void
+  /** The navbars' own color mode (left rail + topbar), independent of the
+      workspace theme. */
+  navMode?: 'system' | 'light' | 'dark'
+  onNavModeChange?: (mode: 'system' | 'light' | 'dark') => void
   /** The mode as it resolves right now (system resolved against the OS
       preference) — drives the section's sun/moon icon. */
   railDark?: boolean
@@ -107,7 +111,7 @@ const ROLE_TITLE: Record<UserRole, string> = {
   user: 'Faculty Member',
 }
 
-function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, colorMode = 'light', onColorModeChange, railDark = false, profileName, profileEmail, profileAvatar }: SidebarProps) {
+function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, colorMode = 'light', onColorModeChange, navMode = 'light', onNavModeChange, railDark = false, profileName, profileEmail, profileAvatar }: SidebarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -324,20 +328,28 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                     </button>
                     <div id="profile-appearance" className={`profile-menu__section-body ${appearanceOpen ? 'open' : ''}`}>
                       <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
-                      <div className="profile-menu__modes">
-                        {(['system', 'light', 'dark'] as const).map((mode) => (
-                          <button key={mode} type="button"
-                            className={`mode-swatch ${colorMode === mode ? 'mode-swatch--selected' : ''}`}
-                            onClick={() => onColorModeChange?.(mode)}
-                            aria-pressed={colorMode === mode}
-                            title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light rail' : 'Dark rail'}>
-                            <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
-                              <i /><i /><i />
-                            </span>
-                            <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
-                          </button>
-                        ))}
-                      </div>
+                      {([
+                        ['Color mode', colorMode, onColorModeChange],
+                        ['Navbar', navMode, onNavModeChange],
+                      ] as const).map(([label, value, onChange]) => (
+                        <div key={label} className="profile-menu__mode-row">
+                          <div className="profile-menu__mode-label">{label}</div>
+                          <div className="profile-menu__modes">
+                            {(['system', 'light', 'dark'] as const).map((mode) => (
+                              <button key={mode} type="button"
+                                className={`mode-swatch ${value === mode ? 'mode-swatch--selected' : ''}`}
+                                onClick={() => onChange?.(mode)}
+                                aria-pressed={value === mode}
+                                title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light' : 'Dark'}>
+                                <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
+                                  <i /><i /><i />
+                                </span>
+                                <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="profile-menu__sep" role="separator" />

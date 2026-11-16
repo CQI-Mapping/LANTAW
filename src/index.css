@@ -9325,34 +9325,8 @@ html.lantaw-dark .msg--success::before {
   color: #9fd0ae;
 }
 
-/* ---- Topbar (lives in Sidebar.css with light literals) ---- */
-html.lantaw-dark .topbar {
-  background: rgba(16, 19, 17, 0.96);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
-}
-
-html.lantaw-dark .crumb {
-  color: #8f948f;
-}
-
-html.lantaw-dark .crumb i {
-  color: #4a544d;
-}
-
-html.lantaw-dark .topbar__menu:hover,
-html.lantaw-dark .topbar__collapse:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-}
-
-html.lantaw-dark .term-pill {
-  background: rgba(255, 255, 255, 0.08);
-  color: #9fd0ae;
-}
-
-html.lantaw-dark .top-avatar:hover {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
-}
+/* ---- Topbar dark rules moved to Sidebar.css (.app-layout--topbar-dark),
+   shared by the full theme and the Navbar pick. ---- */
 
 /* ---- Tabs ---- */
 html.lantaw-dark .sd-tab:hover {

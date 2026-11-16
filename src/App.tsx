@@ -181,6 +181,10 @@ const SIDEBAR_MINI_KEY = 'cqi.sidebar.mini'
 const SIDEBAR_RAIL_DARK_KEY = 'cqi.sidebar.railDark'
 const SIDEBAR_COLOR_MODE_KEY = 'cqi.sidebar.colorMode'
 
+// The navbars' own color mode (left rail + topbar), independent of the
+// workspace theme — the Appearance picker's second row.
+const SIDEBAR_NAV_MODE_KEY = 'cqi.sidebar.navMode'
+
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
 // real auth-layer gate; this constant backs it up in code so a personal
@@ -301,6 +305,28 @@ function App() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
   const railDark = colorMode === 'dark' || (colorMode === 'system' && systemDark)
+
+  // The navbars' own mode (Appearance > Navbar): System / Light / Dark for
+  // the left rail and topbar, independent of the workspace theme. Dark
+  // full-theme always carries the navbars with it.
+  const [navMode, setNavModeState] = useState<'system' | 'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_NAV_MODE_KEY)
+      return saved === 'system' || saved === 'light' || saved === 'dark' ? saved : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+  const setNavMode = useCallback((next: 'system' | 'light' | 'dark') => {
+    setNavModeState(next)
+    try {
+      localStorage.setItem(SIDEBAR_NAV_MODE_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
+  const navDark = navMode === 'dark' || (navMode === 'system' && systemDark)
+  const navbarsDark = railDark || navDark
 
   // The picked color mode is a FULL system theme: the class lands on <html>
   // so the token remap (index.css, FULL DARK MODE) re-inks the whole app,
@@ -656,7 +682,7 @@ function App() {
   const topbarAvatar = profile?.avatar_url ?? emailAvatar
 
   return (
-    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''} ${railDark ? 'app-layout--rail-dark' : ''}`.trim()}>
+    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''} ${railDark ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
@@ -669,7 +695,9 @@ function App() {
         onToggleMini={toggleSidebarMini}
         colorMode={colorMode}
         onColorModeChange={setColorMode}
-        railDark={railDark}
+        navMode={navMode}
+        onNavModeChange={setNavMode}
+        railDark={navbarsDark}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}
