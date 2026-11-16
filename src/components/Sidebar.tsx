@@ -17,7 +17,8 @@ interface SidebarProps {
   role: UserRole
   isOpen: boolean
   onToggle: () => void
-  /** Minimized rail: icon-only, no labels. Clicking the chip expands it. */
+  /** Collapsed: the whole rail slides away (ChatGPT-style). The topbar
+      toggle brings it back. */
   mini?: boolean
   onToggleMini?: () => void
   profileName?: string | null
@@ -112,11 +113,10 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   // The Academics group is a collapsible section. It starts open when the
   // signed-in page already lives there, and auto-opens whenever navigation
   // lands on an academic page — a highlighted row must never hide behind a
-  // collapsed group. The mini rail forces it open so its icons show.
+  // collapsed group.
   const [academicsOpen, setAcademicsOpen] = useState(() =>
     ACADEMICS_IDS.has(activePage),
   )
-  const groupOpen = academicsOpen || mini
   useEffect(() => {
     if (ACADEMICS_IDS.has(activePage)) setAcademicsOpen(true)
   }, [activePage])
@@ -151,7 +151,7 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   }, [onNavigate, isOpen, onToggle])
 
   // Page changes close the menu (an open menu across a page swap reads wrong),
-  // and minimizing the rail can never leave a menu dangling on a 68px column.
+  // and collapsing the rail away can never leave a menu dangling unseen.
   useEffect(() => {
     setProfileOpen(false)
   }, [activePage])
@@ -174,9 +174,11 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
     </button>
   )
 
-  // The mini rail flattens the groups: icons only, hairline dividers between
-  // the sections, tooltips carrying the names.
-  const divider = <div className="nav-divider" role="separator" />
+  // When the rail is collapsed away, the whole aside is off-screen — an open
+  // profile menu must never survive that state change.
+  useEffect(() => {
+    if (mini) setProfileOpen(false)
+  }, [mini])
 
   return (
     <>
@@ -194,44 +196,40 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
         </div>
 
         <nav className="side-nav" aria-label="Main navigation">
-          {dashboardItem && (mini ? renderItem(dashboardItem) : (
+          {dashboardItem && (
             <>
               <div className="nav-label">Overview</div>
               {renderItem(dashboardItem)}
             </>
-          ))}
-          {academics.length > 0 && mini && divider}
-          {academics.length > 0 && (mini ? (
-            <div className="nav-group">{academics.map(renderItem)}</div>
-          ) : (
+          )}
+          {academics.length > 0 && (
             <>
               <button
                 type="button"
                 className="nav-group-toggle"
                 onClick={() => setAcademicsOpen((v) => !v)}
-                aria-expanded={groupOpen}
+                aria-expanded={academicsOpen}
                 aria-controls="nav-group-academics"
               >
                 <span>Academics</span>
-                <svg className={`nav-chevron ${groupOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+                <svg className={`nav-chevron ${academicsOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
               {/* Always mounted: the group collapses by height, so the
-                  accordion and the minimize transition both stay smooth. */}
-              <div id="nav-group-academics" className={`nav-group ${groupOpen ? 'nav-group--open' : ''}`}>
+                  accordion stays smooth. */}
+              <div id="nav-group-academics" className={`nav-group ${academicsOpen ? 'nav-group--open' : ''}`}>
                 {academics.map(renderItem)}
               </div>
             </>
-          ))}
-          {others.length > 0 && mini && divider}
-          {others.length > 0 && (mini ? others.map(renderItem) : (
+          )}
+          {others.length > 0 && (
             <>
               <div className="nav-label">Administration</div>
               {others.map(renderItem)}
             </>
-          ))}
+          )}
         </nav>
 
         <div className="sidebar-bottom">
@@ -239,14 +237,9 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
             <button
               type="button"
               className={`user-mini__btn ${profileOpen ? 'open' : ''}`}
-              onClick={() => {
-                // Minimized: the chip's job is to bring the rail back.
-                if (mini) { onToggleMini?.(); return }
-                setProfileOpen((v) => !v)
-              }}
-              aria-expanded={mini ? undefined : profileOpen}
-              aria-haspopup={mini ? undefined : 'menu'}
-              title={mini ? 'Expand sidebar' : undefined}
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
             >
               <span className="avatar">
                 {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}

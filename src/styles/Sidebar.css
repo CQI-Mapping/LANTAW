@@ -553,91 +553,31 @@
   margin: 0 auto;
 }
 
-/* ---- Mini (minimized) rail ----
-   The collapse keeps every element's expanded footprint and slides it under
-   the rail's clipping edge, while the disappearing labels fade and the
-   icon/chip paddings ease toward center. No reflow, no snap. */
+/* ---- Collapsed rail (ChatGPT-style) ----
+   The whole rail slides away — no icon column — and the workspace takes the
+   full width. The topbar toggle stays in place to bring it back. Desktop
+   only: on drawer-sized screens the rail is a drawer, not collapsible. */
 
-.nav-divider {
-  display: none;
-  height: 1px;
-  background: var(--line);
-  margin: 8px 6px;
-}
+@media (min-width: 961px) {
+  .app-layout--mini .sidebar {
+    width: 0;
+    padding: 22px 0 12px;
+    border-right-color: transparent;
+    visibility: hidden;
+    transition:
+      width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+      padding 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 0.24s;
+  }
 
-/* Everything that vanishes in the mini rail fades rather than popping. */
-.nav-text,
-.brand-text,
-.user-mini__text,
-.more-btn {
-  transition: opacity 0.16s ease;
-}
+  .app-layout--mini .main-shell {
+    margin-left: 0;
+  }
 
-.brand-text b,
-.brand-text small {
-  white-space: nowrap;
-}
-
-/* Section headers also fold shut — padding and height go to zero together. */
-.nav-label,
-.nav-group-toggle {
-  overflow: hidden;
-  max-height: 44px;
-  transition:
-    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.16s ease,
-    padding 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    color 0.14s ease;
-}
-
-.app-layout--mini .sidebar {
-  width: 68px;
-  padding: 22px 12px 12px;
-}
-
-.app-layout--mini .main-shell {
-  margin-left: 68px;
-}
-
-.app-layout--mini .brand {
-  padding: 0 0 16px 17px;
-}
-
-.app-layout--mini .brand-mark-img {
-  height: 30px;
-}
-
-.app-layout--mini .nav-label,
-.app-layout--mini .nav-group-toggle {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  pointer-events: none;
-}
-
-.app-layout--mini .nav-text,
-.app-layout--mini .brand-text,
-.app-layout--mini .user-mini__text,
-.app-layout--mini .more-btn {
-  opacity: 0;
-}
-
-.app-layout--mini .nav-divider {
-  display: block;
-}
-
-/* Icons glide to the rail's center as the width collapses. */
-.app-layout--mini .nav-item {
-  padding: 11px 26px;
-}
-
-.app-layout--mini .user-mini__btn {
-  padding: 6px 17px;
-}
-
-.app-layout--mini .profile-menu {
-  display: none;
+  /* The fullscreen Subject Graph clears the rail only when it is present. */
+  .app-layout--mini .subject-view__right--fullscreen {
+    inset: 0;
+  }
 }
 
 /* ---- Focus rings ---- */
