@@ -1033,6 +1033,117 @@
   flex-shrink: 0;
 }
 
+/* ---- The Academics dropdown in the top bar ----
+   Dashboard and the Administration pills sit beside it; the academic pages
+   open as a panel of icon + label + description rows. */
+
+.topnav__dd {
+  position: relative;
+}
+
+.topnav__item.open {
+  background: var(--g100);
+  color: var(--g800);
+}
+
+.topnav__chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topnav__chevron.open {
+  transform: rotate(180deg);
+}
+
+.topnav__dd-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(13, 33, 24, 0.14), 0 2px 10px rgba(13, 33, 24, 0.06);
+  padding: 6px;
+  z-index: 60;
+}
+
+.topnav__dd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.topnav__dd-item:hover {
+  background: var(--g50);
+}
+
+.topnav__dd-item.active {
+  background: var(--g100);
+}
+
+.topnav__dd-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--g50);
+  display: grid;
+  place-items: center;
+  color: var(--g700);
+  flex-shrink: 0;
+}
+
+.topnav__dd-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.topnav__dd-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.topnav__dd-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topnav__dd-desc {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topnav__item:focus-visible,
+.topnav__dd-item:focus-visible,
+.topnav__avatar:focus-visible {
+  outline: 2px solid var(--g700);
+  outline-offset: 2px;
+}
+
 .topnav__right {
   display: flex;
   align-items: center;
@@ -1092,6 +1203,38 @@
 .app-layout--topbar-dark .topnav__item.active {
   background: rgba(255, 255, 255, 0.09);
   color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__item.open {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__dd-menu {
+  background: #161616;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.app-layout--topbar-dark .topnav__dd-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--topbar-dark .topnav__dd-item.active {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.app-layout--topbar-dark .topnav__dd-ico {
+  background: rgba(255, 255, 255, 0.06);
+  color: #b6bab7;
+}
+
+.app-layout--topbar-dark .topnav__dd-label {
+  color: #ececec;
+}
+
+.app-layout--topbar-dark .topnav__dd-desc {
+  color: #a3a3a3;
 }
 
 /* ---- Collapsed rail (ChatGPT-style) ----

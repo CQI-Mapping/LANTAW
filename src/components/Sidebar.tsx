@@ -99,6 +99,24 @@ const ACADEMICS_IDS = new Set([
   'view',
 ])
 
+// The one-line descriptions under each academic item in the top bar's
+// Academics dropdown — the old mega menu's copy, kept.
+const ACADEMICS_META: Record<string, { desc: string }> = {
+  program: { desc: 'Degree programs & offerings' },
+  'ched-memo': { desc: 'CHED memorandums & policies' },
+  'strategic-goals': { desc: 'Institutional alignment' },
+  peos: { desc: 'Graduate attributes & PEOs' },
+  'program-outcomes': { desc: 'Program outcomes mapping' },
+  curriculum: { desc: 'Curriculum structure & maps' },
+  course: { desc: 'Course catalog & details' },
+  'faculty-assign': { desc: 'Assign faculty to subjects' },
+  clo: { desc: 'Course learning outcomes' },
+  'subject-view': { desc: 'Start Visualizing' },
+  grasps: { desc: 'Performance task design' },
+  tos: { desc: 'Exam blueprint & Bloom coverage' },
+  view: { desc: 'Syllabus & mapping reports' },
+}
+
 // The small role line under the name in the user chip, worded like the
 // prototype's chip (Admin → System Administrator, …).
 const ROLE_TITLE: Record<UserRole, string> = {
@@ -184,6 +202,26 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
     if (ACADEMICS_IDS.has(activePage)) setAcademicsOpen(true)
   }, [activePage])
 
+  // In the top-bar layout the Academics pill opens a dropdown; it closes on
+  // any outside press or Escape, and navigating closes everything.
+  const [topAcademicsOpen, setTopAcademicsOpen] = useState(false)
+  const topAcademicsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!topAcademicsOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (topAcademicsRef.current && !topAcademicsRef.current.contains(e.target as Node)) setTopAcademicsOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTopAcademicsOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [topAcademicsOpen])
+
   const displayName = (profileName ?? '').trim() || `${role.charAt(0).toUpperCase() + role.slice(1)} User`
   const displayEmail = (profileEmail ?? '').trim() || `Signed in as ${role}`
   const avatarInitials = initialsOf(profileName, role)
@@ -210,6 +248,7 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   const navigate = useCallback((id: string) => {
     onNavigate(id)
     setProfileOpen(false)
+    setTopAcademicsOpen(false)
     if (window.innerWidth <= 960 && isOpen) onToggle()
   }, [onNavigate, isOpen, onToggle])
 
@@ -273,7 +312,48 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
           </div>
         </div>
         <nav className="topnav__nav" aria-label="Main navigation">
-          {navItems.filter((n) => !inProfileMenu(n)).map((item) => (
+          {dashboardItem && (
+            <button key={dashboardItem.id} type="button"
+              className={`topnav__item ${activePage === dashboardItem.id ? 'active' : ''}`}
+              onClick={() => navigate(dashboardItem.id)}
+              aria-current={activePage === dashboardItem.id ? 'page' : undefined}
+              title={dashboardItem.label}>
+              <Icon d={ICONS[dashboardItem.id] || ICONS.dashboard} className="topnav__ico" />
+              <span>{dashboardItem.label}</span>
+            </button>
+          )}
+          {academics.length > 0 && (
+            <div className="topnav__dd" ref={topAcademicsRef}>
+              <button type="button"
+                className={`topnav__item ${topAcademicsOpen ? 'open' : ''}`}
+                onClick={() => setTopAcademicsOpen((v) => !v)}
+                aria-expanded={topAcademicsOpen}
+                aria-haspopup="menu">
+                <Icon d={ICONS.curriculum} className="topnav__ico" />
+                <span>Academics</span>
+                <svg className={`topnav__chevron ${topAcademicsOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {topAcademicsOpen && (
+                <div className="topnav__dd-menu" role="menu">
+                  {academics.map((item) => (
+                    <button key={item.id} type="button" role="menuitem"
+                      className={`topnav__dd-item ${activePage === item.id ? 'active' : ''}`}
+                      onClick={() => navigate(item.id)}>
+                      <span className="topnav__dd-ico"><Icon d={ICONS[item.id] || ICONS.dashboard} className="topnav__dd-svg" /></span>
+                      <span className="topnav__dd-text">
+                        <span className="topnav__dd-label">{item.label}</span>
+                        <span className="topnav__dd-desc">{ACADEMICS_META[item.id]?.desc ?? ''}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {others.map((item) => (
             <button key={item.id} type="button"
               className={`topnav__item ${activePage === item.id ? 'active' : ''}`}
               onClick={() => navigate(item.id)}
