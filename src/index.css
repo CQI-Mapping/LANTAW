@@ -8929,6 +8929,7 @@ button.reports-panel__more:hover {
 
 /* ---- Page heads: flat premium titles, no artwork banners ---- */
 .dashbanner,
+.dashbanner:not(.dashbanner--page),
 .dashbanner--page,
 .program-hero,
 .page-heading,
@@ -8999,8 +9000,18 @@ button.reports-panel__more:hover {
 
 .dashbanner__sep,
 .dashbanner__role,
-.reports-banner__crumb {
+.reports-banner__crumb,
+.reports-filter__label {
   color: var(--text-muted);
+}
+
+/* The page-variant title rule carries two-class specificity upstream —
+   match it so the color and size flips actually win. */
+.dashbanner--page .dashbanner__title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.55px;
+  color: var(--text);
 }
 
 .dashbanner__date {
@@ -9010,8 +9021,31 @@ button.reports-panel__more:hover {
   box-shadow: none;
 }
 
+/* The faculty "next step" card was a glass panel floating on the old dark
+   banner artwork; on the light paper it washes out. It becomes a soft
+   green premium card. */
+.fac-next {
+  background: var(--g50);
+  border: 1px solid var(--border);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.fac-next__label {
+  color: var(--g700);
+}
+
+.fac-next__title {
+  color: var(--text);
+}
+
+.fac-next__detail {
+  color: var(--text-muted);
+}
+
 .reports-banner__id,
 .reports-banner__mark {
+  background: var(--g100);
   color: var(--g800);
 }
 
