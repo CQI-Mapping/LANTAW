@@ -825,26 +825,6 @@
   flex-shrink: 0;
 }
 
-/* The date pill: today spelled out, calendar icon in the brand green. */
-.date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 13px;
-  border-radius: 999px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.date-pill svg {
-  color: var(--g700);
-  flex-shrink: 0;
-}
-
 .top-avatar {
   border: 0;
   cursor: pointer;
@@ -893,16 +873,6 @@
 .app-layout--topbar-dark .topbar__collapse:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #e6ebe7;
-}
-
-.app-layout--topbar-dark .date-pill {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--text);
-}
-
-.app-layout--topbar-dark .date-pill svg {
-  color: #9fd0ae;
 }
 
 .app-layout--topbar-dark .top-avatar:hover {
@@ -1359,7 +1329,7 @@
 }
 
 @media (max-width: 760px) {
-  .date-pill {
-    display: none;
+  .crumb {
+    font-size: 10.5px;
   }
 }
