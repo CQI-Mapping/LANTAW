@@ -341,6 +341,16 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return () => { cancelled = true }
   }, [])
 
+  // The manager's assignment is the gate: the faculty member writes CLOs
+  // only for subjects handed to them (courses.instructor_id). The embedded
+  // join resolves the instructor's email — the identity this page knows.
+  const myCourses = useMemo(
+    () => courses.filter(
+      (c) => typeof c.instructor_id === 'object' && c.instructor_id?.email === userEmail,
+    ),
+    [courses, userEmail],
+  )
+
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
   // lettered codes ("Clo1", "CLO-1") from being re-saved.
@@ -525,19 +535,19 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // Course list filters for the create form: Year and Semester sit on top of
   // the Course (Subject Code) picker and narrow its dropdown to the term the
-  // faculty member is writing CLOs for. They only trim the list — never
-  // invalidate an already-chosen course — and the course record itself still
-  // owns where it sits on the Year · Semester map.
+  // faculty member is writing CLOs for. The pool is already the assigned
+  // subjects only; the filters just trim it — never invalidating an
+  // already-chosen course.
   const [courseYear, setCourseYear] = useState('')
   const [courseSem, setCourseSem] = useState('')
   const filteredCourses = useMemo(() => {
-    if (courseYear === '' && courseSem === '') return courses
-    return courses.filter(
+    if (courseYear === '' && courseSem === '') return myCourses
+    return myCourses.filter(
       (c) =>
         (courseYear === '' || String(c.year_level ?? '') === courseYear)
         && (courseSem === '' || String(c.semester ?? '') === courseSem),
     )
-  }, [courses, courseYear, courseSem])
+  }, [myCourses, courseYear, courseSem])
 
   // Shared edit form used by both grid and list card styles. Wrapped in
   // .resource-card__edit so the fields stack: the list card is a flex ROW
@@ -559,9 +569,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         ) : (
           <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
             <option value="">Select course</option>
-            {courses.map((c) => (
+            {myCourses.map((c) => (
               <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
             ))}
+            {myCourses.length === 0 && (
+              <option value="" disabled>No subjects assigned to you yet</option>
+            )}
           </select>
         )}
         <div className="clo-code-input">
@@ -704,9 +717,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               ))}
               {filteredCourses.length === 0 && (
                 <option value="" disabled>
-                  {courseYear || courseSem
-                    ? 'No courses in this Year · Semester — change the filters or create the course in Course page first'
-                    : 'No courses available — create one in Course page first'}
+                  {myCourses.length === 0
+                    ? 'No subjects assigned to you yet — the program head assigns them in Assign Faculty'
+                    : courseYear || courseSem
+                      ? 'No courses in this Year · Semester — change the filters or create the course in Course page first'
+                      : 'No courses available — create one in Course page first'}
                 </option>
               )}
             </select>
@@ -781,7 +796,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         )}
         <div className="create-resource__submit">
-          <button className="btn btn--primary btn--sm" type="submit" disabled={busy}>{busy ? 'Saving...' : (<><Icon name="plus" size={13} /> Add</>)}</button>
+          <button className="btn btn--primary btn--sm" type="submit" disabled={busy || myCourses.length === 0}>
+            {busy ? 'Saving...' : (<><Icon name="plus" size={13} /> Add</>)}
+          </button>
+          {myCourses.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 10 }}>
+              No subjects assigned to you yet — the program head assigns them in Assign Faculty.
+            </span>
+          )}
         </div>
       </form>
 

@@ -10,7 +10,7 @@ import {
   fetchActivityLogs,
 } from '../../services/database'
 import type { Profile, ActivityLogEntry } from '../../services/database'
-import { useServerClock } from '../../hooks/useServerClock'
+import { useClock } from '../../hooks/useClock'
 import { philippineNow, timeGreeting } from '../../utils/clock'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
@@ -173,7 +173,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
 
   // Ticking clock: the greeting and date pill re-render every minute, so a
   // dashboard left open turns over correctly at noon, 6 PM and midnight.
-  const clock = useServerClock()
+  const clock = useClock()
 
   return (
     <div className="dashboard dashboard--2026 page-enter">

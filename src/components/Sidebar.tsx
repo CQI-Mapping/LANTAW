@@ -8,7 +8,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import '../styles/Sidebar.css'
 import { philippineNow } from '../utils/clock'
-import { useServerClock } from '../hooks/useServerClock'
 import type { NavItem, UserRole } from '../services/database'
 
 interface SidebarProps {
@@ -301,8 +300,7 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   // just the logo mark, pill nav, date pill and avatar menu right. No
   // wordmark: the logo carries the identity alone.
   if (navLayout === 'top') {
-    const clock = useServerClock()
-    const todayLabel = philippineNow(clock).toLocaleDateString('en-US', {
+    const todayLabel = philippineNow(new Date()).toLocaleDateString('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',

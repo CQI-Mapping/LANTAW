@@ -21,7 +21,7 @@ import type {
 import CloViewModal from '../../components/CloViewModal'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
-import { useServerClock } from '../../hooks/useServerClock'
+import { useClock } from '../../hooks/useClock'
 import { philippineNow, timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
 import { cloLabel } from '../../utils/courseCodes'
@@ -249,7 +249,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
 
   // Ticking clock: the greeting, the date pill and every relative time re-read
   // on the minute, so an open dashboard stays true across noon and midnight.
-  const clock = useServerClock()
+  const clock = useClock()
   const now = clock.getTime()
   const go = (id: string) => onNavigate?.(id)
 

@@ -62,7 +62,6 @@ import UserGrasps from './pages/user/Grasps'
 import { supabase } from './utils/supabaseClient'
 import { ensureProfile, syncDemoRole, addActivityLog, recordLoginEvent } from './services/database'
 import { philippineNow } from './utils/clock'
-import { useServerClock } from './hooks/useServerClock'
 import type { Profile as ProfileType, UserRole, NavItem } from './services/database'
 import type { Session } from '@supabase/supabase-js'
 import { loadEmailAvatar } from './utils/avatar'
@@ -709,11 +708,9 @@ function App() {
 
   const activeLabel = navItems.find((n: NavItem) => n.id === page)?.label ?? 'Workspace'
 
-  // The topbar's date pill: today, spelled out — read by Philippine time on
-  // a server-calibrated clock, so the day agrees with the school even when
-  // the device's own clock is off.
-  const clock = useServerClock()
-  const todayLabel = philippineNow(clock).toLocaleDateString('en-US', {
+  // The topbar's date pill: today, spelled out — read by Philippine time so
+  // the day agrees with the school, whatever the device's clock says.
+  const todayLabel = philippineNow(new Date()).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
