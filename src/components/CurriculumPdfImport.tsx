@@ -25,7 +25,12 @@ interface CurriculumPdfImportProps {
 
 interface ReviewRow extends ParsedCurriculumSubject {
   include: boolean
+  /** The curriculum family of the code (IT, GE, CCS…) — the filter chips. */
+  family: string
 }
+
+/** The leading letter run of a subject code — its curriculum family. */
+const familyOf = (code: string) => (code.match(/^[A-Za-z]+/)?.[0] ?? 'OTHER').toUpperCase()
 
 const YEAR_OPTIONS = [
   { value: '1', label: '1st Year' },
@@ -54,6 +59,11 @@ export default function CurriculumPdfImport({
   const [parseError, setParseError] = useState('')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null)
+  // The curriculum-family filter (IT, GE, CCS…): the checklist mixes
+  // professional subjects with General Education and PE rows — the
+  // program head usually wants one family at a time. 'All' shows
+  // everything; IT is preselected when the parse finds it.
+  const [family, setFamily] = useState<string>('All')
 
   const existingCodes = useMemo(
     () => new Set(courses.filter((c) => typeof c.program_id === 'object' ? c.program_id.id === programId : c.program_id === programId).map((c) => c.code.toUpperCase())),
@@ -70,11 +80,15 @@ export default function CurriculumPdfImport({
         setParseError('No subject rows were found in this PDF — check that it is a curriculum checklist (Year Level tables with CODE / Course Description / Units / Pre-Req).')
         setRows(null)
       } else {
-        setRows(parsed.map((r) => ({
+        const withFamily = parsed.map((r) => ({
           ...r,
+          family: familyOf(r.code),
           // Rows whose code already exists in this program start unchecked.
           include: !existingCodes.has(r.code.toUpperCase()),
-        })))
+        }))
+        setRows(withFamily as ReviewRow[])
+        // The professional subjects are the usual import: IT preselected.
+        setFamily(withFamily.some((r) => r.family === 'IT') ? 'IT' : 'All')
       }
     } catch (e) {
       setParseError('Failed to read the PDF: ' + (e instanceof Error ? e.message : String(e)))
@@ -87,14 +101,24 @@ export default function CurriculumPdfImport({
   const setRow = (index: number, patch: Partial<ReviewRow>) =>
     setRows((prev) => (prev ? prev.map((r, i) => (i === index ? { ...r, ...patch } : r)) : prev))
 
-  const includedCount = rows?.filter((r) => r.include).length ?? 0
+  // The visible subset: the family chips (IT, GE, CCS…) narrow the grid,
+  // and the import takes exactly what is shown and checked.
+  const families = useMemo(
+    () => ['All', ...[...new Set(rows?.map((r) => r.family) ?? [])].sort()],
+    [rows],
+  )
+  const visibleRows = useMemo(
+    () => (rows ?? []).filter((r) => family === 'All' || r.family === family),
+    [rows, family],
+  )
+  const includedCount = visibleRows.filter((r) => r.include).length
   const skippedCount = includedCount === 0
     ? 0
-    : rows!.filter((r) => r.include && existingCodes.has(r.code.toUpperCase())).length
+    : visibleRows.filter((r) => r.include && existingCodes.has(r.code.toUpperCase())).length
 
   const handleImport = async () => {
     if (!rows) return
-    const picked = rows.filter((r) => r.include)
+    const picked = visibleRows.filter((r) => r.include)
     if (picked.length === 0) return
     setBusy(true)
     let created = 0
@@ -168,35 +192,55 @@ export default function CurriculumPdfImport({
 
         {rows && rows.length > 0 && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 8px' }}>
+            <div className="clo26-section-head" style={{ margin: '14px 0 8px' }}>
+              <p style={{ margin: 0 }}>
+                {visibleRows.length} of {rows.length} parsed rows
+                {family !== 'All' && <> · family {family}</>}
+              </p>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {families.map((f) => (
+                  <button key={f} type="button"
+                    className={`clo26-tag${family === f ? ' clo26-tag--selected' : ''}`}
+                    style={{ cursor: 'pointer', border: 0, font: '600 10px \'DM Sans\', sans-serif', padding: '4px 9px' }}
+                    onClick={() => setFamily(f)}
+                    aria-pressed={family === f}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 0 8px' }}>
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {includedCount} of {rows.length} rows selected for import
+                {includedCount} of {visibleRows.length} rows selected for import
                 {skippedCount > 0 && <> · {skippedCount} already in this program (will be skipped)</>}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRows((prev) => prev!.map((r) => ({ ...r, include: true })))}>Select all</button>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRows((prev) => prev!.map((r) => ({ ...r, include: false })))}>Clear</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRows((prev) => prev!.map((r) => ({ ...r, include: visibleRows.includes(r) ? true : r.include })))}>Select shown</button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRows((prev) => prev!.map((r) => ({ ...r, include: visibleRows.includes(r) ? false : r.include })))}>Clear shown</button>
               </div>
             </div>
             <div style={{ maxHeight: 380, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '28px 70px minmax(140px,1fr) 52px minmax(110px,1fr) 66px 66px', gap: 6, padding: '8px 10px', background: 'var(--bg-soft)', fontSize: 9.5, fontWeight: 700, letterSpacing: 0.7, textTransform: 'uppercase', color: 'var(--text-muted)', position: 'sticky', top: 0 }}>
                 <span>✓</span><span>Code</span><span>Course description</span><span>Units</span><span>Pre-req</span><span>Year</span><span>Sem</span>
               </div>
-              {rows.map((row, i) => (
-                <div key={`${row.code}-${i}`} style={{ display: 'grid', gridTemplateColumns: '28px 70px minmax(140px,1fr) 52px minmax(110px,1fr) 66px 66px', gap: 6, padding: '6px 10px', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
-                  <input type="checkbox" checked={row.include} onChange={(e) => setRow(i, { include: e.target.checked })} aria-label={`Include ${row.code}`} />
-                  <input className="input input--sm" value={row.code} onChange={(e) => setRow(i, { code: e.target.value.toUpperCase() })} aria-label="Code" />
-                  <input className="input input--sm" value={row.title} onChange={(e) => setRow(i, { title: e.target.value })} aria-label="Course description" />
-                  <input className="input input--sm" type="number" min={0} value={row.units} onChange={(e) => setRow(i, { units: Number(e.target.value) || 0 })} aria-label="Units" />
-                  <input className="input input--sm" value={row.prereq} onChange={(e) => setRow(i, { prereq: e.target.value })} aria-label="Pre-req" placeholder="None" />
-                  <select className="input input--sm" value={String(row.year)} onChange={(e) => setRow(i, { year: Number(e.target.value) })} aria-label="Year level">
-                    {YEAR_OPTIONS.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
-                  </select>
-                  <select className="input input--sm" value={String(row.semester)} onChange={(e) => setRow(i, { semester: Number(e.target.value) })} aria-label="Semester">
-                    {SEM_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-              ))}
+              {visibleRows.map((row) => {
+                const index = rows.indexOf(row)
+                return (
+                  <div key={`${row.code}-${index}`} style={{ display: 'grid', gridTemplateColumns: '28px 70px minmax(140px,1fr) 52px minmax(110px,1fr) 66px 66px', gap: 6, padding: '6px 10px', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
+                    <input type="checkbox" checked={row.include} onChange={(e) => setRow(index, { include: e.target.checked })} aria-label={`Include ${row.code}`} />
+                    <input className="input input--sm" value={row.code} onChange={(e) => setRow(index, { code: e.target.value.toUpperCase() })} aria-label="Code" />
+                    <input className="input input--sm" value={row.title} onChange={(e) => setRow(index, { title: e.target.value })} aria-label="Course description" />
+                    <input className="input input--sm" type="number" min={0} value={row.units} onChange={(e) => setRow(index, { units: Number(e.target.value) || 0 })} aria-label="Units" />
+                    <input className="input input--sm" value={row.prereq} onChange={(e) => setRow(index, { prereq: e.target.value })} aria-label="Pre-req" placeholder="None" />
+                    <select className="input input--sm" value={String(row.year)} onChange={(e) => setRow(index, { year: Number(e.target.value) })} aria-label="Year level">
+                      {YEAR_OPTIONS.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
+                    </select>
+                    <select className="input input--sm" value={String(row.semester)} onChange={(e) => setRow(index, { semester: Number(e.target.value) })} aria-label="Semester">
+                      {SEM_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  </div>
+                )
+              })}
             </div>
             <div className="create-resource__submit" style={{ marginTop: 14 }}>
               <button className="btn btn--primary btn--sm" type="button" onClick={handleImport}
