@@ -339,13 +339,15 @@ function App() {
   const navDark = navMode === 'dark' || (navMode === 'system' && systemDark)
   const navbarsDark = railDark || navDark
 
-  // Navigation position: the fixed left rail or a horizontal top bar.
+  // Navigation position: the horizontal top bar by default for new users —
+  // the left rail is an opt-in switch in Appearance. A saved pick always
+  // wins, so existing setups keep their layout.
   const [navLayout, setNavLayoutState] = useState<'left' | 'top'>(() => {
     try {
       const saved = localStorage.getItem(NAV_LAYOUT_KEY)
-      return saved === 'top' ? 'top' : 'left'
+      return saved === 'left' ? 'left' : 'top'
     } catch {
-      return 'left'
+      return 'top'
     }
   })
   const setNavLayout = useCallback((next: 'left' | 'top') => {
