@@ -7857,13 +7857,13 @@ button.reports-panel__more:hover {
   min-height: 0;
 }
 
-/* Fullscreen map overlay — covers the content region while the fixed rail
-   and the sticky topbar (both z-1100) stay visible and clickable above it;
-   dialogs (z-2000) still dim over everything. On drawer-sized screens the
-   rail is off-canvas, so the overlay spans the full width. */
+/* Fullscreen map overlay — covers the workspace but starts BELOW the top
+   bar (--hdr-h), so the bar and the map's sticky controls never collide,
+   and clears the fixed rail's 250px. Collapsed-rail and top-bar layouts
+   have no rail, so they span the full width from below the bar too. */
 .subject-view__right--fullscreen {
   position: fixed !important;
-  inset: 0 0 0 250px;
+  inset: var(--hdr-h) 0 0 250px;
   z-index: 1000;
   background: var(--bg, #f6f8fb);
   border-radius: 0;
@@ -7871,11 +7871,10 @@ button.reports-panel__more:hover {
   overflow-y: auto;
 }
 
-/* Drawer-sized screens: the rail is off-canvas, so the overlay spans the
-   full width. */
+/* Drawer-sized screens: the rail is off-canvas and the top bar is 60px. */
 @media (max-width: 960px) {
   .subject-view__right--fullscreen {
-    inset: 0;
+    inset: 60px 0 0 0;
   }
 }
 
