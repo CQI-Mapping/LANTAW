@@ -144,6 +144,21 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   }
   const q = query.trim().toLowerCase()
 
+  // The next free CLO number for a subject: 1 when the subject holds none,
+  // else the smallest positive integer the faculty member's own rows leave
+  // open — a subject with 1 and 2 suggests 3, and a gap (1, 4) suggests 2.
+  const nextCloCode = (courseCode: string) => {
+    const taken = new Set(
+      items
+        .filter((i) => cloMatchesSubject(i.course || '', normalizeCode(courseCode)))
+        .map((i) => Number(i.code))
+        .filter((n) => Number.isFinite(n) && n > 0),
+    )
+    let n = 1
+    while (taken.has(n)) n += 1
+    return String(n)
+  }
+
   // The manager's assignment is the gate: the faculty member writes CLOs
   // only for subjects handed to them (courses.instructor_id). The embedded
   // join resolves the instructor's email — the identity this page knows.
@@ -776,10 +791,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             <select className="input input--sm" value={form.course}
               onChange={(e) => {
                 const code = e.target.value
-                setForm({ ...form, course: code })
+                setForm((f) => ({ ...f, course: code, code: code ? nextCloCode(code) : f.code }))
                 // Picking a subject directly auto-fills the Year/Semester
                 // slicers from the subject's own placement, so they read as
-                // the subject's term instead of leftover filters.
+                // the subject's term instead of leftover filters — and the
+                // CLO Code pre-fills with the subject's next free number.
                 const picked = myCourses.find((c) => c.code === code)
                 setCourseYear(picked ? String(picked.year_level ?? '') : '')
                 setCourseSem(picked ? String(picked.semester ?? '') : '')
@@ -1056,9 +1072,11 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             No CLO records in this subject yet.{' '}
                             <button type="button" className="clo26-textbtn"
                               onClick={() => {
-                                setForm((f) => ({ ...f, course: course.code }))
+                                setForm((f) => ({ ...f, course: course.code, code: nextCloCode(course.code) }))
                                 // Same auto-fill as a direct pick: the
-                                // slicers read the subject's placement.
+                                // slicers read the subject's placement and
+                                // the CLO Code starts at the next free
+                                // number.
                                 setCourseYear(String(course.year_level ?? ''))
                                 setCourseSem(String(course.semester ?? ''))
                                 document.querySelector('.clo-create-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
