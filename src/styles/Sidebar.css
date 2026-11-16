@@ -29,6 +29,9 @@
   z-index: 1100;
   border-right: 1px solid var(--line);
   overflow-y: auto;
+  /* The mini transition slides content under the clipping edge — nothing
+     may poke out horizontally mid-animation. */
+  overflow-x: hidden;
   scrollbar-width: thin;
   transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -37,8 +40,10 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  min-width: 218px;
   padding: 0 9px 22px;
   flex-shrink: 0;
+  transition: padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The program logo occupies the brand mark slot for program-scoped roles
@@ -134,9 +139,28 @@
   transform: rotate(90deg);
 }
 
+/* The group collapses by HEIGHT (not display) so both the accordion toggle
+   and the minimize transition glide. visibility keeps the hidden items out
+   of the tab order, flipping only after the close finishes (and instantly
+   on open). */
 .nav-group {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition:
+    max-height 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.26s;
+}
+
+.nav-group--open {
+  max-height: 480px;
+  visibility: visible;
+  transition:
+    max-height 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0s;
 }
 
 .nav-item {
@@ -144,6 +168,11 @@
   align-items: center;
   gap: 12px;
   width: 100%;
+  /* The fixed inner width: the rail's content keeps its expanded footprint
+     while the sidebar narrows, so text never reflows or squishes mid-animation
+     — it slides under the clipping edge instead. (Sidebar inner width at
+     full size = 250 - 2×16 padding = 218.) */
+  min-width: 218px;
   padding: 10px 11px;
   border-radius: 7px;
   color: #5f6d63;
@@ -155,7 +184,7 @@
   font-size: 12.5px;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease, padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nav-item:hover {
@@ -210,13 +239,14 @@
   align-items: center;
   gap: 9px;
   width: 100%;
+  min-width: 218px;
   padding: 6px 6px;
   border: 0;
   border-radius: 9px;
   background: none;
   text-align: left;
   cursor: pointer;
-  transition: background 0.14s ease;
+  transition: background 0.14s ease, padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .user-mini__btn:hover,
@@ -523,13 +553,41 @@
   margin: 0 auto;
 }
 
-/* ---- Mini (minimized) rail ---- */
+/* ---- Mini (minimized) rail ----
+   The collapse keeps every element's expanded footprint and slides it under
+   the rail's clipping edge, while the disappearing labels fade and the
+   icon/chip paddings ease toward center. No reflow, no snap. */
 
 .nav-divider {
   display: none;
   height: 1px;
   background: var(--line);
   margin: 8px 6px;
+}
+
+/* Everything that vanishes in the mini rail fades rather than popping. */
+.nav-text,
+.brand-text,
+.user-mini__text,
+.more-btn {
+  transition: opacity 0.16s ease;
+}
+
+.brand-text b,
+.brand-text small {
+  white-space: nowrap;
+}
+
+/* Section headers also fold shut — padding and height go to zero together. */
+.nav-label,
+.nav-group-toggle {
+  overflow: hidden;
+  max-height: 44px;
+  transition:
+    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.16s ease,
+    padding 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.14s ease;
 }
 
 .app-layout--mini .sidebar {
@@ -542,12 +600,7 @@
 }
 
 .app-layout--mini .brand {
-  justify-content: center;
-  padding: 0 0 16px;
-}
-
-.app-layout--mini .brand-text {
-  display: none;
+  padding: 0 0 16px 17px;
 }
 
 .app-layout--mini .brand-mark-img {
@@ -555,37 +608,36 @@
 }
 
 .app-layout--mini .nav-label,
-.app-layout--mini .nav-group-toggle,
+.app-layout--mini .nav-group-toggle {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
 .app-layout--mini .nav-text,
+.app-layout--mini .brand-text,
 .app-layout--mini .user-mini__text,
 .app-layout--mini .more-btn {
-  display: none;
+  opacity: 0;
 }
 
 .app-layout--mini .nav-divider {
   display: block;
 }
 
-.app-layout--mini .nav-group {
-  width: 100%;
-}
-
+/* Icons glide to the rail's center as the width collapses. */
 .app-layout--mini .nav-item {
-  justify-content: center;
-  padding: 11px 0;
+  padding: 11px 26px;
 }
 
-.app-layout--mini .nav-ico {
-  width: auto;
+.app-layout--mini .user-mini__btn {
+  padding: 6px 17px;
 }
 
 .app-layout--mini .profile-menu {
   display: none;
-}
-
-.app-layout--mini .user-mini__btn {
-  justify-content: center;
-  padding: 6px 0;
 }
 
 /* ---- Focus rings ---- */

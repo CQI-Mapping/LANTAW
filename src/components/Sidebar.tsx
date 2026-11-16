@@ -112,10 +112,11 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   // The Academics group is a collapsible section. It starts open when the
   // signed-in page already lives there, and auto-opens whenever navigation
   // lands on an academic page — a highlighted row must never hide behind a
-  // collapsed group.
+  // collapsed group. The mini rail forces it open so its icons show.
   const [academicsOpen, setAcademicsOpen] = useState(() =>
     ACADEMICS_IDS.has(activePage),
   )
+  const groupOpen = academicsOpen || mini
   useEffect(() => {
     if (ACADEMICS_IDS.has(activePage)) setAcademicsOpen(true)
   }, [activePage])
@@ -208,20 +209,20 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                 type="button"
                 className="nav-group-toggle"
                 onClick={() => setAcademicsOpen((v) => !v)}
-                aria-expanded={academicsOpen}
+                aria-expanded={groupOpen}
                 aria-controls="nav-group-academics"
               >
                 <span>Academics</span>
-                <svg className={`nav-chevron ${academicsOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+                <svg className={`nav-chevron ${groupOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
-              {academicsOpen && (
-                <div id="nav-group-academics" className="nav-group">
-                  {academics.map(renderItem)}
-                </div>
-              )}
+              {/* Always mounted: the group collapses by height, so the
+                  accordion and the minimize transition both stay smooth. */}
+              <div id="nav-group-academics" className={`nav-group ${groupOpen ? 'nav-group--open' : ''}`}>
+                {academics.map(renderItem)}
+              </div>
             </>
           ))}
           {others.length > 0 && mini && divider}
