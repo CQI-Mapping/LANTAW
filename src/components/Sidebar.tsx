@@ -129,6 +129,9 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
     if (ACADEMICS_IDS.has(activePage)) setAcademicsOpen(true)
   }, [activePage])
 
+  // The Appearance picker folds behind its menu row until it's clicked.
+  const [appearanceOpen, setAppearanceOpen] = useState(false)
+
   const displayName = (profileName ?? '').trim() || `${role.charAt(0).toUpperCase() + role.slice(1)} User`
   const displayEmail = (profileEmail ?? '').trim() || `Signed in as ${role}`
   const avatarInitials = initialsOf(profileName, role)
@@ -305,26 +308,36 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                     <span>Security &amp; Privacy</span>
                   </button>
                   {/* Appearance: the ChatGPT color-mode picker — System
-                      follows the OS, Light and Dark pin the rail. */}
-                  <div className="profile-menu__section" role="group" aria-label="Appearance">
-                    <div className="profile-menu__section-head">
+                      follows the OS, Light and Dark pin the rail. The picker
+                      stays folded until the row is clicked. */}
+                  <div className="profile-menu__section">
+                    <button type="button" className="profile-menu__section-toggle"
+                      onClick={() => setAppearanceOpen((v) => !v)}
+                      aria-expanded={appearanceOpen}
+                      aria-controls="profile-appearance">
                       <Icon d={railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
                       <span>Appearance</span>
-                    </div>
-                    <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
-                    <div className="profile-menu__modes">
-                      {(['system', 'light', 'dark'] as const).map((mode) => (
-                        <button key={mode} type="button"
-                          className={`mode-swatch ${colorMode === mode ? 'mode-swatch--selected' : ''}`}
-                          onClick={() => onColorModeChange?.(mode)}
-                          aria-pressed={colorMode === mode}
-                          title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light rail' : 'Dark rail'}>
-                          <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
-                            <i /><i /><i />
-                          </span>
-                          <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
-                        </button>
-                      ))}
+                      <svg className={`profile-menu__chevron ${appearanceOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    </button>
+                    <div id="profile-appearance" className={`profile-menu__section-body ${appearanceOpen ? 'open' : ''}`}>
+                      <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
+                      <div className="profile-menu__modes">
+                        {(['system', 'light', 'dark'] as const).map((mode) => (
+                          <button key={mode} type="button"
+                            className={`mode-swatch ${colorMode === mode ? 'mode-swatch--selected' : ''}`}
+                            onClick={() => onColorModeChange?.(mode)}
+                            aria-pressed={colorMode === mode}
+                            title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light rail' : 'Dark rail'}>
+                            <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
+                              <i /><i /><i />
+                            </span>
+                            <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="profile-menu__sep" role="separator" />
