@@ -597,6 +597,22 @@ CREATE POLICY "Scoped activity log visibility" ON public.activity_logs FOR SELEC
         )
     );
 
+-- Faculty read the CLO history of their assigned subjects: clo.* actions
+-- whose details name a subject they instruct, whoever wrote them — the
+-- trail a newly assigned faculty member picks up. See
+-- 027-faculty-clo-history.sql.
+CREATE POLICY "Faculty read CLO history for their assigned subjects" ON public.activity_logs FOR SELECT
+    USING (
+        public.current_user_role() = 'user'
+        AND action LIKE 'clo.%'
+        AND EXISTS (
+            SELECT 1 FROM public.courses c
+            WHERE c.instructor_id = auth.uid()
+              AND upper(regexp_replace(c.code, '\s', '', 'g'))
+                = upper(regexp_replace(COALESCE(details ->> 'course', ''), '\s', '', 'g'))
+        )
+    );
+
 -- STRATEGIC GOALS
 CREATE POLICY "Authenticated users can read strategic_goals" ON public.strategic_goals FOR SELECT
     USING (auth.role() = 'authenticated');

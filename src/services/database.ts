@@ -75,6 +75,11 @@ export interface ActivityDetails {
   // typed a starting password (shared privately), omitted for the default
   // email-link flow.
   mode?: string
+  // The subject code a CLO belongs to — the faculty history panel groups
+  // CLO actions by the subject they touch. The bare digit run of the CLO
+  // rides along on created entries.
+  course?: string
+  code?: string
 }
 
 export interface ActivityLogEntry {
