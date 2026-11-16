@@ -9498,6 +9498,17 @@ html.lantaw-dark .position-pill.selected {
   color: #fff;
 }
 
+/* The Security & Privacy and Appearance pages title their heroes with the
+   sec-hero classes outside the __titles wrapper — they ride the same
+   banner, so their ink flips with it. */
+.app-layout--topnav .sec-hero__title {
+  color: #fff;
+}
+
+.app-layout--topnav .sec-hero__sub {
+  color: rgba(255, 251, 244, 0.75);
+}
+
 .app-layout--topnav .program-hero__titles p,
 .app-layout--topnav .page-heading p,
 .app-layout--topnav .dashbanner__greeting,
