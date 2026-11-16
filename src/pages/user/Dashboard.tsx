@@ -22,7 +22,7 @@ import CloViewModal from '../../components/CloViewModal'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
 import { useClock } from '../../hooks/useClock'
-import { localISODate, timeGreeting } from '../../utils/clock'
+import { philippineNow, timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
 import { cloLabel } from '../../utils/courseCodes'
 import { groupOutcomesBySubject, ownFigures, subjectsCovered, weeklyEditTrend } from '../../utils/facultyDashboard'
@@ -69,7 +69,7 @@ const ACTIONS: Array<{ page: string; label: string; hint: string; tone: string; 
     page: 'clo',
     label: 'Course Outcomes',
     hint: 'Write and edit CLOs',
-    tone: '#15803d',
+    tone: 'var(--primary-dark)',
     icon: (
       <Glyph>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -96,7 +96,7 @@ const ACTIONS: Array<{ page: string; label: string; hint: string; tone: string; 
     page: 'tos',
     label: 'Generate TOS',
     hint: 'Build a table of specifications',
-    tone: '#16a34a',
+    tone: 'var(--primary)',
     icon: (
       <Glyph>
         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -179,7 +179,7 @@ function EditTrend({ weeks }: { weeks: EditWeek[] }) {
             width={7}
             height={Math.max(2, Math.round((w.count / peak) * 22))}
             rx={2.5}
-            fill="#16a34a"
+            fill="var(--primary)"
             opacity={age === 0 ? 1 : 0.35}
           >
             <title>{age === 0 ? 'This week' : age === 1 ? 'Last week' : `${age} weeks ago`} — {labelFor(age, w.count)}</title>
@@ -269,16 +269,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
     <div className="fac-dash page-enter">
       <section className="fac-hero card-enter" aria-labelledby="fac-hero-name">
         <div className="fac-hero__info">
-          <time className="fac-hero__date" dateTime={localISODate(clock)}>
-            <Glyph size={15}>
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </Glyph>
-            <span>{clock.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
-          </time>
-          <p className="fac-hero__greeting">{timeGreeting(clock)}</p>
+          <p className="fac-hero__greeting">{timeGreeting(philippineNow(clock))}</p>
           <h1 className="fac-hero__name" id="fac-hero-name">{name}</h1>
           <span className="fac-hero__chip">Faculty</span>
           <p className="fac-hero__desc">
@@ -297,7 +288,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
               <polyline points="14 2 14 8 20 8" />
             </Glyph>
           }
-          tone="#15803d"
+          tone="var(--primary-dark)"
           label="Outcomes written"
           value={ready ? figures.total : '—'}
           sub={
@@ -334,7 +325,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </Glyph>
           }
-          tone="#16a34a"
+          tone="var(--primary)"
           label="Edited this week"
           value={ready ? figures.editedThisWeek : '—'}
           sub={ready ? 'Changed in the last 7 days' : pending}

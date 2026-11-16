@@ -212,7 +212,7 @@ function Users() {
       {error && <p className="msg msg--error" role="alert">{error}</p>}
       {success && <p className="msg msg--success" role="status">{success}</p>}
 
-      <div className="panel create-user" style={{ borderTop: '3px solid #16a34a' }}>
+      <div className="panel create-user" style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>Add Faculty</h3>
         <form onSubmit={handleSubmit}>
           <div className="create-user__row create-user__row--email-only">

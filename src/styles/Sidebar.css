@@ -1,827 +1,1357 @@
-/* Sidebar — Awwwards-inspired: clean, minimal, pill nav + mega dropdown. */
+/* Sidebar — premium 2026 shell (design/premium/theme.css): a fixed white
+   left rail (250px) with the brand block, grouped nav, and user chip, plus
+   the sticky topbar that App.tsx renders inside the main shell. Small
+   screens turn the rail into a drawer behind a scrim. */
 
 .app-layout {
   display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
-/* ---- Top Navbar ---- */
-/* Reserve the navbar's height for the rest of the app — the fullscreen map
-   overlay stops below it so the navbar stays visible on top of the map. */
-:root { --hdr-h: 70px; }
+/* The topbar's height — the in-panel sticky controls (map filters) pin
+   below it while the page scrolls. */
+:root { --hdr-h: 64px; }
 
-.hdr {
-  position: sticky;
-  top: 0;
-  /* Above every page overlay, including the z-1000 fullscreen curriculum map —
-     the navbar row and BOTH of its dropdowns must stay visible and clickable
-     while the map is expanded. The map's fixed panel only starts below
-     --hdr-h, but the menus extend BELOW the navbar, and a menu living inside
-     a z-30 header context used to slide behind the z-1000 overlay.
-     Full-screen modals (.modal-overlay) and the syllabus reader sit above
-     this (they must dim/cover the navbar when open). */
-  z-index: 1100;
-  width: 100%;
-  height: var(--hdr-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(14px) saturate(180%);
-  -webkit-backdrop-filter: blur(14px) saturate(180%);
-  border-bottom: 1px solid #ececec;
-  color: #111;
-}
+/* ---- Left rail ---- */
 
-.hdr__inner {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
-}
-
-/* ---- Hamburger ---- */
-.hdr__hamburger {
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 250px;
+  background: #fff;
+  color: var(--text);
+  padding: 22px 16px 14px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #111;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  /* Above every page overlay, including the z-1000 fullscreen curriculum
+     map — the rail stays visible and clickable over it. Full-screen modals
+     (.modal-overlay, z-2000) still dim and cover it. */
+  z-index: 1100;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  /* The mini transition slides content under the clipping edge — nothing
+     may poke out horizontally mid-animation. */
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hdr__hamburger:hover {
-  background: #f2f2f2;
-}
-
-.hdr__hamburger-line {
-  display: block;
-  width: 20px;
-  height: 1.8px;
-  background: currentColor;
-  border-radius: 999px;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-}
-
-.hdr__hamburger-line--open:nth-child(1) {
-  transform: translateY(5.8px) rotate(45deg);
-}
-.hdr__hamburger-line--open:nth-child(2) {
-  opacity: 0;
-  transform: scaleX(0);
-}
-.hdr__hamburger-line--open:nth-child(3) {
-  transform: translateY(-5.8px) rotate(-45deg);
-}
-
-/* ---- Brand ---- */
-.hdr__brand {
+.brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  min-width: 218px;
+  padding: 0 9px 22px;
   flex-shrink: 0;
+  transition: padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* The program logo occupies the brand mark slot for program-scoped
-   roles (manager, faculty). The shield artwork is taller than a
-   square and drawn on transparency, so it stands alone at its natural
-   shape — height fixed, never cropped, no backing box: same treatment
-   the login card gives it (contain), just miniaturized. */
-.hdr__mark-img {
+/* The program logo occupies the brand mark slot for program-scoped roles
+   (manager, faculty) — its natural shape, never cropped. Admins keep the
+   quiet green monogram block, exactly the prototype's brand-mark. */
+.brand-mark-img {
   display: block;
   width: auto;
   height: 34px;
   flex-shrink: 0;
   object-fit: contain;
-  filter: drop-shadow(0 2px 3px rgba(6, 20, 12, 0.18));
   user-select: none;
   -webkit-user-drag: none;
 }
 
-/* Admin's neutral fallback mark while they are not bounded to a
-   program: a quiet field-green chip with the monogram C. */
-.hdr__mark--temp {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  flex-shrink: 0;
+.brand-mark {
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  background: #16342a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--g800);
   color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 750;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  flex-shrink: 0;
 }
 
-/* ---- Nav — Awwwards pill group (centered, snug) ---- */
-.hdr__nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  overflow: visible;
-  scrollbar-width: none;
-  background: #f5f5f5;
-  border: 1px solid #ececec;
-  border-radius: 999px;
-  margin: 0 auto;
-  max-width: 100%;
+.brand-text b {
+  display: block;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--text);
 }
 
-.hdr__nav::-webkit-scrollbar {
-  display: none;
-}
-
-.hdr__item {
-  position: relative;
+/* The collapse toggle rides in the rail's own header row (ChatGPT-style):
+   brand text left, panel icon right. The topbar keeps a twin for the
+   collapsed state, where this rail is off-screen. */
+.brand-collapse {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  max-width: 220px;
-  padding: 7px 13px;
-  border: 1px solid transparent;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
   background: transparent;
-  color: #6b7280;
-  font-size: 13.2px;
-  font-family: inherit;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  border-radius: 999px;
+  color: #627168;
   cursor: pointer;
-  transition: all 0.16s cubic-bezier(0.16,1,0.3,1);
-}
-
-.hdr__item > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.hdr__item:hover {
-  color: #111;
-  background: #f2f2f2;
-  border-color: #ececec;
-}
-
-.hdr__item--active {
-  color: #fff;
-  background: #111;
-  border-color: #111;
-}
-
-.hdr__item--active:hover {
-  background: #111;
-  color: #fff;
-  border-color: #111;
-}
-
-.hdr__icon {
-  width: 15px;
-  height: 15px;
   flex-shrink: 0;
-  opacity: 0.9;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
-.hdr__item--active .hdr__icon {
-  opacity: 1;
+.brand-collapse:hover {
+  background: var(--g50);
+  color: var(--g800);
 }
 
-.hdr__chevron {
-  width: 14px;
-  height: 14px;
+/* ---- Grouped nav ---- */
+
+.nav-label {
+  font-size: 9px;
+  color: #929d95;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 17px 11px 7px;
+}
+
+/* The Academics group's header is a disclosure: same typography as the
+   plain labels, but clickable, with a chevron that turns from pointing
+   right (collapsed) to down (expanded). */
+.nav-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 17px 11px 7px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: 9px;
+  color: #929d95;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+
+.nav-group-toggle:hover {
+  color: #5f6d63;
+}
+
+.nav-chevron {
+  width: 11px;
+  height: 11px;
   flex-shrink: 0;
-  margin-left: 1px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  opacity: 0.6;
+  color: #929d95;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hdr__item:hover .hdr__chevron {
-  opacity: 1;
+.nav-chevron.open {
+  transform: rotate(90deg);
 }
 
-.hdr__chevron--open {
-  transform: rotate(180deg);
-}
-
-.hdr__item:focus-visible,
-.hdr__dd-item:focus-visible,
-.hdr__logout:focus-visible,
-.hdr__profileBtn:focus-visible,
-.hdr__profile-item:focus-visible,
-.hdr__hamburger:focus-visible {
-  outline: 2px solid #111;
-  outline-offset: 2px;
-}
-
-/* ---- Academics mega dropdown — Awwwards style ---- */
-.hdr__dd {
-  position: relative;
-}
-
-/* Invisible hover bridge — keeps menu open when moving cursor from button to panel (14px gap) */
-.hdr__dd::before {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: -12px;
-  right: -12px;
-  height: 16px;
-  display: block;
-  /* transparent but keeps :hover / onMouseEnter alive */
-}
-
-/* The old .hdr__dd-overlay (fixed viewport dim) is gone entirely: as a fixed
-   descendant of the backdrop-filtered sticky header it resolved against the
-   header's own 70px box and collapsed to zero height in Chromium 105+ —
-   invisible, unclickable, pure dead markup. Outside clicks are already
-   dismissed by the Sidebar's own document listener. */
-
-/* Filter-style dropdown — unified Academics menu for all roles.
-   No entrance animation: opening mid-scroll or on a busy/throttled tab left
-   the menu stuck at its first fade frame, which reads as "the dropdown is
-   behind the page" (page content ghosting through a ~0.1-opacity menu).
-   It now simply appears — instant, above everything, per the audit spec. */
-.hdr__dd-menu {
-  position: absolute;
-  top: calc(100% + 12px);
-  left: 0;
-  transform: none;
-  width: 360px;
-  max-width: calc(100vw - 24px);
-  background: #ffffff;
-  border: 1px solid #ececec;
-  border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+/* The group collapses by HEIGHT (not display) so both the accordion toggle
+   and the minimize transition glide. visibility keeps the hidden items out
+   of the tab order, flipping only after the close finishes (and instantly
+   on open). */
+.nav-group {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  z-index: 60;
+  width: 100%;
+  max-height: 0;
   overflow: hidden;
+  visibility: hidden;
+  transition:
+    max-height 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0.26s;
 }
 
-.hdr__dd-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-  padding: 8px;
-  background: var(--bg-panel);
-  max-height: 60vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
+.nav-group--open {
+  max-height: 480px;
+  visibility: visible;
+  transition:
+    max-height 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 0s;
 }
 
-.hdr__dd-grid::-webkit-scrollbar {
-  width: 6px;
-}
-.hdr__dd-grid::-webkit-scrollbar-thumb {
-  background: #ececec;
-  border-radius: 999px;
-}
-
-.hdr__dd-item {
+.nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 10px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--bg-panel);
-  color: #111;
+  /* The fixed inner width: the rail's content keeps its expanded footprint
+     while the sidebar narrows, so text never reflows or squishes mid-animation
+     — it slides under the clipping edge instead. (Sidebar inner width at
+     full size = 250 - 2×16 padding = 218.) */
+  min-width: 218px;
+  padding: 10px 11px;
+  border-radius: 7px;
+  color: #5f6d63;
+  margin: 2px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  text-decoration: none;
+  font-size: 12.5px;
   font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-item:hover {
+  background: #f4f7f4;
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: #eaf3ec;
+  color: var(--g800);
+  font-weight: 700;
+}
+
+.nav-ico {
+  width: 18px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.nav-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.nav-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-nav {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- Sidebar bottom: user chip + profile menu ---- */
+
+.sidebar-bottom {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.user-mini {
+  position: relative;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 2px;
+}
+
+.user-mini__btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 218px;
+  padding: 6px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
   text-align: left;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background 0.14s ease, padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hdr__dd-item:hover {
-  background: #f5f5f5;
-  border-color: transparent;
-  transform: none;
-  box-shadow: none;
+.user-mini__btn:hover,
+.user-mini__btn.open {
+  background: var(--g50);
 }
 
-.hdr__dd-item--active {
-  background: #111 !important;
-  border-color: #111 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-}
-
-.hdr__dd-item--active:hover {
-  transform: translateY(-1px);
-}
-
-.hdr__dd-iconWrap {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #ececec;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.16s ease;
-}
-
-.hdr__dd-item:hover .hdr__dd-iconWrap {
-  border-color: #e5e5e5;
-  background: var(--bg-panel);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.hdr__dd-item--active .hdr__dd-iconWrap {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
-}
-
-.hdr__dd-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: #111;
-  opacity: 0.9;
-}
-
-.hdr__dd-item--active .hdr__dd-icon {
-  color: #fff;
-  opacity: 1;
-}
-
-.hdr__dd-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hdr__dd-label {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #111;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__dd-desc {
-  font-size: 12px;
-  font-weight: 400;
-  color: #6b7280;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__dd-item--active .hdr__dd-label {
-  color: #fff;
-}
-
-.hdr__dd-item--active .hdr__dd-desc {
-  color: rgba(255, 255, 255, 0.68);
-}
-
-.hdr__dd-arrow {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: #9ca3af;
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.hdr__dd-item:hover .hdr__dd-arrow {
-  opacity: 1;
-  transform: translateX(0);
-  color: #111;
-}
-
-.hdr__dd-item--active .hdr__dd-arrow {
-  opacity: 1;
-  transform: translateX(0);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.hdr__dd-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 20px 16px;
-  border-top: 1px solid #f0f0f0;
-  background: #fcfcfc;
-  font-size: 11px;
-  font-weight: 500;
-  color: #9ca3af;
-  letter-spacing: -0.01em;
-}
-
-.hdr__dd-foot-hint {
-  font-weight: 600;
-  color: #6b7280;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-}
-
-/* ---- Backdrop for mobile drawer ---- */
-.hdr__backdrop {
-  position: fixed;
-  inset: 0;
-  top: 70px;
-  background: rgba(17, 17, 17, 0.32);
-  backdrop-filter: blur(2px);
-  border: none;
-  z-index: 20;
-  cursor: pointer;
-  animation: ddOverlayIn 0.2s ease;
-}
-
-/* ---- Right side — Awwwards minimal (profile dropdown) ---- */
-.hdr__right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.hdr__profile {
-  position: relative;
-}
-
-.hdr__profileBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 4px;
-  border: 1px solid #ececec;
-  background: #f5f5f5;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.hdr__profileBtn:hover {
-  background: var(--bg-panel);
-  border-color: #ececec;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-}
-
-.hdr__profileBtn--open {
-  background: var(--bg-panel);
-  border-color: #ececec;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.hdr__profileBtn--active {
-  border-color: #111;
-}
-
-.hdr__avatar {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
+.avatar,
+.top-avatar {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  display: grid;
+  place-items: center;
+  background: #d7e8d9;
+  color: var(--g900);
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
   overflow: hidden;
 }
 
-/* A profile picture (set on the Profile page) fills the avatar circle. */
-.hdr__avatar-img {
+.avatar-img {
   width: 100%;
   height: 100%;
   border-radius: inherit;
   object-fit: cover;
 }
 
-.hdr__role {
-  color: #111;
-  font-size: 12.5px;
-  font-weight: 600;
-  text-transform: capitalize;
-  letter-spacing: -0.01em;
+.avatar--lg {
+  width: 40px;
+  height: 40px;
+  font-size: 13px;
+}
+
+.user-mini__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-mini__text b {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-mini__text small {
+  display: block;
+  color: #89958d;
+  font-size: 9px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.more-btn {
+  margin-left: auto;
+  color: #718078;
+  font-size: 18px;
+  letter-spacing: 1px;
   line-height: 1;
 }
 
-.hdr__chevron--sm {
-  width: 12px;
-  height: 12px;
-  margin-left: 1px;
-}
-
-.hdr__profile-menu {
+/* The profile menu opens UPWARD from the chip — the chip sits at the rail's
+   bottom edge, so a downward menu would fall off the viewport. */
+.profile-menu {
   position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 280px;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 218px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(13, 33, 24, 0.14), 0 2px 10px rgba(13, 33, 24, 0.06);
   overflow: hidden;
-  z-index: 60;
+  z-index: 20;
 }
 
-.hdr__profile-head {
+.profile-menu__head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: #fcfcfc;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--g50);
 }
 
-.hdr__profile-avatarLg {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.hdr__profile-info {
-  flex: 1;
+.profile-menu__id {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
-.hdr__profile-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #111;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+.profile-menu__id b {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.hdr__profile-sub {
-  font-size: 11.5px;
-  font-weight: 400;
-  color: #6b7280;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__profile-badge {
-  flex-shrink: 0;
+.profile-menu__id small {
+  display: block;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #111;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  padding: 5px 8px;
-  border-radius: 999px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hdr__profile-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  background: var(--bg-panel);
+.profile-menu__list {
+  padding: 6px;
 }
 
-.hdr__profile-item {
+.profile-menu__item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  background: var(--bg-panel);
-  border-radius: 10px;
-  color: #111;
-  font-size: 13.5px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #425148;
+  font-size: 12px;
   font-family: inherit;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
-.hdr__profile-item:hover {
-  background: #f5f5f5;
+.profile-menu__item:hover,
+.profile-menu__item.active {
+  background: var(--g50);
+  color: var(--g800);
 }
 
-.hdr__profile-item--active {
-  background: #111;
-  color: #fff;
-  border-color: #111;
+.profile-menu__item.active {
+  font-weight: 700;
 }
 
-.hdr__profile-item--active .hdr__profile-icon,
-.hdr__profile-item--active .hdr__profile-arrow {
-  color: #fff;
-}
-
-.hdr__profile-item--danger {
-  color: #dc2626;
-}
-
-.hdr__profile-item--danger:hover {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.hdr__profile-icon {
-  width: 16px;
-  height: 16px;
+.profile-menu__ico {
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
-  opacity: 0.9;
 }
 
-.hdr__profile-arrow {
+.profile-menu__sep {
+  height: 1px;
+  background: var(--line);
+  margin: 5px 4px;
+}
+
+.profile-menu__item--danger {
+  color: var(--danger);
+}
+
+.profile-menu__item--danger:hover {
+  background: #fbeceb;
+  color: var(--danger);
+}
+
+/* The look-and-feel swatches (mode-swatch, position-pill) are shared with
+   the Appearance page — their rules live below. */
+
+.mode-swatch {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 4px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s ease;
+}
+
+.mode-swatch:hover {
+  background: var(--g50);
+}
+
+.mode-swatch__preview {
+  width: 52px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  overflow: hidden;
+  padding: 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.mode-swatch__preview i {
+  display: block;
+  height: 3.5px;
+  border-radius: 3px;
+  background: #347b52;
+}
+
+.mode-swatch__preview i:nth-child(1) { width: 72%; }
+.mode-swatch__preview i:nth-child(2) { width: 88%; }
+.mode-swatch__preview i:nth-child(3) { width: 55%; }
+
+.mode-swatch__preview--system {
+  /* The split card: light half, dark half — following the OS. */
+  background: linear-gradient(90deg, #fff 0 50%, #141715 50% 100%);
+}
+
+.mode-swatch__preview--system i {
+  background: linear-gradient(90deg, #347b52 0 50%, #8f948f 50% 100%);
+}
+
+.mode-swatch__preview--dark {
+  background: #0d0d0d;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.mode-swatch__preview--dark i {
+  background: #8f948f;
+}
+
+.mode-swatch__preview--dark i:nth-child(2) {
+  background: #d7e8d9;
+}
+
+.mode-swatch--selected .mode-swatch__preview {
+  border-color: var(--g700);
+  box-shadow: 0 0 0 2px var(--g100);
+}
+
+.mode-swatch__label {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #6b756e;
+}
+
+.mode-swatch--selected .mode-swatch__label {
+  color: var(--g800);
+  font-weight: 700;
+}
+
+/* ---- Rail appearance: ChatGPT-dark ----
+   The profile menu's Appearance item flips the layout class; these rules
+   re-ink the rail only — the workspace beside it stays light. */
+
+.app-layout--rail-dark .sidebar {
+  background: #0d0d0d;
+  border-right-color: rgba(255, 255, 255, 0.05);
+  color: #ececec;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.app-layout--rail-dark .brand-text b {
+  color: #fff;
+}
+
+.app-layout--rail-dark .brand-text b {
+  color: #fff;
+}
+
+.app-layout--rail-dark .brand-collapse {
+  color: #b6bab7;
+}
+
+.app-layout--rail-dark .brand-collapse:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.app-layout--rail-dark .nav-label,
+.app-layout--rail-dark .nav-group-toggle,
+.app-layout--rail-dark .nav-chevron {
+  color: #8f948f;
+}
+
+.app-layout--rail-dark .nav-group-toggle:hover {
+  color: #b6bab7;
+}
+
+.app-layout--rail-dark .nav-item {
+  color: #b6bab7;
+}
+
+.app-layout--rail-dark .nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.app-layout--rail-dark .nav-item.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-weight: 600;
+}
+
+.app-layout--rail-dark .user-mini {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-layout--rail-dark .user-mini__btn:hover,
+.app-layout--rail-dark .user-mini__btn.open {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--rail-dark .user-mini__text b {
+  color: #fff;
+}
+
+.app-layout--rail-dark .user-mini__text small,
+.app-layout--rail-dark .more-btn {
+  color: #9b9f9b;
+}
+
+.app-layout--rail-dark .profile-menu {
+  background: #161616;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.app-layout--rail-dark .profile-menu__head {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-layout--rail-dark .profile-menu__id b {
+  color: #fff;
+}
+
+.app-layout--rail-dark .profile-menu__id small {
+  color: #9b9f9b;
+}
+
+.app-layout--rail-dark .profile-menu__item {
+  color: #c9cdc9;
+}
+
+.app-layout--rail-dark .profile-menu__item:hover,
+.app-layout--rail-dark .profile-menu__item.active {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.app-layout--rail-dark .profile-menu__sep {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-layout--rail-dark .profile-menu__item--danger,
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  color: #ff8f86;
+}
+
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-layout--rail-dark .profile-menu__item--danger,
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  color: #ff8f86;
+}
+
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-layout--rail-dark .mode-swatch:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--rail-dark .mode-swatch__preview--dark {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.app-layout--rail-dark .mode-swatch--selected .mode-swatch__preview {
+  border-color: #d7e8d9;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.app-layout--rail-dark .mode-swatch__label {
+  color: #9b9f9b;
+}
+
+.app-layout--rail-dark .mode-swatch--selected .mode-swatch__label {
+  color: #fff;
+}
+
+/* ---- Main shell + topbar (rendered by App.tsx) ---- */
+
+.main-shell {
+  flex: 1;
+  min-width: 0;
+  margin-left: 250px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topbar {
+  height: 64px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  /* Same ceiling as the rail: the fullscreen map (z-1000) slides under the
+     topbar row, and dialogs (z-2000) dim over both. */
+  z-index: 1100;
+  flex-shrink: 0;
+}
+
+.topbar__menu {
+  display: none;
+  border: 0;
+  background: transparent;
+  color: #627168;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar__menu:hover {
+  background: var(--g50);
+}
+
+/* Desktop: the rail's own header row carries the collapse toggle
+   (.brand-collapse). The topbar's twin appears only when the rail is
+   collapsed away — the only way back. The hamburger takes over below
+   960px, where the rail is a drawer. */
+.topbar__collapse {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #627168;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.app-layout--mini .topbar__collapse {
+  display: inline-flex;
+  /* ChatGPT-style collapsed top-left: the brand mark sits in the button;
+     hovering cross-fades it into the expand icon on a soft tint. */
+  position: relative;
+  overflow: hidden;
+}
+
+.topbar__collapse-logo,
+.topbar__collapse-mark,
+.topbar__collapse-icon {
+  transition: opacity 0.16s ease;
+}
+
+.topbar__collapse-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.topbar__collapse-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--g800);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+.topbar__collapse-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0;
+}
+
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-logo,
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-mark {
+  opacity: 0;
+}
+
+.app-layout--mini .topbar__collapse:hover .topbar__collapse-icon {
+  opacity: 1;
+}
+
+.topbar__collapse:hover {
+  background: var(--g50);
+  color: var(--g800);
+}
+
+.topbar__collapse[aria-pressed='true'] {
+  background: var(--g100);
+  color: var(--g800);
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9aa49d;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.crumb i {
+  font-style: normal;
+  color: #c5cec7;
+}
+
+.crumb b {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+/* The date pill: today spelled out, calendar icon in the brand green. */
+.date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.date-pill svg {
+  color: var(--g700);
+  flex-shrink: 0;
+}
+
+.top-avatar {
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: box-shadow 0.14s ease;
+}
+
+.top-avatar:hover {
+  box-shadow: 0 0 0 3px var(--g100);
+}
+
+/* ---- Content column ---- */
+
+.content-area {
+  padding: 29px 32px 38px;
+  flex: 1;
+}
+
+.page-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* ---- Dark topbar (Appearance > Navbar, or a dark full theme) ----
+   The topbar re-inks independently of the workspace: the layout carries
+   this class when the Navbar pick resolves dark, or when the full color
+   mode is dark. */
+.app-layout--topbar-dark .topbar {
+  background: rgba(13, 13, 13, 0.96);
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.app-layout--topbar-dark .crumb {
+  color: #8f948f;
+}
+
+.app-layout--topbar-dark .crumb i {
+  color: #4a544d;
+}
+
+.app-layout--topbar-dark .crumb b {
+  color: #e6ebe7;
+}
+
+.app-layout--topbar-dark .topbar__menu:hover,
+.app-layout--topbar-dark .topbar__collapse:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6ebe7;
+}
+
+.app-layout--topbar-dark .date-pill {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.app-layout--topbar-dark .date-pill svg {
+  color: #9fd0ae;
+}
+
+.app-layout--topbar-dark .top-avatar:hover {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+.app-layout--topbar-dark .topnav__avatar:hover {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+/* Top-bar layout: there is no left rail and App's own topbar is hidden —
+   the fullscreen map starts below the topnav bar (62px + its hairline). */
+.app-layout--topnav .subject-view__right--fullscreen {
+  inset: 63px 0 0 0;
+}
+
+/* Top-bar layout: App's own topbar would duplicate the bar — hidden, and
+   the workspace takes the full width. */
+.app-layout--topnav .topbar {
+  display: none;
+}
+
+.app-layout--topnav .main-shell {
+  margin-left: 0;
+}
+
+/* ---- Position pills (Appearance page: Left side / Top bar) ---- */
+
+.position-pill {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: #425148;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+
+.position-pill:hover {
+  border-color: var(--border-strong);
+}
+
+.position-pill.selected {
+  border-color: var(--g700);
+  background: var(--g50);
+  color: var(--g800);
+}
+
+.app-layout--rail-dark .position-pill {
+  background: #161616;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #c9cdc9;
+}
+
+.app-layout--rail-dark .position-pill:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.app-layout--rail-dark .position-pill.selected {
+  border-color: #d7e8d9;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+/* ---- Top-bar layout (Appearance > Position > Top bar) ----
+   The whole navigation in a sticky horizontal bar: brand left, pill nav
+   scrolling the middle, avatar menu right. The rail is absent; App's own
+   topbar hides. */
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 62px;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.topnav .brand {
+  min-width: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.topnav .brand-mark-img {
+  height: 30px;
+}
+
+.topnav .brand-mark {
+  width: 34px;
+  height: 34px;
+  font-size: 19px;
+}
+
+.topnav__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  /* The Academics dropdown hangs below this row — clipping here would cut
+     the panel off. With Academics folded into a dropdown the bar only
+     carries a few pills, so nothing needs to scroll. */
+  overflow: visible;
+  padding: 4px 2px;
+}
+
+.topnav__nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.topnav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #5f6d63;
+  font-family: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.topnav__item:hover {
+  background: var(--g50);
+  color: var(--text);
+}
+
+.topnav__item.active {
+  background: var(--g800);
+  color: #fff;
+  font-weight: 600;
+}
+
+.topnav__ico {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  margin-left: auto;
-  color: #9ca3af;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: all 0.15s ease;
 }
 
-.hdr__profile-item:hover .hdr__profile-arrow {
-  opacity: 1;
-  transform: translateX(0);
+/* ---- The Academics dropdown in the top bar ----
+   Dashboard and the Administration pills sit beside it; the academic pages
+   open as a panel of icon + label + description rows. */
+
+.topnav__dd {
+  position: relative;
 }
 
-.hdr__profile-sep {
-  height: 1px;
-  background: #f0f0f0;
-  margin: 4px 0;
+.topnav__item.open {
+  background: var(--g100);
+  color: var(--g800);
 }
 
-/* Legacy logout (kept for compatibility) */
-.hdr__logout {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid #ececec;
+.topnav__chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.topnav__chevron.open {
+  transform: rotate(180deg);
+}
+
+.topnav__dd-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 340px;
+  max-width: calc(100vw - 40px);
+  max-height: 70vh;
+  overflow-y: auto;
   background: var(--bg-panel);
-  color: #111;
-  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(13, 33, 24, 0.14), 0 2px 10px rgba(13, 33, 24, 0.06);
+  padding: 6px;
+  z-index: 60;
+}
+
+.topnav__dd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
   font-family: inherit;
-  font-weight: 500;
-  border-radius: 999px;
   cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.topnav__dd-item:hover {
+  background: var(--g50);
+}
+
+.topnav__dd-item.active {
+  background: var(--g100);
+}
+
+.topnav__dd-ico {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--g50);
+  display: grid;
+  place-items: center;
+  color: var(--g700);
+  flex-shrink: 0;
+}
+
+.topnav__dd-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.topnav__dd-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.topnav__dd-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
   white-space: nowrap;
-  transition: all 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hdr__logout:hover {
-  background: #111;
+.topnav__dd-desc {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topnav__item:focus-visible,
+.topnav__dd-item:focus-visible,
+.topnav__avatar:focus-visible {
+  outline: 2px solid var(--g700);
+  outline-offset: 2px;
+}
+
+.topnav__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.user-mini--topnav {
+  border-top: 0;
+  padding: 0;
+  position: relative;
+}
+
+.topnav__avatar {
+  display: inline-flex;
+  border: 0;
+  background: none;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: box-shadow 0.14s ease;
+}
+
+.topnav__avatar:hover {
+  box-shadow: 0 0 0 3px var(--g100);
+}
+
+/* The popover opens DOWNWARD from the avatar (the rail's chip opens up). */
+.topnav .profile-menu {
+  top: calc(100% + 10px);
+  bottom: auto;
+  left: auto;
+  right: 0;
+}
+
+.app-layout--topbar-dark .topnav {
+  background: #0d0d0d;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--topbar-dark .topnav .brand-text b {
   color: #fff;
-  border-color: #111;
 }
 
-/* ---- Responsive — mobile drawer ---- */
-@media (max-width: 1024px) {
-  :root { --hdr-h: 60px; }
+.app-layout--topbar-dark .topnav .brand-text small {
+  color: #8f948f;
+}
 
-  .hdr {
-    height: auto;
-    min-height: 60px;
-    padding: 10px 14px;
-    gap: 8px;
+.app-layout--topbar-dark .topnav__item {
+  color: #b6bab7;
+}
+
+.app-layout--topbar-dark .topnav__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__item.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__item.open {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__dd-menu {
+  background: #161616;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.app-layout--topbar-dark .topnav__dd-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--topbar-dark .topnav__dd-item.active {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.app-layout--topbar-dark .topnav__dd-ico {
+  background: rgba(255, 255, 255, 0.06);
+  color: #b6bab7;
+}
+
+.app-layout--topbar-dark .topnav__dd-label {
+  color: #ececec;
+}
+
+.app-layout--topbar-dark .topnav__dd-desc {
+  color: #a3a3a3;
+}
+
+/* ---- Collapsed rail (ChatGPT-style) ----
+   The whole rail slides away — no icon column — and the workspace takes the
+   full width. The topbar toggle stays in place to bring it back. Desktop
+   only: on drawer-sized screens the rail is a drawer, not collapsible. */
+
+@media (min-width: 961px) {
+  .app-layout--mini .sidebar {
+    width: 0;
+    padding: 22px 0 12px;
+    border-right-color: transparent;
+    visibility: hidden;
+    transition:
+      width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+      padding 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+      visibility 0s linear 0.24s;
   }
 
-  .hdr__inner {
-    flex-wrap: wrap;
-    gap: 10px;
+  .app-layout--mini .main-shell {
+    margin-left: 0;
   }
 
-  .hdr__hamburger {
-    order: -1;
+  /* The fullscreen Subject Graph clears the rail only when it is present. */
+  .app-layout--mini .subject-view__right--fullscreen {
+    inset: var(--hdr-h) 0 0 0;
   }
+}
 
-  .hdr__brand {
-    flex: 1;
-  }
+/* ---- Focus rings ---- */
 
-  .hdr__nav {
-    order: 9;
-    width: 100%;
-    margin: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-    max-height: 62vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg-panel);
-    border: 1px solid #ececec;
-    border-radius: 16px;
-    padding: 8px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
-  }
+.nav-item:focus-visible,
+.nav-group-toggle:focus-visible,
+.brand-collapse:focus-visible,
+.user-mini__btn:focus-visible,
+.top-avatar:focus-visible,
+.profile-menu__item:focus-visible,
+.topbar__menu:focus-visible,
+.topbar__collapse:focus-visible {
+  outline: 2px solid var(--g700);
+  outline-offset: 2px;
+}
 
-  .hdr--open .hdr__nav {
-    display: flex;
-  }
+/* ---- Small screens: the rail becomes a drawer ---- */
 
-  .hdr__nav {
-    display: none;
-  }
+.sidebar-scrim {
+  display: none;
+}
 
-  .hdr__item {
-    justify-content: flex-start;
-    padding: 10px 14px;
-    border-radius: 12px;
-  }
-
-  .hdr__dd-menu,
-  .hdr__profile-menu {
-    position: static;
-    transform: none;
-    width: 100%;
-    max-width: none;
-    margin-top: 6px;
-    border-radius: 14px;
+@media (max-width: 960px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: none;
-    left: auto;
-    right: auto;
+    width: 262px;
   }
 
-  .hdr__dd-grid {
-    grid-template-columns: 1fr;
-    padding: 10px;
+  .sidebar.open {
+    transform: none;
+    box-shadow: 0 18px 44px rgba(13, 33, 24, 0.25);
   }
 
-  .hdr__dd-foot {
-    padding: 10px 14px 12px;
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 47, 36, 0.5);
+    border: 0;
+    z-index: 1090;
+    cursor: pointer;
   }
 
-  .hdr__right {
-    order: 11;
-    width: 100%;
-    justify-content: space-between;
-    padding-top: 10px;
-    border-top: 1px solid #ececec;
+  .main-shell {
+    margin-left: 0;
   }
 
-  .hdr__profile {
-    flex: 1;
+  .topbar {
+    padding: 0 15px;
+    height: 60px;
   }
 
-  .hdr__profileBtn {
-    width: 100%;
-    justify-content: flex-start;
+  .topbar__menu {
+    display: inline-flex;
   }
-}
 
-@media (min-width: 1025px) {
-  .hdr__hamburger {
+  .topbar__collapse,
+  .brand-collapse {
     display: none;
   }
 
-  .hdr__backdrop {
+  .crumb {
+    font-size: 11px;
+  }
+
+  .content-area {
+    padding: 20px 14px 30px;
+  }
+}
+
+@media (max-width: 760px) {
+  .date-pill {
     display: none;
   }
 }

@@ -597,6 +597,17 @@ CREATE POLICY "Scoped activity log visibility" ON public.activity_logs FOR SELEC
         )
     );
 
+-- Faculty read the CLO history of their assigned subjects: clo.* actions
+-- whose details name a subject they instruct, whoever wrote them — the
+-- trail a newly assigned faculty member picks up. See
+-- 027-faculty-clo-history.sql.
+CREATE POLICY "Faculty read CLO history for their assigned subjects" ON public.activity_logs FOR SELECT
+    USING (
+        public.current_user_role() = 'user'
+        AND action LIKE 'clo.%'
+        AND public.faculty_teaches_course(auth.uid(), COALESCE(details ->> 'course', ''))
+    );
+
 -- STRATEGIC GOALS
 CREATE POLICY "Authenticated users can read strategic_goals" ON public.strategic_goals FOR SELECT
     USING (auth.role() = 'authenticated');
@@ -656,6 +667,25 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- their own rows (ownership is stamped on insert by the app service),
 -- managers keep read oversight of everything, admins keep full control.
 -- Unowned rows (pre-ownership legacy) are admin/manager-visible only.
+-- Faculty writes are ALSO scoped to the subjects the manager assigned
+-- them (courses.instructor_id) — see 026-faculty-clo-assigned-subjects.sql.
+-- The subject-match check lives in one SECURITY DEFINER function so the
+-- policies reference the row's columns bare (policies have no NEW/OLD —
+-- that is a trigger concept; a bare column reads the existing row in
+-- USING and the proposed row in WITH CHECK).
+
+CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.courses c
+    WHERE c.instructor_id = p_uid
+      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+        = upper(regexp_replace(COALESCE(p_course, ''), '\s', '', 'g'))
+  );
+$$;
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
@@ -666,12 +696,39 @@ CREATE POLICY "Managers can read every course learning outcome" ON public.admin_
 CREATE POLICY "Faculty see only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR SELECT
     USING (public.current_user_role() = 'user' AND owner_id = auth.uid());
 
-CREATE POLICY "Outcomes are created owned by their creator" ON public.admin_course_learning_outcomes FOR INSERT
-    WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_course_learning_outcomes FOR INSERT
+    WITH CHECK (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND public.faculty_teaches_course(auth.uid(), course)
+            )
+        )
+    );
 
-CREATE POLICY "Faculty edit only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR UPDATE
-    USING (owner_id = auth.uid())
-    WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_course_learning_outcomes FOR UPDATE
+    USING (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND public.faculty_teaches_course(auth.uid(), course)
+            )
+        )
+    )
+    WITH CHECK (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND public.faculty_teaches_course(auth.uid(), course)
+            )
+        )
+    );
 
 CREATE POLICY "Faculty delete their own course learning outcomes" ON public.admin_course_learning_outcomes FOR DELETE
     USING (owner_id = auth.uid());
@@ -1104,3 +1161,52 @@ CREATE POLICY "Users manage own tos_topics" ON public.tos_topics FOR ALL
         JOIN public.tos_exams e ON e.id = s.exam_id
         WHERE s.id = tos_topics.sheet_id AND e.user_id = auth.uid()
     ));
+
+-- ============================================================
+-- GRASPS TASKS
+--
+-- The Generate GRASPS page (faculty) saves each performance
+-- task it builds: one row per document, carrying the six
+-- GRASPS components as plain text (Goal, Role, Audience,
+-- Situation, Product/Performance, Standards).
+--
+-- Private to their owner, exactly like the TOS blueprints:
+-- the policy below scopes every read and write to auth.uid().
+--
+-- See supabase/migrations/025-grasps-tasks.sql for the full
+-- header comment.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.grasps_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES public.profiles(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    task_type TEXT NOT NULL DEFAULT 'Prelim',
+    -- Recomposed from semester + school_year on every write, kept so anything
+    -- still reading it (an older export, a card) keeps working.
+    term TEXT NOT NULL,
+    semester TEXT,
+    school_year TEXT,
+    -- The six GRASPS components. Each is optional in storage — a task may be
+    -- filed half-written — and the page decides what counts as saveable.
+    goal TEXT,
+    role TEXT,
+    audience TEXT,
+    situation TEXT,
+    product TEXT,
+    standards TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, code, task_type, semester, school_year)
+);
+
+CREATE INDEX IF NOT EXISTS grasps_tasks_user_idx ON public.grasps_tasks (user_id);
+
+ALTER TABLE public.grasps_tasks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own grasps_tasks" ON public.grasps_tasks;
+CREATE POLICY "Users manage own grasps_tasks" ON public.grasps_tasks FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);

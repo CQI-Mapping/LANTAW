@@ -5,8 +5,6 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useEntityCrud } from '../admin/curriculum/useEntityCrud.js'
-import { useViewMode } from '../../hooks/useViewMode'
-import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
 import {
   fetchCourseLearningOutcomesStandalone,
@@ -20,6 +18,7 @@ import {
   fetchPoFeedback,
   recordPoFeedback,
   fetchCourses,
+  fetchActivityLogs,
 } from '../../services/database'
 import type {
   CourseLearningOutcomeStandalone,
@@ -29,7 +28,9 @@ import type {
   ProgramEducationalObjective,
   StrategicGoal,
   ChedMemoOrder,
+  ActivityLogEntry,
 } from '../../services/database'
+import { labelAction } from '../admin/ActivityLabels'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
@@ -83,7 +84,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [form, setForm] = useState(EMPTY)
   const [editForm, setEditForm] = useState(EMPTY)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [archived, setArchived] = useState(false)
+  // Status view: the prototype's segmented tabs — Active / All / Archived.
+  const [listTab, setListTab] = useState<'Active' | 'All' | 'Archived'>('Active')
+  // The course accordion open in the list ('' = all collapsed).
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // Year and semester category filters ('' = all). The dropdowns trail the
   // Active/Archive pair; picking one leaves the archived view and filters
   // the active list, and the status buttons reset both.
@@ -91,8 +95,6 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [semCat, setSemCat] = useState('')
   const [query, setQuery] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
-  // List (default) or grid card style — the user decides per browser.
-  const [viewMode, setViewMode] = useViewMode('cqi.viewMode.clo')
   // Bumps to re-render fused lists after local reject/memory writes.
   const [memTick, setMemTick] = useState(0)
   // ✕ hides the chip immediately for this page session — rejection memory
@@ -141,13 +143,69 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return c ? String(c.year_level ?? '').trim() : ''
   }
   const q = query.trim().toLowerCase()
-  const visible = items
-    .filter((i) => (archived
-      ? !isActive(i)
-      : isActive(i)
-        && (yearCat === '' || courseYearOf(i) === yearCat)
-        && (semCat === '' || courseSemOf(i) === semCat)))
-    .filter((i) => !q || [i.course, i.code, i.description, i.title].some((v) => (v || '').toLowerCase().includes(q)))
+
+  // The next free CLO number for a subject: 1 when the subject holds none,
+  // else the smallest positive integer the faculty member's own rows leave
+  // open — a subject with 1 and 2 suggests 3, and a gap (1, 4) suggests 2.
+  const nextCloCode = (courseCode: string) => {
+    const taken = new Set(
+      items
+        .filter((i) => cloMatchesSubject(i.course || '', normalizeCode(courseCode)))
+        .map((i) => Number(i.code))
+        .filter((n) => Number.isFinite(n) && n > 0),
+    )
+    let n = 1
+    while (taken.has(n)) n += 1
+    return String(n)
+  }
+
+  // The manager's assignment is the gate: the faculty member writes CLOs
+  // only for subjects handed to them (courses.instructor_id). The embedded
+  // join resolves the instructor's email — the identity this page knows.
+  // Strict null check: instructor_id is null on unassigned subjects, and
+  // typeof null === 'object' would otherwise count every unassigned
+  // subject as the faculty member's own.
+  const myCourses = useMemo(
+    () =>
+      courses.filter(
+        (c) =>
+          c.instructor_id !== null &&
+          typeof c.instructor_id === 'object' &&
+          c.instructor_id.email === userEmail,
+      ),
+    [courses, userEmail],
+  )
+
+  // The prototype's course-grouped list: one accordion per assigned
+  // subject, holding the CLO rows that survive the filters (status tab,
+  // the subject's own year/term, and the search across code/title/rows).
+  const groups = useMemo(
+    () =>
+      myCourses.map((course) => {
+        const rows = items
+          .filter((i) => cloMatchesSubject(i.course || '', normalizeCode(course.code)))
+          .filter((i) => (listTab === 'All' ? true : listTab === 'Archived' ? !isActive(i) : isActive(i)))
+          .filter((i) => yearCat === '' || String(course.year_level ?? '') === yearCat)
+          .filter((i) => semCat === '' || String(course.semester ?? '') === semCat)
+          .filter(
+            (i) =>
+              !q ||
+              [course.code, course.title, i.code, i.description, i.title].some(
+                (v) => (v || '').toLowerCase().includes(q),
+              ),
+          )
+          .sort((a, b) => (Number(a.code) || 0) - (Number(b.code) || 0))
+        return { course, rows }
+      }),
+    [myCourses, items, listTab, yearCat, semCat, q],
+  )
+  // A subject stays on the page while it has matching rows — or, when not
+  // searching and not on the Archived tab, as an empty group with its own
+  // dashed "Add a CLO" invitation (the prototype's behavior).
+  const shownGroups = groups.filter(
+    (g) => g.rows.length > 0 || (!q && listTab !== 'Archived'),
+  )
+  const shownRowCount = shownGroups.reduce((n, g) => n + g.rows.length, 0)
   const archivedCount = items.filter((i) => !isActive(i)).length
 
   // Year and semester dropdown options trailing the Active/Archive pair —
@@ -192,10 +250,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // The empty-state scope label: the picks in both dropdowns, e.g.
   // "1st Year · 1st Sem".
-  const scopeLabel = [
-    yearCat && (YEAR_LABELS[yearCat] ?? `Year ${yearCat}`),
-    semCat && (SEM_LABELS[semCat] ?? `Sem ${semCat}`),
-  ].filter(Boolean).join(' · ')
+  // Year and term labels for a course row's meta line.
+  const courseTermLabel = (c: Course) => {
+    const y = String(c.year_level ?? '')
+    const s = String(c.semester ?? '')
+    const yLabel = y ? (YEAR_LABELS[y] ?? `Year ${y}`) : ''
+    const sLabel = s ? (SEM_LABELS[s] ?? `Sem ${s}`) : ''
+    return [yLabel, sLabel].filter(Boolean).join(' · ') || '—'
+  }
 
   // ── Syllabus reader ──────────────────────────────────────────────────
   // The opened CLO resolves to its subject by lenient course-code matching
@@ -341,6 +403,32 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return () => { cancelled = true }
   }, [])
 
+  // Modification history: the clo.* audit trail for the assigned subjects —
+  // including the actions of whoever handled a subject before the manager
+  // handed it over. RLS (027) returns exactly that subset; null = loading,
+  // [] = read failed or nothing visible.
+  const [history, setHistory] = useState<ActivityLogEntry[] | null>(null)
+
+  // The trail loads against the assigned pool (RLS scopes it on the
+  // server too), so it refires once the assignments are known.
+  useEffect(() => {
+    let cancelled = false
+    fetchActivityLogs({ limit: 200 })
+      .then((rows) => {
+        if (cancelled) return
+        const assignedCodes = new Set(myCourses.map((c) => normalizeCode(c.code)))
+        setHistory(
+          rows.filter(
+            (r) =>
+              r.action?.startsWith('clo.')
+              && assignedCodes.has(normalizeCode(r.details?.course || '')),
+          ),
+        )
+      })
+      .catch(() => { if (!cancelled) setHistory([]) })
+    return () => { cancelled = true }
+  }, [myCourses])
+
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
   // lettered codes ("Clo1", "CLO-1") from being re-saved.
@@ -372,8 +460,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     if (await handleUpdate(editingId, outPayload(editForm), 'clo.updated', target)) setEditingId(null)
   }
 
-  // Bulk align: fused top-1 for visible filtered CLOs with empty PO.
-  const bulkTargets = visible.filter((i) => !(i.title ?? '').trim() && (i.description ?? '').trim())
+  // Bulk align: fused top-1 for the visible filtered CLOs with empty PO.
+  const flatRows = groups.flatMap((g) => g.rows)
+  const bulkTargets = flatRows.filter((i) => !(i.title ?? '').trim() && (i.description ?? '').trim())
     .map((i) => {
       const raw = i.description ?? ''
       // Same real-word floor as the interactive chips — bulk never applies a
@@ -525,19 +614,19 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // Course list filters for the create form: Year and Semester sit on top of
   // the Course (Subject Code) picker and narrow its dropdown to the term the
-  // faculty member is writing CLOs for. They only trim the list — never
-  // invalidate an already-chosen course — and the course record itself still
-  // owns where it sits on the Year · Semester map.
+  // faculty member is writing CLOs for. The pool is already the assigned
+  // subjects only; the filters just trim it — never invalidating an
+  // already-chosen course.
   const [courseYear, setCourseYear] = useState('')
   const [courseSem, setCourseSem] = useState('')
   const filteredCourses = useMemo(() => {
-    if (courseYear === '' && courseSem === '') return courses
-    return courses.filter(
+    if (courseYear === '' && courseSem === '') return myCourses
+    return myCourses.filter(
       (c) =>
         (courseYear === '' || String(c.year_level ?? '') === courseYear)
         && (courseSem === '' || String(c.semester ?? '') === courseSem),
     )
-  }, [courses, courseYear, courseSem])
+  }, [myCourses, courseYear, courseSem])
 
   // Shared edit form used by both grid and list card styles. Wrapped in
   // .resource-card__edit so the fields stack: the list card is a flex ROW
@@ -559,21 +648,24 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         ) : (
           <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
             <option value="">Select course</option>
-            {courses.map((c) => (
+            {myCourses.map((c) => (
               <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
             ))}
+            {myCourses.length === 0 && (
+              <option value="" disabled>No subjects assigned to you yet</option>
+            )}
           </select>
         )}
         <div className="clo-code-input">
-          {editForm.code !== '' && <span className="clo-code-input__prefix" aria-hidden="true">CLO</span>}
-          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="CLO Code (e.g. 1)" />
+          <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
+          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
         </div>
       </div>
       <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
       <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
-          <span style={{ fontSize: 12, color: '#64748b', width: '100%' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', width: '100%' }}>
             Suggested POs for this draft.
           </span>
           {editDisplay.map((r) => (
@@ -590,7 +682,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           ))}
         </div>
       ) : editForm.description.trim().length >= DRAFT_MIN && (
-        <div style={{ fontSize: 12, color: '#64748b', margin: '6px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0' }}>
           {poTexts.length === 0
             ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
             : mushy(editForm.description)
@@ -599,7 +691,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </div>
       )}
       {autoEditFor.current === editForm.description && editForm.programOutcomes.trim() && (
-        <div style={{ fontSize: 12, color: '#15803d', margin: '6px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--primary-dark)', margin: '6px 0' }}>
           Auto-filled {editForm.programOutcomes.trim()} —{' '}
           <button type="button" className="btn btn--ghost btn--sm"
             onClick={() => {
@@ -637,12 +729,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently mapped</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden</div>
         </div>
       </div>
@@ -655,7 +747,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       <div className="clo-layout">
         <div className="clo-layout__main">
         <div className="clo-layout__pair">
-      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid #16a34a' }}>
+      <form className="panel create-resource clo-create-panel" onSubmit={submit} style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>New Course Learning Outcome</h3>
         {/* Year · Semester filters on top: two compact picks that narrow the
             Course dropdown below. "All years" / "All semesters" reset them;
@@ -697,16 +789,28 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             </div>
           ) : (
             <select className="input input--sm" value={form.course}
-              onChange={(e) => setForm({ ...form, course: e.target.value })} required>
+              onChange={(e) => {
+                const code = e.target.value
+                setForm((f) => ({ ...f, course: code, code: code ? nextCloCode(code) : f.code }))
+                // Picking a subject directly auto-fills the Year/Semester
+                // slicers from the subject's own placement, so they read as
+                // the subject's term instead of leftover filters — and the
+                // CLO Code pre-fills with the subject's next free number.
+                const picked = myCourses.find((c) => c.code === code)
+                setCourseYear(picked ? String(picked.year_level ?? '') : '')
+                setCourseSem(picked ? String(picked.semester ?? '') : '')
+              }} required>
               <option value="">Select course</option>
               {filteredCourses.map((c) => (
                 <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
               ))}
               {filteredCourses.length === 0 && (
                 <option value="" disabled>
-                  {courseYear || courseSem
-                    ? 'No courses in this Year · Semester — change the filters or create the course in Course page first'
-                    : 'No courses available — create one in Course page first'}
+                  {myCourses.length === 0
+                    ? 'No subjects assigned to you yet — the program head assigns them in Assign Faculty'
+                    : courseYear || courseSem
+                      ? 'No courses in this Year · Semester — change the filters or create the course in Course page first'
+                      : 'No courses available — create one in Course page first'}
                 </option>
               )}
             </select>
@@ -715,8 +819,8 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         <label className="field">
           <span>CLO Code</span>
           <div className="clo-code-input">
-            {form.code !== '' && <span className="clo-code-input__prefix" aria-hidden="true">CLO</span>}
-            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="e.g. 1" value={form.code}
+            <span className={`clo-code-input__prefix${form.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
+            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="1" value={form.code}
               onChange={(e) => setForm({ ...form, code: digitsOnly(e.target.value) })} required />
           </div>
         </label>
@@ -737,7 +841,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </label>
         {createDisplay.length > 0 ? (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Suggested POs for this draft.
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
@@ -757,7 +861,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         ) : form.description.trim().length >= DRAFT_MIN && (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {poTexts.length === 0
                 ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
                 : mushy(form.description)
@@ -768,7 +872,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         )}
         {autoCreateFor.current === form.description && form.programOutcomes.trim() && (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#15803d' }}>
+            <span style={{ fontSize: 12, color: 'var(--primary-dark)' }}>
               Auto-filled {form.programOutcomes.trim()} —{' '}
               <button type="button" className="btn btn--ghost btn--sm"
                 onClick={() => {
@@ -781,7 +885,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         )}
         <div className="create-resource__submit">
-          <button className="btn btn--primary btn--sm" type="submit" disabled={busy}>{busy ? 'Saving...' : (<><Icon name="plus" size={13} /> Add</>)}</button>
+          <button className="btn btn--primary btn--sm" type="submit" disabled={busy || myCourses.length === 0}>
+            {busy ? 'Saving...' : (<><Icon name="plus" size={13} /> Add</>)}
+          </button>
+          {myCourses.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 10 }}>
+              No subjects assigned to you yet — the program head assigns them in Assign Faculty.
+            </span>
+          )}
         </div>
       </form>
 
@@ -821,170 +932,213 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         <div className="program-grid" style={{ marginTop: 8 }}>
           {[0,1,2].map((i)=> (
             <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-              <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-              <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-              <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+              <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+              <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+              <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
             </div>
           ))}
         </div>
       ) : (
-        <div className="program-panel">
-          <div className="program-toolbar">
-            <div className="sd-tabs" style={{ marginBottom: 0, flex: 1, flexWrap: 'wrap' }}>
-              <button
-                className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`}
-                onClick={() => { setArchived(false); setYearCat(''); setSemCat('') }}
-              >Active</button>
-              <button
-                className={`sd-tab ${archived ? 'sd-tab--active' : ''}`}
-                onClick={() => { setArchived(true); setYearCat(''); setSemCat('') }}
-              >
-                Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
-              </button>
-              {/* The by-year and by-term filters are one compact dropdown
-                  each, trailing Archive like slicers: choosing a value
-                  switches to the active view and filters it; "All" clears
-                  that axis. Counts in each list respect the other pick. */}
-              <select
-                className="input input--sm"
-                aria-label="Filter by year"
-                style={{ width: 'auto', flexShrink: 0, alignSelf: 'center' }}
-                value={yearCat}
-                onChange={(e) => { setYearCat(e.target.value); if (e.target.value) setArchived(false) }}
-              >
-                <option value="">All years</option>
-                {yearOptions.map((y) => (
-                  <option key={y.value} value={y.value}>
-                    {(yearCounts.get(y.value) ?? 0) > 0 ? `${y.label} (${yearCounts.get(y.value)})` : y.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="input input--sm"
-                aria-label="Filter by semester"
-                style={{ width: 'auto', flexShrink: 0, alignSelf: 'center' }}
-                value={semCat}
-                onChange={(e) => { setSemCat(e.target.value); if (e.target.value) setArchived(false) }}
-              >
-                <option value="">All semesters</option>
-                {semOptions.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {(semCounts.get(s.value) ?? 0) > 0 ? `${s.label} (${semCounts.get(s.value)})` : s.label}
-                  </option>
-                ))}
-              </select>
+        <div className="clo-2026">
+          {/* Toolbar: search, the two slicers and the status tabs in one bar. */}
+          <div className="clo26-toolbar">
+            <div className="clo26-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20L15.5 15.5" /></svg>
+              <input type="search" placeholder="Search course code, title, or CLO..." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search CLOs" />
             </div>
-            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <label className="program-search" aria-label="Search CLOs">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M20 20L15.5 15.5"/></svg>
-              <input className="input input--sm" type="search" placeholder="Search CLOs..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            </label>
+            <select className="clo26-select" aria-label="Filter by year" value={yearCat}
+              onChange={(e) => { setYearCat(e.target.value); if (e.target.value) setListTab('Active') }}>
+              <option value="">All years</option>
+              {yearOptions.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {(yearCounts.get(y.value) ?? 0) > 0 ? `${y.label} (${yearCounts.get(y.value)})` : y.label}
+                </option>
+              ))}
+            </select>
+            <select className="clo26-select" aria-label="Filter by semester" value={semCat}
+              onChange={(e) => { setSemCat(e.target.value); if (e.target.value) setListTab('Active') }}>
+              <option value="">All semesters</option>
+              {semOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {(semCounts.get(s.value) ?? 0) > 0 ? `${s.label} (${semCounts.get(s.value)})` : s.label}
+                </option>
+              ))}
+            </select>
             {bulkTargets.length > 0 && (
               <button type="button" className="btn btn--ghost btn--sm" onClick={bulkApply} disabled={busy || bulkBusy || editingId !== null}
                 title="Fill each empty CLO below with its top suggestion">
                 {bulkBusy ? 'Applying…' : `Apply top to ${bulkTargets.length} empty`}
               </button>
             )}
-            {feedback !== null && feedback.length > 0 && (
-              <details style={{ fontSize: 12, color: '#64748b' }}>
-                <summary style={{ cursor: 'pointer' }}>Feedback log ({feedback.length})</summary>
-                <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 2, maxHeight: 120, overflowY: 'auto' }}>
-                  {feedback.slice(0, 20).map((f) => (
-                    <li key={f.id}>
-                      <strong>{f.verdict === 'rejected' ? '✕' : '✓'} {f.po_code}</strong> — {f.draft_sig.slice(0, 60)}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-          {visible.length === 0 ? (
-            <div className="program-empty" style={{ marginTop: 14 }}>
-              <strong>
-                {(semCat || yearCat) && !archived && scopeLabel
-                  ? `No CLOs for ${scopeLabel} yet.`
-                  : 'No course learning outcomes yet.'}
-              </strong>
-              <span>
-                {query
-                  ? `No results for "${query}"`
-                  : (semCat || yearCat) && !archived
-                    ? 'CLOs whose subject matches will appear here.'
-                    : 'Add your first CLO above.'}
-              </span>
-            </div>
-          ) : viewMode === 'list' ? (
-            <div className="resource-list">
-              {visible.map((item) => (
-                <div key={item.id} className={`resource-card ${isActive(item) ? '' : 'resource-card--archived'}`}>
-                  {editingId === item.id ? renderEdit() : (
-                    <>
-                      <div className="resource-card__body">
-                        <h4>{cloLabel(item.code) || '—'} — {item.course || 'No course'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</h4>
-                        {item.description && <p>{item.description}</p>}
-                        <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569', marginTop: 6 }}>
-                          <strong style={{ color: '#64748b' }}>POs:</strong> {item.title || '—'}
-                        </div>
-                        <div className="resource-card__meta" style={{ marginTop: 6 }}>
-                          <span className={`status-badge status-badge--${isActive(item) ? 'active' : 'archived'}`}>{isActive(item) ? 'Active' : 'Archived'}</span>
-                        </div>
-                      </div>
-                      <div className="resource-card__actions">
-                        <button className="btn btn--ghost btn--sm" onClick={() => openReader(item)} disabled={busy || !!editingId} title="View"><Icon name="eye" size={13} /></button>
-                        <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} disabled={busy || !!editingId} title="Edit"><Icon name="edit" size={13} /></button>
-                        <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(item, `clo.${isActive(item) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>
-                          <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
-                        </button>
-                        {(!isActive(item)) && (
-                          <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'clo.deleted', item)} disabled={busy || !!editingId} title="Delete">
-                            <Icon name="trash" size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+            <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
+              {(['Active', 'All', 'Archived'] as const).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={listTab === t}
+                  className={`clo26-tab ${listTab === t ? 'active' : ''}`}
+                  onClick={() => { setListTab(t); setYearCat(''); setSemCat('') }}>
+                  {t}
+                </button>
               ))}
+            </div>
+          </div>
+          {feedback !== null && feedback.length > 0 && (
+            <details style={{ fontSize: 12, color: 'var(--text-muted)', margin: '-8px 0 14px' }}>
+              <summary style={{ cursor: 'pointer' }}>Feedback log ({feedback.length})</summary>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 2, maxHeight: 120, overflowY: 'auto' }}>
+                {feedback.slice(0, 20).map((f) => (
+                  <li key={f.id}>
+                    <strong>{f.verdict === 'rejected' ? '✕' : '✓'} {f.po_code}</strong> — {f.draft_sig.slice(0, 60)}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <div className="clo26-section-head">
+            <p>
+              Showing {shownRowCount} CLO record{shownRowCount === 1 ? '' : 's'} across{' '}
+              {shownGroups.length} of {myCourses.length} assigned subject{myCourses.length === 1 ? '' : 's'}
+            </p>
+            <button type="button" className="clo26-textbtn" onClick={() => setExpandedCourse(null)}>
+              Collapse all
+            </button>
+          </div>
+          {myCourses.length === 0 ? (
+            <div className="clo26-empty">
+              No subjects assigned to you yet — the program head assigns them in Assign Faculty.
+            </div>
+          ) : shownGroups.length === 0 ? (
+            <div className="clo26-empty">
+              {query ? `No results for "${query}"` : 'No CLO records match this view — change the filters or add a CLO above.'}
             </div>
           ) : (
-            <div className="program-grid" style={{ marginTop: 14 }}>
-              {visible.map((item) => (
-                <div key={item.id} className="program-card--2026 card-enter" data-status={isActive(item) ? 'active' : 'archived'}>
-                  {editingId === item.id ? renderEdit() : (
-                    <>
-                      <div className="program-card__top">
-                        <span className="program-card__code">{cloLabel(item.code) || '—'}</span>
-                        <span className="program-card__status" style={{ background: '#f1f5f9', color: '#64748b', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>{item.course || '—'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</span>
-                        <span className={`program-card__status ${isActive(item) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
-                          <span className="program-card__status-dot" />{isActive(item) ? 'Active' : 'Archived'}
-                        </span>
+            <div className="clo26-list">
+              {shownGroups.map(({ course, rows }) => {
+                const open = expandedCourse === course.id
+                const courseActive = !course.status || course.status === 'active'
+                return (
+                  <article key={course.id} className={`clo26-course ${open ? 'open' : ''}`}>
+                    <button type="button" className="clo26-course-head" onClick={() => setExpandedCourse(open ? null : course.id)}
+                      aria-expanded={open}>
+                      <div className="clo26-code">{course.code}</div>
+                      <div className="clo26-info">
+                        <strong>{course.title}</strong>
+                        <small>{courseTermLabel(course)}</small>
                       </div>
-                      <p className="program-card__desc">{item.description || 'No description.'}</p>
-                      <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569' }}>
-                        <strong style={{ color: '#64748b' }}>POs:</strong> {item.title || '—'}
+                      <div className="clo26-meta">
+                        <span className="clo26-count">{rows.length} CLO record{rows.length === 1 ? '' : 's'}</span>
+                        <span className="clo26-status">{courseActive ? 'Active' : 'Archived'}</span>
+                        <span className="clo26-chevron" aria-hidden="true">›</span>
                       </div>
-                      <div className="program-card__actions">
-                        <button className="btn btn--ghost btn--sm" onClick={() => openReader(item)} disabled={busy || !!editingId} title="View"><Icon name="eye" size={13} /></button>
-                        <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} disabled={busy || !!editingId} title="Edit"><Icon name="edit" size={13} /></button>
-                        <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(item, `clo.${isActive(item) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>
-                          <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
-                        </button>
-                        {(!isActive(item)) && (
-                          <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'clo.deleted', item)} disabled={busy || !!editingId} title="Delete">
-                            <Icon name="trash" size={13} />
-                          </button>
+                    </button>
+                    {open && (
+                      <div className="clo26-body">
+                        {rows.length ? (
+                          <>
+                            <div className="clo26-thead">
+                              <span>CLO No.</span><span>Learning outcome</span><span>Mapped POs</span><span />
+                            </div>
+                            {rows.map((row) => (
+                              editingId === row.id ? (
+                                <div key={row.id} className="clo26-editrow">{renderEdit()}</div>
+                              ) : (
+                                <div key={row.id} className="clo26-row">
+                                  <div className="clo26-id">{cloLabel(row.code) || '—'}</div>
+                                  <div className="clo26-desc">{row.description || 'No description.'}</div>
+                                  <div className="clo26-pos">
+                                    {(row.title || '').split(',').map((p) => p.trim()).filter(Boolean).map((p) => (
+                                      <span key={p} className="clo26-tag">{p}</span>
+                                    ))}
+                                    {(row.title || '').trim() ? null : (
+                                      <span className="clo26-tag clo26-tag--muted">Not mapped</span>
+                                    )}
+                                  </div>
+                                  <div className="clo26-actions">
+                                    <button type="button" onClick={() => openReader(row)} disabled={busy || !!editingId}>View</button>
+                                    <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
+                                    <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
+                                      {isActive(row) ? 'Archive' : 'Restore'}
+                                    </button>
+                                    {!isActive(row) && (
+                                      <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
+                                        Delete
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            ))}
+                          </>
+                        ) : (
+                          <div className="clo26-empty">
+                            No CLO records in this subject yet.{' '}
+                            <button type="button" className="clo26-textbtn"
+                              onClick={() => {
+                                setForm((f) => ({ ...f, course: course.code, code: nextCloCode(course.code) }))
+                                // Same auto-fill as a direct pick: the
+                                // slicers read the subject's placement and
+                                // the CLO Code starts at the next free
+                                // number.
+                                setCourseYear(String(course.year_level ?? ''))
+                                setCourseSem(String(course.semester ?? ''))
+                                document.querySelector('.clo-create-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }}>
+                              Add a CLO
+                            </button>
+                          </div>
                         )}
                       </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </article>
+                )
+              })}
             </div>
           )}
         </div>
       )}
       </div>
       </div>
+
+      {/* Modification history: the clo.* audit entries for the assigned
+          subjects — the faculty member's own edits and, when the manager
+          hands over a subject, the trail of whoever handled it before. */}
+      {myCourses.length > 0 && (
+        <section className="panel" style={{ marginTop: 14 }} aria-label="Modification history">
+          <div className="panel-head" style={{ marginBottom: 10 }}>
+            <div>
+              <h3>Modification history</h3>
+              <p>Changes to your assigned subjects&rsquo; outcomes — yours and the ones before you.</p>
+            </div>
+          </div>
+          {history === null ? (
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>Loading history…</p>
+          ) : history.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>
+              No changes recorded yet for your assigned subjects.
+            </p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+              {history.map((h) => (
+                <li key={h.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, fontSize: 12.5 }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {new Date(h.created_at).toLocaleString()}
+                  </span>
+                  <span style={{ fontWeight: 700, color: 'var(--g700)', flexShrink: 0 }}>
+                    {labelAction(h.action)}
+                  </span>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {h.details?.label || (h.details?.code ? `CLO ${h.details.code}` : '')}
+                    {h.details?.course ? (
+                      <span style={{ color: 'var(--text-muted)' }}> · {h.details.course}</span>
+                    ) : null}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+                    {h.user_email}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {viewClo && (
         <div

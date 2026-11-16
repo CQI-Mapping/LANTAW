@@ -384,7 +384,7 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
       {error && <p className="msg msg--error">{error}</p>}
 
       {/* Filters — all of these narrow the query, not the loaded page. */}
-      <div className="panel activity-filters program-panel" style={{ borderTop: '3px solid #16a34a' }}>
+      <div className="panel activity-filters program-panel" style={{ borderTop: '3px solid var(--primary)' }}>
         <div className="activity-filters__row">
           <label className="activity-filter">
             <span>Search</span>

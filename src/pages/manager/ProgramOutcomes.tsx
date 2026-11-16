@@ -155,6 +155,7 @@ export default function ProgramOutcomes() {
       stackedAlignments={[alignments[0]]}
       formRef={readerRef}
       outcomeCard
+      design="prototype"
       groupOf={(i) => ((i.description || '').trim() || 'UNCATEGORIZED')}
       sort={(a, b) => {
         // Arrange by CMO Alignment group first (matching the admin page's

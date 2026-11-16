@@ -2,20 +2,16 @@
 // Date constructor, so getHours() reads them back exactly wherever run.
 
 import { describe, expect, it } from 'vitest'
-import { localISODate, timeGreeting } from './clock'
+import { localISODate, philippineNow, timeGreeting } from './clock'
 
 /** A local date at hour `h` on a fixed day. */
 const at = (h: number, m = 0) => new Date(2026, 9, 27, h, m)
 
 describe('timeGreeting', () => {
-  it("keeps greeting the evening through the small hours (12–4:59 AM)", () => {
-    expect(timeGreeting(at(0, 0))).toBe('Good evening')
-    expect(timeGreeting(at(2, 45))).toBe('Good evening')
-    expect(timeGreeting(at(4, 59))).toBe('Good evening')
-  })
-
-  it("greets the morning from 5 AM until 11:59 AM", () => {
-    expect(timeGreeting(at(5, 0))).toBe('Good morning')
+  it("greets the morning from midnight until 11:59 AM", () => {
+    expect(timeGreeting(at(0, 0))).toBe('Good morning')
+    expect(timeGreeting(at(2, 45))).toBe('Good morning')
+    expect(timeGreeting(at(4, 59))).toBe('Good morning')
     expect(timeGreeting(at(11, 59))).toBe('Good morning')
   })
 
@@ -29,8 +25,8 @@ describe('timeGreeting', () => {
     expect(timeGreeting(at(23, 59))).toBe('Good evening')
   })
 
-  it('turns over exactly at 5 AM, noon and 6 PM', () => {
-    expect(timeGreeting(at(4, 59))).not.toBe(timeGreeting(at(5, 0)))
+  it('turns over exactly at midnight, noon and 6 PM', () => {
+    expect(timeGreeting(at(23, 59))).not.toBe(timeGreeting(at(0, 0)))
     expect(timeGreeting(at(11, 59))).not.toBe(timeGreeting(at(12, 0)))
     expect(timeGreeting(at(17, 59))).not.toBe(timeGreeting(at(18, 0)))
   })
@@ -45,5 +41,22 @@ describe('localISODate', () => {
   it('always agrees with the local getFullYear/getMonth/getDate read', () => {
     expect(localISODate(new Date(2026, 9, 27, 23, 0))).toBe('2026-10-27')
     expect(localISODate(new Date(2026, 9, 28, 0, 30))).toBe('2026-10-28')
+  })
+})
+
+describe('philippineNow', () => {
+  it('re-bases the moment onto UTC+8, whatever the device says', () => {
+    const d = new Date('2026-11-17T00:00:00Z')
+    // getTimezoneOffset() is minutes BEHIND UTC (PH reads -480), so the
+    // shift to UTC+8 is 480 + offset.
+    const expectedShift = (8 * 60 + d.getTimezoneOffset()) * 60_000
+    expect(philippineNow(d).getTime() - d.getTime()).toBe(expectedShift)
+  })
+
+  it('is an identity shift on a device already set to Philippine time', () => {
+    const d = new Date('2026-11-17T00:00:00Z')
+    if (d.getTimezoneOffset() === -480) {
+      expect(philippineNow(d).getTime()).toBe(d.getTime())
+    }
   })
 })

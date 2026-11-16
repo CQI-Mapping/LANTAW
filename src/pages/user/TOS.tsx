@@ -889,67 +889,62 @@ export default function TOS() {
           thing you came here to use, and the list is a record of what you have
           used. */}
       <div className="panel table-wrap tos-library no-print">
-        <div className="program-toolbar">
-          <div className="sd-tabs" style={{ marginBottom: 0, flex: 1, flexWrap: 'wrap' }}>
+        <div className="clo26-toolbar">
+          <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
             <button
-              className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`}
+              className={`clo26-tab ${!archived ? 'active' : ''}`}
               onClick={() => { setArchived(false); setYearCat(''); setSemCat('') }}
             >
               Active
             </button>
             <button
-              className={`sd-tab ${archived ? 'sd-tab--active' : ''}`}
+              className={`clo26-tab ${archived ? 'active' : ''}`}
               onClick={() => { setArchived(true); setYearCat(''); setSemCat('') }}
             >
-              Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
+              Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
             </button>
-            {/* By-year and by-term slicers trail Archive like the CLO page's:
-                picking a value switches to the active view and filters it,
-                "All" clears that axis. Counts in each list respect the other
-                pick. The option labels are the blueprint's own stored
-                header values, so dropdown and card always agree. */}
-            <select
-              className="input input--sm"
-              aria-label="Filter by school year"
-              style={{ width: 'auto', flexShrink: 0, alignSelf: 'center' }}
-              value={yearCat}
-              onChange={(e) => { setYearCat(e.target.value); if (e.target.value) setArchived(false) }}
-            >
-              <option value="">All school years</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>
-                  {(yearCounts.get(y) ?? 0) > 0 ? `${y} (${yearCounts.get(y)})` : y}
-                </option>
-              ))}
-            </select>
-            <select
-              className="input input--sm"
-              aria-label="Filter by semester"
-              style={{ width: 'auto', flexShrink: 0, alignSelf: 'center' }}
-              value={semCat}
-              onChange={(e) => { setSemCat(e.target.value); if (e.target.value) setArchived(false) }}
-            >
-              <option value="">All semesters</option>
-              {semOptions.map((s) => (
-                <option key={s} value={s}>
-                  {(semCounts.get(s) ?? 0) > 0 ? `${s} (${semCounts.get(s)})` : s}
-                </option>
-              ))}
-            </select>
           </div>
+          {/* By-year and by-term slicers trail the tabs like the CLO page's:
+              picking a value switches to the active view and filters it,
+              "All" clears that axis. The option labels are the blueprint's
+              own stored header values, so dropdown and card always agree. */}
+          <select
+            className="clo26-select"
+            aria-label="Filter by school year"
+            value={yearCat}
+            onChange={(e) => { setYearCat(e.target.value); if (e.target.value) setArchived(false) }}
+          >
+            <option value="">All school years</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {(yearCounts.get(y) ?? 0) > 0 ? `${y} (${yearCounts.get(y)})` : y}
+              </option>
+            ))}
+          </select>
+          <select
+            className="clo26-select"
+            aria-label="Filter by semester"
+            value={semCat}
+            onChange={(e) => { setSemCat(e.target.value); if (e.target.value) setArchived(false) }}
+          >
+            <option value="">All semesters</option>
+            {semOptions.map((s) => (
+              <option key={s} value={s}>
+                {(semCounts.get(s) ?? 0) > 0 ? `${s} (${semCounts.get(s)})` : s}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="resource-list">
+        <div className="clo26-list">
           {visibleExams.length === 0 && (
-            <div className="program-empty" style={{ marginTop: 14 }}>
-              <strong>
-                {archived
-                  ? 'No archived blueprints yet.'
-                  : scopeLabel
-                    ? `No blueprints for ${scopeLabel} yet.`
-                    : 'No saved blueprints yet.'}
-              </strong>
-              <span>
+            <div className="clo26-empty">
+              {archived
+                ? 'No archived blueprints yet.'
+                : scopeLabel
+                  ? `No blueprints for ${scopeLabel} yet.`
+                  : 'No saved blueprints yet.'}
+              <span style={{ display: 'block', marginTop: 4 }}>
                 {archived
                   ? 'Archived blueprints stay here — nothing is deleted.'
                   : scopeLabel
@@ -960,17 +955,13 @@ export default function TOS() {
           )}
 
           {visibleExams.map((row) => (
-            <div
+            <article
               key={row.id}
-              className={`resource-card ${
-                row.status === 'archived' ? 'resource-card--archived' : ''
-              }`}
+              className={`clo26-course ${row.status === 'archived' ? 'clo26-course--archived' : ''}`}
             >
               {editingId === row.id ? (
-                /* The whole blueprint, editable in place — its own component
-                   so its writes are scoped to this card. This is the only
-                   editor a saved blueprint has. */
-                <div className="resource-card__edit tos-card__expanded">
+                <div className="clo26-editrow">
+                  <div className="resource-card__edit tos-card__expanded">
                   <div className="tos-card__editorhead">
                     <button
                       className="btn btn--ghost btn--sm"
@@ -1011,61 +1002,39 @@ export default function TOS() {
                     }
                   />
                 </div>
+                </div>
               ) : (
                 <>
-                  <div className="resource-card__body">
-                    {/* Mirrors the blueprint's own two header lines —
-                        "Course Title: …" then the semester — so a card
-                        identifies a blueprint the same way the document and
-                        the exported workbook do.
-
-                        The program used to head this card, because the
-                        Program field is stored in `code` (see programOptions),
-                        which read as a natural title and is not one. It is
-                        context, so it moves down to the meta line. */}
-                    <h4>
-                      <span className="tos-card__label">Course Title:</span>{' '}
-                      {row.title || 'No course title yet'}
-                    </h4>
-                    <p>
-                      {row.semester || row.school_year
-                        ? composeTerm(row.semester ?? '', row.school_year ?? '')
-                        : row.term || 'No semester set'}
-                    </p>
-                    {/* The document's own title line, so the card, the
-                        blueprint and the exported workbook all name the paper
-                        the same way. */}
-                    <p className="tos-card__doctitle">
-                      {docTitlesFor(row.exam_type, examSheets[row.id] ?? [])
-                        .join(' · ')}
-                    </p>
-                    <div className="resource-card__meta">
-                      <span className={`status-badge status-badge--${row.status}`}>{row.status}</span>
-                      {row.code && <span>{row.code}</span>}
-                      <span>{row.total_hours} hrs</span>
-                      <span>{new Date(row.updated_at).toLocaleString()}</span>
+                  <div className="po26-head">
+                    <div className="clo26-code">{row.code || 'TOS'}</div>
+                    <div className="po26-info">
+                      <strong>{row.title || 'No course title yet'}</strong>
+                      <small>
+                        {row.semester || row.school_year
+                          ? composeTerm(row.semester ?? '', row.school_year ?? '')
+                          : row.term || 'No semester set'}
+                      </small>
+                      <small className="tos-card__doctitle">
+                        {docTitlesFor(row.exam_type, examSheets[row.id] ?? []).join(' · ')}
+                      </small>
+                    </div>
+                    <div className="clo26-meta">
+                      <span className="clo26-count">{row.total_hours} hrs</span>
+                      <span className={`clo26-status${row.status === 'archived' ? ' clo26-status--archived' : ''}`}>{row.status === 'archived' ? 'Archived' : 'Active'}</span>
                     </div>
                   </div>
-                  <div className="resource-card__actions">
-                    <button
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => toggleCardEdit(row)}
-                      aria-label={`Edit ${row.code || row.title || 'blueprint'}`}
-                      title="Edit"
-                    >
-                      <Icon name="edit" size={13} />
+                  <div className="po26-actions">
+                    <button type="button" onClick={() => toggleCardEdit(row)}
+                      aria-label={`Edit ${row.code || row.title || 'blueprint'}`}>
+                      Edit
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      onClick={() => setExamStatus(row.id, row.status === 'archived' ? 'active' : 'archived')}
-                    >
+                    <button type="button" onClick={() => setExamStatus(row.id, row.status === 'archived' ? 'active' : 'archived')}>
                       {row.status === 'archived' ? 'Restore' : 'Archive'}
                     </button>
                   </div>
                 </>
               )}
-            </div>
+            </article>
           ))}
         </div>
       </div>

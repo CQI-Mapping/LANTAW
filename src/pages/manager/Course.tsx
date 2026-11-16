@@ -5,26 +5,35 @@
 // prerequisite and corequisite from the same program, and credits are split
 // into lecture + laboratory (total is computed automatically).
 // Managers cannot delete courses (RLS blocks it too).
+// Faculty assignment does NOT live in the forms: the navbar below the tabs
+// (multi-pick panel) and the dedicated Assign Faculty module hand subjects
+// out, so a course save here can never wipe a standing assignment.
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
-import { useViewMode } from '../../hooks/useViewMode'
-import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
+import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import { normalizeCode } from '../../utils/courseCodes'
 import {
   fetchPrograms,
   fetchResources,
   fetchCourses,
+  fetchAllProfiles,
   createCourse,
   updateCourse,
+  assignCourseInstructor,
+  assignCourseInstructorsBulk,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
-import type { Program, Resource, Course } from '../../services/database'
+import type { Program, Resource, Course, Profile } from '../../services/database'
 
 const instructorLabelOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.full_name || v.email : ''
+/** The assigned faculty account's id, '' when none — the comparison key the
+    faculty navbar filters cards by. */
+const instructorIdOf = (v: Course['instructor_id']) =>
+  v && typeof v === 'object' ? v.id : (v || '')
 
 // Term placement readback, worded exactly like the OBE Curriculum Map's
 // columns ("2nd Year · 1st Sem"), so the card badge and the map agree.
@@ -179,6 +188,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [curriculums, setCurriculums] = useState<Resource[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  // The faculty picker's options: active faculty accounts only. An archived
+  // account should not be handed a subject, and managers/admins do not teach.
+  const [faculty, setFaculty] = useState<Profile[]>([])
   const [programId, setProgramId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -197,8 +209,14 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const setEditForm = (f: CourseForm) => setEditState((s) => ({ ...s, editForm: f }))
   const [archived, setArchived] = useState(false)
   const [query, setQuery] = useState('')
-  // List (default) or grid card style — the user decides per browser.
-  const [viewMode, setViewMode] = useViewMode('cqi.viewMode.course')
+  // Faculty assignment navbar: '' shows every subject; a profile id filters
+  // the cards to that faculty member's subjects and opens the assign bar.
+  const [facultyFilter, setFacultyFilter] = useState('')
+  // Multi-pick: subjects checked in the assign list, waiting for one Assign
+  // press that files them all as a single write.
+  const [picks, setPicks] = useState<string[]>([])
+  // The course accordion open in the list ('' = all collapsed).
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // The term selects only render when the database actually carries the
   // courses.year_level / courses.semester columns — the same probe the
   // Curriculum Mapping Summary uses before it shows its edit controls. A
@@ -242,6 +260,15 @@ export default function ManagerCourse({ profile }: CourseProps) {
           ),
       )
       setCourses(c)
+      // Faculty list is auxiliary: a profiles read that the network or RLS
+      // refuses must not take the whole page down, so it degrades to an
+      // empty picker instead of a dead page.
+      try {
+        const profiles = await fetchAllProfiles()
+        setFaculty(profiles.filter((p) => p.role === 'user' && p.status !== 'archived'))
+      } catch {
+        setFaculty([])
+      }
       setProgramId((prev) => {
         if (prev && p.some((x) => x.id === prev)) return prev
         return p[0]?.id ?? ''
@@ -260,6 +287,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const visible = courses.filter((c) =>
     typeof c.program_id === 'object' ? c.program_id.id === programId : c.program_id === programId,
   ).filter((c) => (archived ? !isActive(c) : isActive(c))).filter(
+    // Faculty navbar: when a member is picked, only the subjects they hold.
+    (c) => !facultyFilter || instructorIdOf(c.instructor_id) === facultyFilter,
+  ).filter(
     (c) => !q || [c.code, c.title, c.prerequisite, c.corequisite, c.description, instructorLabelOf(c.instructor_id)].some((v) => (v || '').toLowerCase().includes(q)),
   )
 
@@ -293,6 +323,30 @@ export default function ManagerCourse({ profile }: CourseProps) {
       ? `A course with code ${code} already exists in this program.`
       : `${code} exists but is archived — toggle "Archived" on this page and press Restore on that card instead of creating a new one.`
 
+  // ---- Faculty assignment navbar ----
+  // The manager picks a faculty member from the sub-nav and works on their
+  // subjects directly: the pick filters the cards, the assign bar hands out
+  // more, and each card can drop the assignment. Counts stay on the current
+  // program's active subjects so a pill always answers "how many here".
+  const unassignedCount = courses.filter(
+    (c) => sameProgram(c) && isActive(c) && !instructorIdOf(c.instructor_id),
+  ).length
+  const activeInProgram = courses.filter((c) => sameProgram(c) && isActive(c)).length
+  const facultyCountOf = (fid: string) =>
+    courses.filter((c) => sameProgram(c) && isActive(c) && instructorIdOf(c.instructor_id) === fid).length
+  // Subjects the picked faculty member could take over: every active subject
+  // in this program they do not already hold. A subject someone else teaches
+  // says so in its option label — handing a subject over is a normal move,
+  // but it should never be a silent one.
+  const assignable = courses
+    .filter((c) => sameProgram(c) && isActive(c) && instructorIdOf(c.instructor_id) !== facultyFilter)
+    .sort(
+      (a, b) =>
+        (a.year_level ?? 99) - (b.year_level ?? 99) ||
+        (a.semester ?? 9) - (b.semester ?? 9) ||
+        a.code.localeCompare(b.code, undefined, { numeric: true }),
+    )
+
   const totalCredits = (f: CourseForm) => {
     const lec = parseInt(f.creditLecture, 10) || 0
     const lab = parseInt(f.creditLaboratory, 10) || 0
@@ -318,6 +372,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
     credit_laboratory: parseInt(f.creditLaboratory, 10) || 0,
     units: totalCredits(f),
     description: f.description.trim() || null,
+    // instructor_id is deliberately absent: course create/edit never touches
+    // the assignment — that is the faculty navbar's and the Assign Faculty
+    // module's job, and a form save here must never wipe a standing one.
   })
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -392,6 +449,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
         entity_id: editId,
         label: `${editForm.code.trim().toUpperCase()} — ${editForm.title.trim()}`,
       })
+      // Instructor changes are not logged here: the form no longer carries
+      // the field, and the faculty navbar / Assign Faculty module write the
+      // course.instructor_assigned entry when the assignment moves.
       setMessage('Course updated.')
       clearEdit()
       load()
@@ -485,6 +545,56 @@ export default function ManagerCourse({ profile }: CourseProps) {
     }
   }
 
+  // Navbar quick actions: hand the picked faculty member more subjects in one
+  // press, or take one away. The pick travels as a single bulk write and the
+  // log entry matches the edit form's wording, so the audit trail never
+  // splits its voice.
+  const togglePick = (id: string) =>
+    setPicks((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
+  const handleQuickAssign = async () => {
+    if (!facultyFilter || picks.length === 0) return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      const updated = await assignCourseInstructorsBulk(picks, facultyFilter)
+      for (const c of updated) {
+        await addActivityLog('course.instructor_assigned', {
+          entity: 'course',
+          entity_id: c.id,
+          label: `${c.code} → ${facultyNameOf(facultyFilter) || 'faculty'}`,
+        })
+      }
+      setMessage(`Assigned ${updated.length} subject${updated.length === 1 ? '' : 's'} to ${facultyNameOf(facultyFilter)}.`)
+      setPicks([])
+      load()
+    } catch (err) {
+      setError('Failed to assign subjects: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleUnassign = async (course: Course) => {
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      await assignCourseInstructor(course.id, null)
+      await addActivityLog('course.instructor_assigned', {
+        entity: 'course',
+        entity_id: course.id,
+        label: `${course.code} → unassigned`,
+      })
+      setMessage(`Removed ${course.code} from ${facultyNameOf(facultyFilter)}.`)
+      load()
+    } catch (err) {
+      setError('Failed to unassign instructor: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Credit units (lecture / laboratory) share one clamped numeric input.
   const creditField = (
     label: string,
@@ -500,6 +610,14 @@ export default function ManagerCourse({ profile }: CourseProps) {
         onWheel={(e) => (e.target as HTMLInputElement).blur()} />
     </label>
   )
+
+  // The faculty member's display name, for the audit entry and the assign
+  // panel — active faculty accounts only (the load step filters role +
+  // status).
+  const facultyNameOf = (id: string) => {
+    const f = faculty.find((x) => x.id === id)
+    return f ? (f.full_name || f.email) : ''
+  }
 
   // Inline edit form for a single course card — the same card-expanding editor
   // the CLO page uses: fields stack inside the card and Save/Cancel sit at the
@@ -590,7 +708,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
           </label>
         </div>
         {!editForm.prereqNA && dupTokenCount(editForm.prereq) > 0 && (
-          <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
             Repeated pre-requisites are listed once in the report.
           </div>
         )}
@@ -614,7 +732,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
           </label>
         </div>
         {!editForm.coreqNA && dupTokenCount(editForm.coreq) > 0 && (
-          <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
             Repeated co-requisites are listed once in the report.
           </div>
         )}
@@ -664,13 +782,18 @@ export default function ManagerCourse({ profile }: CourseProps) {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Visible</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{visible.length}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{visible.length}</div>
           <div className="program-stat__sub">{archived ? 'Archived' : 'Active'} in current program</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from lists</div>
+        </div>
+        <div className="program-stat">
+          <div className="program-stat__label">Unassigned</div>
+          <div className="program-stat__value" style={{ color: '#b47a32' }}>{unassignedCount}</div>
+          <div className="program-stat__sub">Active subjects without an instructor</div>
         </div>
       </div>
 
@@ -680,7 +803,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
         <p>Loading courses...</p>
       ) : (
         <>
-          <form className="panel create-resource" onSubmit={handleCreate} style={{ borderTop: '3px solid #16a34a' }}>
+          <form className="panel create-resource" onSubmit={handleCreate} style={{ borderTop: '3px solid var(--primary)' }}>
             <h3>New Course</h3>
             <label className="field">
               <span>Program code</span>
@@ -730,7 +853,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                     {/* Summer is a 3rd-year term only. */}
                     {form.yearLevel === '3' && <option value="3">Summer</option>}
                   </select>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                     Places the subject in the OBE Curriculum Map's Year · Semester columns.
                   </div>
                 </label>
@@ -772,7 +895,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
               {!form.prereqNA && dupTokenCount(form.prereq) > 0 && (
-                <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
                   Repeated pre-requisites are listed once in the report.
                 </div>
               )}
@@ -795,7 +918,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
               {!form.coreqNA && dupTokenCount(form.coreq) > 0 && (
-                <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
                   Repeated co-requisites are listed once in the report.
                 </div>
               )}
@@ -824,120 +947,157 @@ export default function ManagerCourse({ profile }: CourseProps) {
             </div>
           </form>
 
-          <div className="program-panel">
-            <div className="program-toolbar">
-              <div className="sd-tabs" style={{ marginBottom: 0, flex: 1 }}>
-                <button className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(false)}>Active</button>
-                <button className={`sd-tab ${archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(true)}>
-                  Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
+          <div className="clo-2026">
+            <div className="clo26-toolbar">
+              <div className="clo26-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20L15.5 15.5" /></svg>
+                <input type="search" placeholder="Search course code, title, or description..." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search courses" />
+              </div>
+              <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
+                <button type="button" role="tab" aria-selected={!archived}
+                  className={`clo26-tab ${!archived ? 'active' : ''}`} onClick={() => setArchived(false)}>Active</button>
+                <button type="button" role="tab" aria-selected={archived}
+                  className={`clo26-tab ${archived ? 'active' : ''}`} onClick={() => setArchived(true)}>
+                  Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
                 </button>
               </div>
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <label className="program-search" aria-label="Search courses">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M20 20L15.5 15.5"/></svg>
-                <input className="input input--sm" type="search" placeholder="Search courses..." value={query} onChange={(e) => setQuery(e.target.value)} />
-              </label>
             </div>
+            {/* Faculty assignment navbar: a second tab row, one pill per
+                faculty member with their active-subject count. Picking a pill
+                filters the cards to that person's subjects and opens the
+                multi-pick assign panel, so handing out subjects never needs a
+                form. Counts stay on the current program. */}
+            <div className="program-faculty-tabs sd-tabs">
+              <button className={`sd-tab ${!facultyFilter ? 'sd-tab--active' : ''}`}
+                onClick={() => { setFacultyFilter(''); setPicks([]) }}>
+                All subjects
+                <span className="sd-tab__count">{activeInProgram}</span>
+              </button>
+              {faculty.map((f) => (
+                <button key={f.id} className={`sd-tab ${facultyFilter === f.id ? 'sd-tab--active' : ''}`}
+                  onClick={() => { setFacultyFilter(f.id); setPicks([]) }}>
+                  <Icon name="user" size={13} />
+                  {f.full_name || f.email}
+                  {facultyCountOf(f.id) > 0 && <span className="sd-tab__count">{facultyCountOf(f.id)}</span>}
+                </button>
+              ))}
+              {faculty.length === 0 && (
+                <span className="program-faculty-tabs__empty">
+                  No faculty accounts yet — create them under Users &amp; Accounts, then assign subjects here.
+                </span>
+              )}
+            </div>
+            {facultyFilter && (
+              <SubjectMultiAssign
+                facultyName={facultyNameOf(facultyFilter) || 'faculty'}
+                options={assignable.map((c) => ({
+                  id: c.id,
+                  code: c.code,
+                  title: c.title,
+                  current: instructorLabelOf(c.instructor_id) || null,
+                }))}
+                picks={picks}
+                onToggle={togglePick}
+                onSelectAll={() => setPicks(assignable.map((c) => c.id))}
+                onClear={() => setPicks([])}
+                onAssign={handleQuickAssign}
+                busy={busy}
+                emptyHint={`Every active subject in this program is already ${facultyNameOf(facultyFilter) || 'theirs'}.`}
+              />
+            )}
             {visible.length === 0 ? (
-              <div className="program-empty" style={{ marginTop: 14 }}>
-                <strong>No {archived ? 'archived' : 'active'} courses yet.</strong>
-                <span>{query ? `No results for "${query}"` : `Add your first course for ${programs.find(p=>p.id===programId)?.code || 'this program'}.`}</span>
-              </div>
-            ) : viewMode === 'list' ? (
-              <div className="resource-list">
-                {visible.map((c) => (
-                  <div key={c.id} className={`resource-card ${isActive(c) ? '' : 'resource-card--archived'}`}
-                    // Marks the card whose inline editor is open, so the
-                    // click-outside handler above knows what counts as "the
-                    // course" (presses inside the edit never auto-close it).
-                    data-course-edit={editId === c.id ? 'open' : undefined}
-                    onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
-                    title={editId === c.id ? undefined : 'Double-click to edit'}>
-                    {editId === c.id ? renderCourseEdit() : (
-                      <>
-                        <div className="resource-card__body">
-                          <h4>{c.code} — {c.title}</h4>
-                          {c.description && <p>{c.description}</p>}
-                          <div className="resource-card__meta">
-                            <span className={`status-badge status-badge--${isActive(c) ? 'active' : 'archived'}`}>{isActive(c) ? 'Active' : 'Archived'}</span>
-                            <span>{curriculumLabel(c.curriculum_id)}</span>
-                            {termLabelOf(c) && <span title="Term placement — which column the subject stands in on the OBE Curriculum Map">{termLabelOf(c)}</span>}
-                            <span>{c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab</span>
-                            <span>{instructorLabelOf(c.instructor_id)}</span>
-                          </div>
-                        </div>
-                        <div className="resource-card__actions">
-                          <button className="btn btn--ghost btn--sm" onClick={() => startEdit(c)} disabled={busy} aria-label={`Edit ${c.code}`} title="Edit"><Icon name="edit" size={13} /></button>
-                          <button className={`btn btn--sm ${isActive(c) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(c)} disabled={busy || !!editId} aria-label={isActive(c) ? `Archive ${c.code}` : `Restore ${c.code}`} title={isActive(c) ? 'Archive' : 'Restore'}>
-                            <Icon name={isActive(c) ? 'archive' : 'restore'} size={13} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+              <div className="clo26-empty" style={{ marginTop: 14 }}>
+                {facultyFilter
+                  ? `${facultyNameOf(facultyFilter) || 'This faculty member'} has no ${archived ? 'archived' : 'active'} subjects here yet.`
+                  : `No ${archived ? 'archived' : 'active'} courses yet.`}
+                <span style={{ display: 'block', marginTop: 4 }}>{query
+                  ? `No results for "${query}"`
+                  : facultyFilter
+                    ? 'Use the assign panel above to hand out subjects.'
+                    : `Add your first course for ${programs.find(p => p.id === programId)?.code || 'this program'}.`}</span>
               </div>
             ) : (
-              <div className="program-grid" style={{ marginTop: 14 }}>
-                {visible.map((c) => (
-                  <div key={c.id} className="program-card--2026 card-enter" data-status={isActive(c) ? 'active' : 'archived'}
-                    // Same click-outside marker as the list view above: the
-                    // open editor's own card never closes itself, everything
-                    // else on the page dismisses it.
-                    data-course-edit={editId === c.id ? 'open' : undefined}
-                    onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
-                    title={editId === c.id ? undefined : 'Double-click to edit'}>
-                    {editId === c.id ? renderCourseEdit() : (
-                      <>
-                        <div className="program-card__top">
-                          <span className="program-card__code">{c.code}</span>
-                          <span className={`program-card__status ${isActive(c) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
-                            <span className="program-card__status-dot" />{isActive(c) ? 'Active' : 'Archived'}
-                          </span>
+              <div className="clo26-list">
+                {visible.map((c) => {
+                  const open = expandedCourse === c.id || editId === c.id
+                  return (
+                    <article key={c.id} className={`clo26-course ${open ? 'open' : ''}`}
+                      // Marks the card whose inline editor is open, so the
+                      // click-outside handler knows what counts as "the
+                      // course" (presses inside the edit never auto-close it).
+                      data-course-edit={editId === c.id ? 'open' : undefined}
+                      onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
+                      title={editId === c.id ? undefined : 'Double-click to edit'}>
+                      <button type="button" className="clo26-course-head"
+                        onClick={() => { if (editId === c.id) return; setExpandedCourse(open && editId !== c.id ? null : c.id) }}
+                        aria-expanded={open}>
+                        <div className="clo26-code">{c.code}</div>
+                        <div className="clo26-info">
+                          <strong>{c.title}</strong>
+                          <small>
+                            {curriculumLabel(c.curriculum_id)}
+                            {termLabelOf(c) ? ` · ${termLabelOf(c)}` : ''}
+                          </small>
                         </div>
-                        <h3 className="program-card__name">{c.title}</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: '#64748b' }}>Curriculum:</span><span style={{ color: '#0f172a' }}>{curriculumLabel(c.curriculum_id)}</span></div>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: '#64748b' }}>Term:</span><span style={{ color: '#0f172a' }}>{termLabelOf(c) || 'Not placed'}</span></div>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, color: '#64748b' }}>Instructor:</span>
-                            <span style={{ color: '#0f172a' }}>{instructorLabelOf(c.instructor_id)}</span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <div style={{ color: '#475569' }}>
-                              <strong style={{ color: '#64748b' }}>Pre-req:</strong>
-                              {listTokens(c.prerequisite).length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  {listTokens(c.prerequisite).map((p, i) => (
-                                    <span key={i}>{p}</span>
-                                  ))}
+                        <div className="clo26-meta">
+                          <span className="clo26-count">{c.units ?? 0} units</span>
+                          <span className="clo26-status">{isActive(c) ? 'Active' : 'Archived'}</span>
+                          <span className="clo26-chevron" aria-hidden="true">›</span>
+                        </div>
+                      </button>
+                      {(open || editId === c.id) && (
+                        <div className="clo26-body">
+                          {editId === c.id ? (
+                            <div className="clo26-editrow">{renderCourseEdit()}</div>
+                          ) : (
+                            <>
+                              <div className="clo26-details">
+                                <div>
+                                  <strong>Instructor:</strong>
+                                  <span style={instructorLabelOf(c.instructor_id) ? undefined : { color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    {instructorLabelOf(c.instructor_id) || 'Unassigned'}
+                                  </span>
                                 </div>
-                              ) : <span> N/A</span>}
-                            </div>
-                            <div style={{ color: '#475569' }}>
-                              <strong style={{ color: '#64748b' }}>Co-req:</strong>
-                              {listTokens(c.corequisite).length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  {listTokens(c.corequisite).map((p, i) => (
-                                    <span key={i}>{p}</span>
-                                  ))}
+                                <div>
+                                  <strong>Pre-req:</strong>
+                                  <span className="clo26-pos">
+                                    {listTokens(c.prerequisite).length > 0
+                                      ? listTokens(c.prerequisite).map((p) => <span key={p} className="clo26-tag">{p}</span>)
+                                      : <span>N/A</span>}
+                                  </span>
                                 </div>
-                              ) : <span> N/A</span>}
-                            </div>
-                          </div>
-                          <div style={{ color: '#475569' }}><strong style={{ color: '#64748b' }}>Credits:</strong> {c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</div>
+                                <div>
+                                  <strong>Co-req:</strong>
+                                  <span className="clo26-pos">
+                                    {listTokens(c.corequisite).length > 0
+                                      ? listTokens(c.corequisite).map((p) => <span key={p} className="clo26-tag">{p}</span>)
+                                      : <span>N/A</span>}
+                                  </span>
+                                </div>
+                                <div>
+                                  <strong>Credits:</strong>
+                                  <span>{c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</span>
+                                </div>
+                                {c.description && <p style={{ margin: 0 }}>{c.description}</p>}
+                              </div>
+                              <div className="po26-actions">
+                                <button type="button" onClick={() => startEdit(c)} disabled={busy}>Edit</button>
+                                {facultyFilter && (
+                                  <button type="button" onClick={() => handleUnassign(c)} disabled={busy}>
+                                    Remove from {facultyNameOf(facultyFilter) || 'faculty'}
+                                  </button>
+                                )}
+                                <button type="button" onClick={() => handleToggleStatus(c)} disabled={busy || !!editId}>
+                                  {isActive(c) ? 'Archive' : 'Restore'}
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
-                        <p className="program-card__desc">{c.description || 'No description.'}</p>
-                        <div className="program-card__actions">
-                          <button className="btn btn--ghost btn--sm" onClick={() => startEdit(c)} disabled={busy} aria-label={`Edit ${c.code}`} title="Edit"><Icon name="edit" size={13} /></button>
-                          <button className={`btn btn--sm ${isActive(c) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(c)} disabled={busy || !!editId} aria-label={isActive(c) ? `Archive ${c.code}` : `Restore ${c.code}`} title={isActive(c) ? 'Archive' : 'Restore'}>
-                            <Icon name={isActive(c) ? 'archive' : 'restore'} size={13} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </article>
+                  )
+                })}
               </div>
             )}
           </div>

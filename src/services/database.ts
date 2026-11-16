@@ -75,6 +75,11 @@ export interface ActivityDetails {
   // typed a starting password (shared privately), omitted for the default
   // email-link flow.
   mode?: string
+  // The subject code a CLO belongs to — the faculty history panel groups
+  // CLO actions by the subject they touch. The bare digit run of the CLO
+  // rides along on created entries.
+  course?: string
+  code?: string
 }
 
 export interface ActivityLogEntry {
@@ -633,6 +638,23 @@ export async function assignCourseInstructor(courseId: string, instructorId: str
   // join resolves only where profiles RLS allows (own row, or all rows
   // for manager/admin).
   return updateCourse(courseId, { instructor_id: instructorId })
+}
+
+/**
+ * Hand many subjects to one faculty member in a single UPDATE (`id in (...)`),
+ * returning the updated rows so the caller can name each in the audit trail.
+ * The manager's multi-pick builds its whole term load as one press — one
+ * round trip instead of one per subject.
+ */
+export async function assignCourseInstructorsBulk(courseIds: string[], instructorId: string | null): Promise<Course[]> {
+  if (courseIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('courses')
+    .update({ instructor_id: instructorId })
+    .in('id', courseIds)
+    .select()
+  if (error) throw error
+  return (data ?? []) as Course[]
 }
 
 export async function createCourse(payload: Partial<Course>): Promise<Course> {
@@ -1510,4 +1532,87 @@ export async function replaceTosTopics(
     )
     if (error) throw error
   }
+}
+
+// ---------- GRASPS performance tasks ----------
+//
+// The Generate GRASPS page's saved performance tasks: one row per document,
+// carrying the six GRASPS components as plain text. Private to their owner,
+// like TOS blueprints — migration 025 scopes every read and write to the
+// caller, so these functions never filter by user themselves and the page
+// never shows a colleague's task.
+
+export interface GraspsTaskRow {
+  id: string
+  user_id: string
+  code: string
+  title: string
+  task_type: string
+  /** Stored and kept in sync with semester + school_year on every write. */
+  term: string
+  semester: string | null
+  school_year: string | null
+  goal: string | null
+  role: string | null
+  audience: string | null
+  situation: string | null
+  product: string | null
+  standards: string | null
+  status: 'active' | 'archived'
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * The caller's tasks, oldest first, scoped by status the same way
+ * fetchTosExams is: 'active' for the page's default view, 'archived' for the
+ * Archive tab's count, 'all' when the panel needs both in one read.
+ */
+export async function fetchGraspsTasks(
+  status: 'active' | 'archived' | 'all' = 'active',
+): Promise<GraspsTaskRow[]> {
+  let query = supabase.from('grasps_tasks').select('*')
+  if (status !== 'all') query = query.eq('status', status)
+  const { data, error } = await query.order('created_at', { ascending: true })
+  if (error) throw error
+  return data as GraspsTaskRow[]
+}
+
+/** One task by id, scoped to its owner by RLS like every query here. */
+export async function fetchGraspsTask(id: string): Promise<GraspsTaskRow> {
+  const { data, error } = await supabase.from('grasps_tasks').select('*').eq('id', id).single()
+  if (error) throw error
+  return data as GraspsTaskRow
+}
+
+/**
+ * The owner is taken from the caller rather than trusted from the payload —
+ * the same contract createTosExam keeps, so a caller cannot claim another
+ * user's row by guessing the user_id column.
+ */
+export async function createGraspsTask(
+  payload: Partial<GraspsTaskRow>,
+  userId: string,
+): Promise<GraspsTaskRow> {
+  const { data, error } = await supabase
+    .from('grasps_tasks')
+    .insert({ ...payload, user_id: userId })
+    .select()
+    .single()
+  if (error) throw error
+  return data as GraspsTaskRow
+}
+
+export async function updateGraspsTask(
+  id: string,
+  updates: Partial<GraspsTaskRow>,
+): Promise<GraspsTaskRow> {
+  const { data, error } = await supabase
+    .from('grasps_tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as GraspsTaskRow
 }

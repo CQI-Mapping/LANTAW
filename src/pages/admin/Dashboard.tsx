@@ -11,7 +11,7 @@ import {
 } from '../../services/database'
 import type { Profile, ActivityLogEntry } from '../../services/database'
 import { useClock } from '../../hooks/useClock'
-import { localISODate, timeGreeting } from '../../utils/clock'
+import { philippineNow, timeGreeting } from '../../utils/clock'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
 
@@ -93,7 +93,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
         {
           label: 'Users',
           value: profiles.length,
-          accent: '#64748b',
+          accent: 'var(--text-muted)',
           icon: 'users',
           sub: 'Registered profiles',
           hint: profiles.length
@@ -128,7 +128,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
           // entered (source='admin'), active only. Archived rows, other
           // CMO sets and the manager's own list are not this figure.
           value: adminPos.length,
-          accent: '#15803d',
+          accent: 'var(--primary-dark)',
           icon: 'po',
           sub: 'Program outcomes mapping',
           navId: 'program-outcomes',
@@ -137,7 +137,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
         {
           label: 'Course Learning Outcomes',
           value: clos.length,
-          accent: '#15803d',
+          accent: 'var(--primary-dark)',
           icon: 'clo',
           sub: 'CLOs per course',
           hint: clos.length ? `${archivedCountOf(clos)} archived` : null,
@@ -179,7 +179,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
     <div className="dashboard dashboard--2026 page-enter">
       <section className="dashbanner" aria-labelledby="dashbanner-name">
         <div className="dashbanner__info">
-          <span className="dashbanner__greeting">{timeGreeting(clock)}</span>
+          <span className="dashbanner__greeting">{timeGreeting(philippineNow(clock))}</span>
           <h1 className="dashbanner__name" id="dashbanner-name">
             {/* Greet by the nickname when one exists (what friends call the
                 user), else the full name, else the email's local part. */}
@@ -194,10 +194,6 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
             See the college at a glance — programs, outcomes, subject graphs, and CQI actions.
           </p>
         </div>
-        <time className="dashbanner__date" dateTime={localISODate(clock)}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-          <span>{clock.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
-        </time>
       </section>
 
       <div className="stat-grid stat-grid--2026" aria-busy={loading}>
@@ -240,7 +236,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
                 {s.hint && (
                   <span
                     className="stat-card__hint"
-                    style={{ color: s.warn ? '#b45309' : '#64748b', fontSize: 11, marginTop: 2 }}
+                    style={{ color: s.warn ? '#b47a32' : 'var(--text-muted)', fontSize: 11, marginTop: 2 }}
                   >
                     {s.hint}
                   </span>
@@ -269,42 +265,42 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
           </div>
           <div className="quick-actions">
             <button className="quick-action" type="button" onClick={() => go('program')}>
-              <span className="quick-action__icon" style={{ background: '#16a34a' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--primary)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
               </span>
               <span className="quick-action__text"><strong>Add Program</strong><small>Create degree offering</small></span>
               <svg className="quick-action__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18l6-6-6-6"/></svg>
             </button>
             <button className="quick-action" type="button" onClick={() => go('program-outcomes')}>
-              <span className="quick-action__icon" style={{ background: '#15803d' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--primary-dark)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M3 3v18h18"/><path d="M7 16l3-3 3 3 5-8"/></svg>
               </span>
               <span className="quick-action__text"><strong>Add Program Outcomes</strong><small>Your own PO list</small></span>
               <svg className="quick-action__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18l6-6-6-6"/></svg>
             </button>
             <button className="quick-action" type="button" onClick={() => go('subject-view')}>
-              <span className="quick-action__icon" style={{ background: '#15803d' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--primary-dark)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M19.07 18.93A10 10 0 0 0 21 12M2.93 5.07A10 10 0 0 1 12 3" /><path d="M12 12m-7 0a7 7 0 0 1 14 0" /></svg>
               </span>
               <span className="quick-action__text"><strong>Generate Map</strong><small>Start Visualization</small></span>
               <svg className="quick-action__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18l6-6-6-6"/></svg>
             </button>
             <button className="quick-action" type="button" onClick={() => go('view')}>
-              <span className="quick-action__icon" style={{ background: '#15803d' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--primary-dark)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               </span>
               <span className="quick-action__text"><strong>Curriculum Report</strong><small>Print &amp; export views</small></span>
               <svg className="quick-action__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18l6-6-6-6"/></svg>
             </button>
             <button className="quick-action" type="button" onClick={() => go('users')}>
-              <span className="quick-action__icon" style={{ background: '#64748b' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--text-muted)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </span>
               <span className="quick-action__text"><strong>Users &amp; Accounts</strong><small>Roles &amp; access</small></span>
               <svg className="quick-action__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 18l6-6-6-6"/></svg>
             </button>
             <button className="quick-action" type="button" onClick={() => go('activity-logs')}>
-              <span className="quick-action__icon" style={{ background: '#64748b' }}>
+              <span className="quick-action__icon" style={{ background: 'var(--text-muted)' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </span>
               <span className="quick-action__text"><strong>Activity Logs</strong><small>Audit trail</small></span>

@@ -247,7 +247,7 @@ export default function ProgramOutcomesAdmin() {
       {success && <p className="msg msg--success" role="status">{success}</p>}
 
       {/* Add form */}
-      <form className="panel create-resource" onSubmit={handleSubmit} style={{ borderTop: '3px solid #16a34a' }}>
+      <form className="panel create-resource" onSubmit={handleSubmit} style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>Add Program Outcome</h3>
         <div className="create-resource__row create-resource__row--2col">
           <label className="field">
@@ -297,9 +297,9 @@ export default function ProgramOutcomesAdmin() {
         <div className="program-grid" style={{ marginTop: 8 }}>
           {[0, 1, 2].map((i) => (
             <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-              <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-              <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-              <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+              <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+              <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+              <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
             </div>
           ))}
         </div>
@@ -412,7 +412,7 @@ export default function ProgramOutcomesAdmin() {
                         <>
                       <div className="resource-card__body">
                         <h4>
-                          <span style={{ color: '#64748b', marginRight: 8 }}>{idx + 1}.</span>
+                          <span style={{ color: 'var(--text-muted)', marginRight: 8 }}>{idx + 1}.</span>
                           {item.description || item.title || '—'}
                         </h4>
                         <p style={{ fontSize: 12.5, color: '#475569', marginTop: 4 }}>{cmoLabel(group)}</p>
@@ -481,7 +481,7 @@ export default function ProgramOutcomesAdmin() {
                       </span>
                     </div>
                     <h3 className="program-card__name">
-                      <span style={{ color: '#64748b', marginRight: 6 }}>{idx + 1}.</span>
+                      <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{idx + 1}.</span>
                       {item.description || item.title || '—'}
                     </h3>
                     <p style={{ fontSize: 12.5, color: '#475569' }}>{cmoLabel(group)}</p>

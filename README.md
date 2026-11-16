@@ -12,7 +12,7 @@ This README is a full development reference: how to set the project up, how the 
 - **Roles:**
   - `admin` — System Administrator / ICT Officer. Full control: manage accounts and roles, create users, manage and delete curriculum records, view the audit log.
   - `manager` — Program Head / CQI Lead. Manages curriculum records (create/edit/archive), browses the faculty directory (read-only), views the audit log.
-  - `user` — Faculty / Instructor. Edits course learning outcomes, builds Table of Specifications (Generate TOS), generates program reports, browses the subject graph, edits own profile.
+  - `user` — Faculty / Instructor. Edits course learning outcomes, builds Table of Specifications (Generate TOS), designs GRASPS performance tasks (Generate GRASPS), browses the subject graph, edits own profile.
 
 The UI hides pages you can't use, but the *real* enforcement is **Row Level Security (RLS)** in the database — a `user` cannot read other users or mutate curriculum records even by calling Supabase directly from the browser.
 
@@ -58,6 +58,7 @@ No CSS framework, no router library — deliberately simple so it's easy to exte
 | Archive / restore curriculum records | yes | yes | — |
 | Delete curriculum records | yes | — | — |
 | Manage courses (create/edit/archive, no delete for manager) | yes | yes | — |
+| Assign faculty to subjects (Assign Faculty module + Course page) | — | yes | — |
 | Browse subjects + CLOs | yes | yes | yes |
 | View Subject Graph | yes | yes | yes |
 | View users directory (all profiles) | yes | yes | — |
@@ -101,15 +102,19 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
 ├── .env                      # Local secrets (gitignored) — fill with your keys
 ├── .gitignore
 ├── GUIDE.md                  # Simple step-by-step setup guide for new users
-├── index.html                # Vite entry HTML
+├── index.html                # Vite entry HTML (loads Space Grotesk + Inter)
 ├── package.json              # Dependencies + scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── vite.config.js            # Vite config (React plugin)
 ├── supabase-schema.sql       # FULL database schema — run in Supabase SQL Editor
+├── design/
+│   └── premium/
+│       ├── theme.css         # The premium prototype's full stylesheet (design source)
+│       └── APP_NOTES.md      # Its page-layout notes
 └── src/
     ├── main.tsx              # React entry point
-    ├── App.tsx               # Session handling, role-based nav + page gating
-    ├── index.css             # Theme variables + all component styles
+    ├── App.tsx               # Session handling, role-based nav + page gating + topbar shell
+    ├── index.css             # Theme tokens + all component styles (premium chrome layer at the end)
     ├── vite-env.d.ts         # Vite environment variable types
     ├── components/
     │   ├── Sidebar.tsx               # Dark-glass top navbar, per-role nav + mega dropdown + profile menu
@@ -125,7 +130,9 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
     │   ├── CloViewModal.tsx          # Read-only CLO viewer modal (shared)
     │   ├── CourseDetails.tsx / OutcomeDetailsCard.tsx / PoCoverageBars.tsx
     │   ├── SuggestionInput.tsx       # PO-suggestion combobox on the CLO page
-    │   └── ViewModeToggle.tsx        # List/grid toggle, as on Curriculum pages
+    │   ├── ViewModeToggle.tsx        # List/grid toggle, as on Curriculum pages
+    │   ├── SubjectMultiAssign.tsx    # The multi-pick checkbox panel behind faculty assignment (Assign Faculty + Course page)
+    │   └── icons.tsx                 # The `Icon` set (name → svg) used across pages
     ├── pages/
     │   ├── Login.tsx         # Sign in (email/password + school-scoped Google) — password recovery is admin-initiated
     │   ├── Profile.tsx       # View/edit own profile (shared by all roles)
@@ -155,10 +162,12 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
     │   │   ├── Users.tsx             # Users directory + add/remove users (`user` role only)
     │   │   ├── Curriculum.tsx        # Create/edit/archive (no delete) + search
     │   │   ├── ProgramOutcomes.tsx   # Manager-side PO alignment; inline add form with a reader leg (all POs, grouped per CMO category)
-    │   │   └── Course.tsx            # Wraps AdminCourse with `hideDelete`-style gating (no delete)
+    │   │   ├── Course.tsx            # Wraps AdminCourse with `hideDelete`-style gating (no delete)
+    │   │   └── FacultyAssign.tsx     # Assign Faculty module: pick a faculty member, hand out / drop their subjects
     │   └── user/
     │       ├── Dashboard.tsx         # Faculty home: next step, own-outcome figures, subjects, quick actions, program brief
     │       ├── CourseLearningOutcomes.tsx  # Faculty CLO editor (same bespoke page)
+    │       ├── Grasps.tsx            # Generate GRASPS: performance-task editor + saved-task library
     │       └── TOS.tsx               # Generate TOS: blueprint editor + saved-blueprint library
     ├── services/
     │   └── database.ts       # ALL Supabase queries used by the app
@@ -311,6 +320,17 @@ time, so renaming a record later does not rewrite history.
 Both child tables cascade on exam delete, so removing a blueprint from the
 library removes its papers and topics in one statement.
 
+**`grasps_tasks`** — the Generate GRASPS performance tasks (faculty-owned,
+migration `025-grasps-tasks.sql`).
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `grasps_tasks` | `user_id`, `code`, `title`, `task_type`, `term`, `goal` … `standards`, `status` | one performance task per row; the six GRASPS components are plain text; `UNIQUE (user_id, code, task_type, semester, school_year)` |
+
+Private to their owner like the TOS blueprints: one "Users manage own
+grasps_tasks" policy covers every operation, so the page never shows a
+colleague's task and never filters by user itself.
+
 ### 6.2 Row Level Security Policies
 
 All three tables have RLS enabled. Policies use `public.current_user_role()` — a `SECURITY DEFINER` function that reads the caller's role while bypassing RLS. This avoids infinite-recursion when a policy references the same table it gates.
@@ -391,6 +411,8 @@ All queries live in `src/services/database.ts`. Signatures, purpose, and who can
 | `fetchCourses()` | List courses with embedded program | all signed-in users |
 | `createCourse(payload)` | Insert a course | admins/managers |
 | `updateCourse(id, updates)` | Edit a course | admins/managers |
+| `assignCourseInstructor(courseId, instructorId)` | Assign or clear the faculty instructor of a course (`instructor_id`) | admins/managers |
+| `assignCourseInstructorsBulk(courseIds, instructorId)` | Hand many subjects to one faculty member in a single `UPDATE … WHERE id IN (…)` | admins/managers |
 | `deleteCourse(id)` | Permanently delete a course (cascades to CLOs) | admins |
 | `seedIt21Course()` | Seed the IT21 course data | admins |
 | `fetchProgramOutcomes(programId)` | List program outcomes, optionally by program | all signed-in users |
@@ -484,7 +506,7 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Styles are the `fac-*` classes in `index.css`. `MapBrief`'s panel tokens (`--reports-gap`, `--reports-radius`, `--reports-band`) are defined only under `.reports`, so `.fac-dash` sets them itself. The admin and manager dashboards do not, so their brief panels lose the gap and corner radius; defining the tokens on `.map-brief` would fix all three dashboards at once.
 - CLO stats are role-scoped: RLS lets managers/admins read every outcome, while a faculty user counts only their own (migration `009-private-clos.sql`). The faculty figures depend on that scope.
 
-> **Theme note (2026 look):** the app sits on the same dark circuit wallpaper everywhere. Dashboards keep the entrance-art banner; every content page's banner strip uses the open-book artwork (`banner-bg-page.jpg`); page banners, panels, table headers and hairlines are sage-tinted so the light content sits comfortably against the dark background. Both banners carry a deep drop shadow + faint green rim so they lift off the wallpaper.
+> **Theme note (2026 premium look):** the app wears the **LANTAW premium prototype's** design (`design/premium/theme.css`, fetched from the hatchable preview): a flat academic-paper background (`#f8faf8`), white hairline-bordered panels with a soft single-layer shadow, the deep green scale (`#163d2c → #347b52`, primary `#286344`) with quiet tinted pills, compact Inter text under Space Grotesk display headings, and the fixed-left-rail + topbar shell described above. Page heads are flat titles on the paper — the old artwork banners (open-book/campus strips) are retired from content pages; the NBSC artwork keeps living on the Login page, and the school logo still rides the sidebar brand. The chrome layer sits at the end of `src/index.css` (PREMIUM CHROME) so the earlier families stay readable as history.
 
 ### `admin/Users.tsx`
 - Create accounts with role select (**admin**, **manager**, or **faculty**) plus table of all users with role badges. Needs `VITE_SUPABASE_SERVICE_ROLE_KEY`. No role `<select>` on existing rows — role changes via SQL or `updateUserRole()`.
@@ -516,6 +538,11 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - The library panel lists every saved blueprint with Edit (inline full editor), Open, Archive/Restore, and **Delete** (red trash, confirms, cascades papers + topics, writes `tos_exam.deleted` to the audit log). Deleting the blueprint that is open in the editor stands down its pending writers first and parks the editor on the next exam.
 - **Export** builds the faculty workbook with ExcelJS (`utils/tosXlsx.ts`): letterhead, green editable cells + gray formula cells, formulas written live (`=SUM(...)`), `fullCalcOnLoad` so Excel computes on open. Tabs are named as the workbook spells them (`Multiple Choice`, `ProductPerformance-Based`); both papers end at the Create column — no extra grand-total column.
 
+### `user/Grasps.tsx` (Generate GRASPS, faculty)
+- A performance-task workspace backed by `grasps_tasks` (migration `025-grasps-tasks.sql`): the six GRASPS components — Goal, Role, Audience, Situation, Product/Performance, Standards — as auto-expanding text areas under one identifying header (Program, Course title, grading period, Semester, School Year), the same pickers the TOS page builds with (`utils/tosOptions.ts`).
+- The TOS page's one-writer rule carries over: the top editor is a draft mirrored to localStorage (`cqic.grasps.draft.v1`), Save files the whole task as one row and starts a blank draft, and a card's Edit button loads that row back into the same editor (a later Save updates it). Archive/Restore are the only removals — nothing is hard-deleted from here.
+- The library panel lists saved tasks with an Active/Archive pair, each card showing the course title, term, document title line, an honest "N of 6 components written" count, and Download-as-Word (`utils/graspsDocx.ts`: letterhead + the six-component GRASPS table, `docx` imported dynamically so it never rides the main bundle).
+
 ### `components/MapBrief.tsx` (embedded on all three role dashboards)
 - The program's curriculum at a glance, moved off the Generate Map page: the seven KPI tiles (Total Programs … Unmapped / Incomplete), the Curriculum Mapping Summary table and the PO Coverage Chart. Self-contained — it fetches its own data, opens on the account's program assignment (then BSIT, then first), and re-uses the shared alignment engines (`utils/alignment.ts`, `utils/cloPoMapping.ts`), so its figures always agree with the report's PDF.
 - The tiles read the **committed framework** (corrected 2026-11-05, twice — see below): "Total PO's" shows the **official CMO 25 S. 2015 document** — the manager-sourced rows carrying one of the two category headers, recognized by the exact same predicate the report's mapping matrix uses (`isManagerOutcome` + `isManagerCmCategory`), because migration 010 deliberately stamped the official list as `source='manager'` so the report builds from manager rows. The qualifier discloses what's beyond that set: `N additional · M archived` (both live-computed; duplicates along an official code can't inflate the extras). Mapping deliberately still runs on the **union of all active sources**, so a CLO may target an official or a non-official outcome, and quoting an archived code correctly shows as a gap. "Unmapped / Incomplete" names its own two halves in the sub (`N CLOs unmapped · M outcomes unanchored`): a faculty CLO that names no program outcome vs an outcome no CMO/PEO/Strategic-Goal document anchors.
@@ -544,7 +571,16 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Props: `userEmail`. Create/edit/archive (no delete), search box, Active/Archive tabs with counts, `role=alert/status` messages.
 
 ### `manager/Course.tsx`
-- Wraps `admin/Course` with `hideDelete` (create/edit/archive/restore, no delete). Falls through `renderPage` with `profile` prop.
+- The only Course page (admin has no Course entry): programs + curriculums + courses with prereq/coreq, lecture/lab credits, search, Active/Archive tabs, stats, skeleton cards. No delete (RLS blocks it too). Falls through `renderPage` with the `profile` prop.
+- **Assignment lives outside the forms:** the New Course form and the inline card editor carry no instructor field — `buildPayload` deliberately omits `instructor_id`, so creating or editing a course can never wipe a standing assignment. Handing subjects out belongs to this page's **faculty navbar** (multi-pick panel) and the dedicated **Assign Faculty** module, which write the `course.instructor_assigned` audit entry. The cards still *show* the result: the list row shows the instructor only when one is assigned; the grid card shows "Unassigned" in muted text when none is. The faculty read that backs the navbar degrades to an empty picker, never a dead page.
+- **Faculty assignment navbar** (under the Active/Archive tabs): a second tab row — "All subjects" plus one pill per active faculty member, each with a count of the current program's active subjects they hold. Picking a pill filters the cards to that person's subjects and opens the **multi-pick assign panel** (`components/SubjectMultiAssign.tsx`, shared with the Assign Faculty module): every active subject in the program they don't already hold as a checkbox row — a subject someone else teaches reads "currently *Name*" in amber, so a hand-over is never silent — plus **Select all** and **Clear** tools, and one **Assign N subject(s)** button that files the whole pick as a single `assignCourseInstructorsBulk` write (one `UPDATE … WHERE id IN (…)`, one audit entry per subject). Each filtered card gains a quick Remove-assignment button (✕). The stats row grows an **Unassigned** card (active subjects without an instructor), and the empty state names the picked member when they hold nothing here yet.
+
+### `manager/FacultyAssign.tsx` (Assign Faculty — sidebar module between Course and Generate Map)
+- The dedicated assignment workspace, a manager-only module (`faculty-assign` in the manager NAV + PAGES; the Academics mega-menu lists it with a user-plus icon and the description "Assign faculty to subjects"). The manager opens the module directly from the sidebar instead of hunting through the Course page.
+- **Two panes.** Left: the faculty roster — one row per active faculty account (`role='user'`, archived excluded) with an initials avatar, name, email, and a green count badge of the current program's subjects they hold; the picked row is highlighted. Right: the picked member's workspace — their subjects in curriculum order (code, title, term placement), a quick Remove button (✕) on each, and the **multi-pick assign panel** (`components/SubjectMultiAssign.tsx`, shared with the Course page): every active subject in the program they don't already hold as a checkbox row (a subject someone else teaches reads "currently *Name*" in amber), **Select all** / **Clear** tools, and one **Assign N subject(s)** press that writes the whole pick through `assignCourseInstructorsBulk` — a single `UPDATE … WHERE id IN (…)`, one `course.instructor_assigned` audit entry per subject (`CODE → Name`), so a full term load lands in one round trip. Removals stay one-at-a-time on the subject rows — deliberate, rare actions.
+- Program-scoped like the Course page: a Program select sits above the panes and opens on the account's own `profiles.program_id` assignment when it matches a program on file (the same courtesy `MapBrief` extends), else the first program. Stats row: Faculty (active accounts), Subjects (active in program), Assigned (green), Unassigned (amber).
+- Writes go through `assignCourseInstructor` and log the same `course.instructor_assigned` audit entry (`CODE → Name` / `CODE → unassigned`) the Course page writes, so the two surfaces never split the trail's voice. Empty states are named: no faculty accounts (points at Users & Accounts), no active subjects in the program (points at the Course page), and "Every active subject in this program is already theirs" when the picker runs dry.
+- Styles are the `assign-*` classes in `index.css`; the two panes stack to one column under 900px.
 
 ### `admin/Syllabus.tsx`
 - Printable curriculum map / syllabus report. Displays Vision, Mission, Strategic Goals, PEOs, Program Outcomes, Curriculum Mapping, Course Learning Outcomes, and Course Details in a formatted document layout.
@@ -575,9 +611,12 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Holds `session`, `profile`, `activePage`. Defines the `NAV` map (role → nav items) and the `PAGES` map (role → page components, one per role folder; `Profile` is shared). On session change, loads the profile via `ensureProfile` (auto-creates the row if missing — e.g. after a schema re-run) and renders `Login` when signed out; otherwise renders the header + current page.
 - **Gating:** `page` is coerced to a role-valid page, so even a crafted `activePage` value can't show an unauthorized page.
 - **Login guard:** A `profileLoaded` flag prevents rendering the dashboard before the user's role is known, so the correct role-specific page appears immediately without a flash.
+- **Shell:** the app renders the premium layout — `<Sidebar/>` (fixed left rail) plus a `.main-shell` holding the **topbar** (workspace breadcrumb, the `AY …` term pill from `utils/schoolYear.ts`, profile avatar) and the page container.
 
 ### `Sidebar.tsx`
-- Dark-glass top navbar (`styles/Sidebar.css`): brand + role-specific pill nav + profile menu, blur + green hairline edge matching the circuit wallpaper. Academic pages group under an `Academics` dropdown (all roles); `subject-view` included. Shows real `full_name`/`email` in the profile menu with role badge; logout lives inside. Active items get `aria-current="page"`; the active pill and avatar sit on the green gradient; the mobile drawer tray stays dark so the light menu text survives; dropdown and profile menus open as sage cards over the dark bar.
+- **Premium 2026 shell** (`styles/Sidebar.css`, matching `design/premium/theme.css`): a fixed **left rail** (250px, white, hairline edge) carrying the brand block (program logo / admin monogram + letterspaced LANTAW), grouped navigation — **Overview** (Dashboard), **Academics** (every academic page, flat — the old mega dropdown is retired), **Administration** (Users, Activity Logs) — and a bottom **user chip** (avatar, name, role line) whose ··· opens the profile menu (My Profile / Security & Privacy / Logout) upward.
+- The **topbar** (rendered by `App.tsx` inside the main shell) holds the workspace breadcrumb (`Workspace / <page>`), the **academic-year pill** (`AY 2026–2027 · 2nd Semester`, derived from `utils/schoolYear.ts` + the Philippine term calendar), and the avatar button (opens Profile). The hamburger appears only under 960px, where the rail becomes a drawer behind a scrim.
+- Active items get `aria-current="page"`; the active nav row sits on the soft green `#eaf3ec`. The fullscreen Subject Graph slides under both rail and topbar (each z-1100 over the map's z-1000); dialogs (z-2000) still dim over everything.
 
 ---
 

@@ -19,8 +19,8 @@
 //   Activity Logs, Profile
 //
 // Faculty pages (sidebar order):
-//   Dashboard, Course Learning Outcomes, Curriculum, Subject Graph,
-//   Generate TOS, Reports, Profile
+//   Dashboard, Course Learning Outcomes, Subject Graph (Generate Map),
+//   Generate GRASPS, Generate TOS, Profile, Security & Privacy
 //
 // The Program / CHED Memo / Strategic Goals / PEO pages are shared with the admin
 // role (same as Activity Logs and Subject Graph) — only destructive deletes stay
@@ -42,6 +42,7 @@ import ManagerDashboard from './pages/manager/Dashboard'
 import ManagerUsers from './pages/manager/Users'
 import ManagerCurriculum from './pages/manager/Curriculum'
 import ManagerCourse from './pages/manager/Course'
+import AssignFaculty from './pages/manager/FacultyAssign'
 import ManagerActivityLogs from './pages/admin/ActivityLogs'
 import UserDashboard from './pages/user/Dashboard'
 import SecurityPrivacy from './pages/SecurityPrivacy'
@@ -57,11 +58,14 @@ import AdminSubjectView from './pages/admin/Map'
 import AdminView from './pages/admin/Syllabus'
 
 import UserTOS from './pages/user/TOS'
+import UserGrasps from './pages/user/Grasps'
 import { supabase } from './utils/supabaseClient'
 import { ensureProfile, syncDemoRole, addActivityLog, recordLoginEvent } from './services/database'
+import { philippineNow } from './utils/clock'
 import type { Profile as ProfileType, UserRole, NavItem } from './services/database'
 import type { Session } from '@supabase/supabase-js'
 import { loadEmailAvatar } from './utils/avatar'
+import AppearancePage from './pages/shared/Appearance'
 
 const NAV: Record<UserRole, NavItem[]> = {
   admin: [
@@ -78,6 +82,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'activity-logs', label: 'Activity Logs' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
   manager: [
     { id: 'dashboard', label: 'Dashboard' },
@@ -88,20 +93,24 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'program-outcomes', label: 'Program Outcomes' },
     { id: 'curriculum', label: 'Curriculum' },
     { id: 'course', label: 'Course' },
+    { id: 'faculty-assign', label: 'Assign Faculty' },
     { id: 'subject-view', label: 'Generate Map' },
     { id: 'view', label: 'View Syllabus' },
     { id: 'users', label: 'Users & Accounts' },
     { id: 'activity-logs', label: 'Activity Logs' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
   user: [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'clo', label: 'Course Learning Outcomes' },
     { id: 'subject-view', label: 'Generate Map' },
+    { id: 'grasps', label: 'Generate GRASPS' },
     { id: 'tos', label: 'Generate TOS' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
 }
 
@@ -128,6 +137,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     'activity-logs': AdminActivityLogs,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
   manager: {
     dashboard: ManagerDashboard,
@@ -137,6 +147,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     peos: AdminPEOs,
     curriculum: ManagerCurriculum,
     course: ManagerCourse,
+    'faculty-assign': AssignFaculty,
     'program-outcomes': ManagerProgramOutcomes,
     'subject-view': AdminSubjectView,
     view: AdminView,
@@ -144,14 +155,17 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     'activity-logs': ManagerActivityLogs,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
   user: {
     dashboard: UserDashboard,
     clo: UserCourseLearningOutcomes,
     'subject-view': AdminSubjectView,
+    grasps: UserGrasps,
     tos: UserTOS,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
 }
 
@@ -162,6 +176,25 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
 // dashboard, while a brand-new tab always opens there. Cleared on sign-out so
 // the next session starts fresh.
 const LAST_PAGE_KEY = 'cqi.lastPage'
+
+// The sidebar's minimized state persists per browser in localStorage (same
+// pattern as the view-mode pick): a person who works from the icon rail
+// keeps working from it across visits.
+const SIDEBAR_MINI_KEY = 'cqi.sidebar.mini'
+
+// The rail's color mode: 'system' follows the OS preference (live), the
+// other two pin it. Chosen from the profile menu's Appearance swatches and
+// persisted per browser — the old railDark flag migrates in on first read.
+const SIDEBAR_RAIL_DARK_KEY = 'cqi.sidebar.railDark'
+const SIDEBAR_COLOR_MODE_KEY = 'cqi.sidebar.colorMode'
+
+// The navbars' own color mode (left rail + topbar), independent of the
+// workspace theme — the Appearance picker's second row.
+const SIDEBAR_NAV_MODE_KEY = 'cqi.sidebar.navMode'
+
+// Where the navigation lives: the fixed left rail (default) or a horizontal
+// top bar. The Appearance picker's Position choice, persisted per browser.
+const NAV_LAYOUT_KEY = 'cqi.sidebar.navLayout'
 
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
@@ -226,6 +259,113 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth > 1024 : true
   )
+  // The minimized rail: persisted per browser, so a person who works from
+  // the icon rail keeps it across visits. Mobile ignores it (the rail is a
+  // drawer there).
+  const [sidebarMini, setSidebarMini] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_MINI_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebarMini = useCallback(() => {
+    setSidebarMini((v) => {
+      const next = !v
+      try {
+        localStorage.setItem(SIDEBAR_MINI_KEY, next ? '1' : '0')
+      } catch {
+        // Storage unavailable — the pick still applies for this visit.
+      }
+      return next
+    })
+  }, [])
+
+  // The rail's color mode — System / Light / Dark. System tracks the OS
+  // preference live; a legacy railDark=1 migrates to 'dark' on first read.
+  const [colorMode, setColorModeState] = useState<'system' | 'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_COLOR_MODE_KEY)
+      if (saved === 'system' || saved === 'light' || saved === 'dark') return saved
+      return localStorage.getItem(SIDEBAR_RAIL_DARK_KEY) === '1' ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+  const setColorMode = useCallback((next: 'system' | 'light' | 'dark') => {
+    setColorModeState(next)
+    try {
+      localStorage.setItem(SIDEBAR_COLOR_MODE_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
+
+  // The OS's dark preference, tracked live so a System pick reacts to it.
+  const [systemDark, setSystemDark] = useState(() => {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  const railDark = colorMode === 'dark' || (colorMode === 'system' && systemDark)
+
+  // The navbars' own mode (Appearance > Navbar): System / Light / Dark for
+  // the left rail and topbar, independent of the workspace theme. Dark
+  // full-theme always carries the navbars with it.
+  const [navMode, setNavModeState] = useState<'system' | 'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(SIDEBAR_NAV_MODE_KEY)
+      return saved === 'system' || saved === 'light' || saved === 'dark' ? saved : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+  const setNavMode = useCallback((next: 'system' | 'light' | 'dark') => {
+    setNavModeState(next)
+    try {
+      localStorage.setItem(SIDEBAR_NAV_MODE_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
+  const navDark = navMode === 'dark' || (navMode === 'system' && systemDark)
+  const navbarsDark = railDark || navDark
+
+  // Navigation position: the horizontal top bar by default for new users —
+  // the left rail is an opt-in switch in Appearance. A saved pick always
+  // wins, so existing setups keep their layout.
+  const [navLayout, setNavLayoutState] = useState<'left' | 'top'>(() => {
+    try {
+      const saved = localStorage.getItem(NAV_LAYOUT_KEY)
+      return saved === 'left' ? 'left' : 'top'
+    } catch {
+      return 'top'
+    }
+  })
+  const setNavLayout = useCallback((next: 'left' | 'top') => {
+    setNavLayoutState(next)
+    try {
+      localStorage.setItem(NAV_LAYOUT_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
+
+  // The picked color mode is a FULL system theme: the class lands on <html>
+  // so the token remap (index.css, FULL DARK MODE) re-inks the whole app,
+  // while the layout keeps its rail-specific dark class for the sidebar.
+  useEffect(() => {
+    document.documentElement.classList.toggle('lantaw-dark', railDark)
+    return () => document.documentElement.classList.remove('lantaw-dark')
+  }, [railDark])
   // Set when the profile fetch fails (e.g. flaky network). The app then shows
   // a retry screen instead of a stale identity or a silent wrong-role fallback.
   const [profileError, setProfileError] = useState('')
@@ -552,11 +692,44 @@ function App() {
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
     // so offering them an Admins filter would only ever yield an empty table.
     if (page === 'activity-logs') return <Page viewerRole={role} />
+    if (page === 'clo') {
+      // The faculty CLO page scopes its pickers by the signed-in email —
+      // without it the assignment gate cannot match anything.
+      return <Page userEmail={profile?.email} profile={profile} onNavigate={navigate} />
+    }
+    if (page === 'appearance') {
+      return (
+        <AppearancePage
+          colorMode={colorMode}
+          onColorModeChange={setColorMode}
+          navMode={navMode}
+          onNavModeChange={setNavMode}
+          navLayout={navLayout}
+          onNavLayoutChange={setNavLayout}
+          systemDark={systemDark}
+        />
+      )
+    }
     return <Page profile={profile} onNavigate={navigate} />
   }
 
+  const activeLabel = navItems.find((n: NavItem) => n.id === page)?.label ?? 'Workspace'
+
+  // The topbar's date pill: today, spelled out — read by Philippine time so
+  // the day agrees with the school, whatever the device's clock says.
+  const todayLabel = philippineNow(new Date()).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  const topbarInitials = ((profile?.full_name ?? '').trim() || role)
+    .split(/[\s-]+/).map((w) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || 'U'
+  const topbarAvatar = profile?.avatar_url ?? emailAvatar
+
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarMini && navLayout === 'left' ? 'app-layout--mini' : ''} ${navLayout === 'top' ? 'app-layout--topnav' : ''} ${navbarsDark ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
@@ -565,12 +738,65 @@ function App() {
         role={role}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((v) => !v)}
+        mini={sidebarMini && navLayout === 'left'}
+        onToggleMini={toggleSidebarMini}
+        railDark={navbarsDark}
+        navLayout={navLayout}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}
       />
 
-      <div className="main-content">
+      <div className="main-shell">
+        <header className="topbar">
+          <button
+            type="button"
+            className="topbar__menu"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="topbar__collapse"
+            onClick={toggleSidebarMini}
+            aria-label={sidebarMini ? 'Expand sidebar' : 'Minimize sidebar'}
+            aria-pressed={sidebarMini}
+            title={sidebarMini ? 'Expand sidebar' : 'Minimize sidebar'}
+          >
+            {/* ChatGPT-style collapsed state: the brand mark shows by
+                default; hovering swaps it for the expand icon. */}
+            {role === 'admin'
+              ? <span className="topbar__collapse-mark" aria-hidden="true">C</span>
+              : <img className="topbar__collapse-logo" src="/LOGO.png" alt="" />}
+            <svg className="topbar__collapse-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+            </svg>
+          </button>
+          <div className="crumb">
+            <span>Workspace</span>
+            <i>/</i>
+            <b>{activeLabel}</b>
+          </div>
+          <div className="top-actions">
+            <span className="date-pill" title="Today">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {todayLabel}
+            </span>
+            <button type="button" className="top-avatar" onClick={() => navigate('profile')} aria-label="Open profile">
+              {topbarAvatar ? <img src={topbarAvatar} alt="" className="avatar-img" /> : topbarInitials}
+            </button>
+          </div>
+        </header>
         <main className="content-area">
           <div className="page-container">{renderPage()}</div>
         </main>

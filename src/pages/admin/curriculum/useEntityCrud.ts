@@ -93,11 +93,17 @@ export function useEntityCrud<T extends { id: string }>({
   }, [loadFn])
 
   // Entity context for the audit entry: which record, and what it was called.
-  const detailsFor = (item: unknown, entity?: string): ActivityDetails => ({
-    entity,
-    entity_id: (item as { id?: string } | null)?.id,
-    label: labelOf(item),
-  })
+  // A course code rides along when the row carries one — the audit entry then
+  // names the subject too, which is what the faculty history reads.
+  const detailsFor = (item: unknown, entity?: string): ActivityDetails => {
+    const row = item as { course?: string } | null
+    return {
+      entity,
+      entity_id: (item as { id?: string } | null)?.id,
+      label: labelOf(item),
+      ...(row?.course ? { course: row.course } : {}),
+    }
+  }
 
   const handleCreate = async (payload: Partial<T>, action?: string, created?: unknown) => {
     setError('')

@@ -552,7 +552,7 @@ function SecurityPrivacy({ profile, onNavigate }: SecurityPrivacyProps) {
           <div className="modal pp-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Privacy policy">
             <div className="modal__header">
               <h3>Privacy policy — LANTAW</h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>NBSC · Institute of Computer Studies</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>NBSC · Institute of Computer Studies</p>
             </div>
             <div className="modal__body">
               <dl className="pp-policy">

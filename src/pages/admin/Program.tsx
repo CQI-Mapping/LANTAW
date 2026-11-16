@@ -153,8 +153,9 @@ export default function Program({ allowDelete = true }: ProgramProps) {
           </div>
         </div>
         <div className="program-hero__action">
-          <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New">
+          <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New Program">
             <Icon name="plus" size={14} />
+            Add New Program
           </button>
         </div>
       </div>
@@ -167,12 +168,12 @@ export default function Program({ allowDelete = true }: ProgramProps) {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently offered</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from lists</div>
         </div>
       </div>
@@ -270,16 +271,16 @@ export default function Program({ allowDelete = true }: ProgramProps) {
           <div className="program-grid" style={{ marginTop: 14 }}>
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-                <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-                <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-                <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+                <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+                <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+                <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
               </div>
             ))}
           </div>
         ) : visible.length === 0 ? (
           <div className="program-empty" style={{ marginTop: 14 }}>
             <strong>No {archived ? 'archived' : 'active'} programs yet.</strong>
-            <span>{q ? `No results for "${query}"` : archived ? 'Archived programs will appear here.' : 'Click "Add New" to create your first program.'}</span>
+            <span>{q ? `No results for "${query}"` : archived ? 'Archived programs will appear here.' : 'Click "Add New Program" to create your first program.'}</span>
           </div>
         ) : viewMode === 'list' ? (
           <div className="resource-list">

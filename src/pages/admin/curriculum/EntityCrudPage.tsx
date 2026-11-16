@@ -74,6 +74,10 @@ interface EntityCrudPageProps<T extends { id: string }> {
   // Returns the group label (CMO category) used as the subtitle and for the
   // per-group card numbering when `outcomeCard` is enabled.
   groupOf?: (item: T) => string
+  /** 'prototype' renders the list + toolbar in the lantaw-clo prototype's
+   *  design language (toolbar bar, segmented status tabs, tag-chip
+   *  alignments, text actions). Default 'classic' keeps the shared look. */
+  design?: 'classic' | 'prototype'
 }
 
 interface FormState {
@@ -115,6 +119,7 @@ alignments,
   countLabel = 'Linked',
   outcomeCard = false,
   groupOf,
+  design = 'classic',
 }: EntityCrudPageProps<T>) {
   const crud = useEntityCrud<T>({ loadFn: load, createFn: create, updateFn: update, deleteFn: remove, scope })
   const { items, loading, error, message, busy, handleCreate, handleUpdate, handleDelete } = crud
@@ -362,6 +367,51 @@ alignments,
   }
   const meta = heroMeta[title] || { icon: title.slice(0, 2).toUpperCase(), subtitle: `Manage ${title.toLowerCase()} records — add, edit, archive and organize.` }
 
+  // The inline edit form, shared by both list designs (classic cards and
+  // the prototype's flat list) — extracted so the branches never drift.
+  const renderEditCard = () => (
+    <div className="resource-card__edit">
+      <label className="field">
+        <span>{codeLabel}</span>
+        <input className="input input--sm" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })} placeholder={codeLabel} />
+      </label>
+      {showTitle && (
+        <label className="field">
+          <span>{titleLabel}</span>
+          {titleMultiline ? (
+            <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.title} onChange={(e) => { setEditForm({ ...editForm, title: e.target.value }); autoResize(e.target) }} placeholder={titleLabel} />
+          ) : (
+            <input className="input input--sm" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder={titleLabel} />
+          )}
+        </label>
+      )}
+      {(tableAlignments ?? alignments ?? []).map((a) => (
+        <label className="field" key={a.relationField} style={{ marginBottom: 0 }}>
+          <span>{a.label}</span>
+          {alignmentSelect(a, editForm.align[a.relationField] || '', (v) =>
+            setEditForm({ ...editForm, align: { ...editForm.align, [a.relationField]: v } }), isPeoSgDisabled(editForm.align, a))}
+        </label>
+      ))}
+      {stackedAlignments.map((a) => (
+        <label className="field" key={a.relationField} style={{ marginBottom: 0 }}>
+          <span>{a.label}</span>
+          {alignmentSelect(a, editForm.align[a.relationField] || '', (v) =>
+            setEditForm({ ...editForm, align: { ...editForm.align, [a.relationField]: v } }), isPeoSgDisabled(editForm.align, a))}
+        </label>
+      ))}
+      {!alignments && showDescription && (
+        <label className="field">
+          <span>{descriptionLabel}</span>
+          <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder={descriptionLabel} />
+        </label>
+      )}
+      <div className="resource-card__actions">
+        <button className="btn btn--primary btn--sm" onClick={saveEdit} disabled={busy}><Icon name="check" size={13} /> Save</button>
+        <button className="btn btn--ghost btn--sm" onClick={() => setEditingId(null)}>Cancel</button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="programs-page curriculum-view">
       <div className="program-hero">
@@ -382,12 +432,12 @@ alignments,
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently in use</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from selection</div>
         </div>
       </div>
@@ -403,7 +453,7 @@ alignments,
           once rendered it only inside the reader pair and silently dropped
           the add form from every page without one (PEO / SG / CMO). */}
       <div className={formRef ? 'clo-layout__pair' : 'clo-layout__pair clo-layout__pair--solo'}>
-      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid #16a34a' }}>
+      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>New {title}</h3>
         {titleMultiline ? (
           <>
@@ -500,11 +550,86 @@ alignments,
         <div className="program-grid" style={{ marginTop: 8 }}>
           {[0, 1, 2].map((i) => (
             <div key={i} className="program-card--2026" style={{ opacity: 0.6 }}>
-              <div style={{ height: 12, background: '#f1f5f9', borderRadius: 6, width: '40%' }} />
-              <div style={{ height: 16, background: '#f1f5f9', borderRadius: 6 }} />
-              <div style={{ height: 40, background: '#f8fafc', borderRadius: 6 }} />
+              <div style={{ height: 12, background: 'var(--bg-soft)', borderRadius: 6, width: '40%' }} />
+              <div style={{ height: 16, background: 'var(--bg-soft)', borderRadius: 6 }} />
+              <div style={{ height: 40, background: 'var(--bg-soft)', borderRadius: 6 }} />
             </div>
           ))}
+        </div>
+      ) : design === 'prototype' ? (
+        <div className="clo-2026">
+          <div className="clo26-toolbar">
+            <div className="clo26-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20L15.5 15.5" /></svg>
+              <input type="search" placeholder={`Search ${title.toLowerCase()}...`} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={`Search ${title.toLowerCase()}`} />
+            </div>
+            <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
+              <button type="button" role="tab" aria-selected={!archived}
+                className={`clo26-tab ${!archived ? 'active' : ''}`} onClick={() => setArchived(false)}>Active</button>
+              <button type="button" role="tab" aria-selected={archived}
+                className={`clo26-tab ${archived ? 'active' : ''}`} onClick={() => setArchived(true)}>
+                Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
+              </button>
+            </div>
+          </div>
+          <div className="clo26-section-head">
+            <p>
+              Showing {visible.length} of {items.length} {title.toLowerCase()}s
+              {archived ? ' · archived view' : ''}
+            </p>
+          </div>
+          {visible.length === 0 ? (
+            <div className="clo26-empty">
+              {query
+                ? `No results for "${query}"`
+                : archived
+                  ? `No archived ${title.toLowerCase()}s.`
+                  : `No ${title.toLowerCase()}s yet — create your first one above.`}
+            </div>
+          ) : (
+            <div className="clo26-list">
+              {visible.map((item) => (
+                <article key={item.id} className="clo26-course">
+                  {editingId === item.id ? (
+                    <div className="clo26-editrow">{renderEditCard()}</div>
+                  ) : (
+                    <>
+                      <div className="po26-head">
+                        <div className="clo26-code">{outcomeCard ? cardIndex(item) : formatCode(codeOf(item)) || '—'}</div>
+                        <div className="po26-info">
+                          <strong>{titleOf(item) || '—'}</strong>
+                          {groupOf && <small>{groupOf(item)}</small>}
+                          <div className="clo26-pos">
+                            {(tableAlignments ?? alignments ?? []).flatMap((a) =>
+                              alignLabelOf(item, a)
+                                .split(',')
+                                .map((t) => t.trim())
+                                .filter(Boolean)
+                                .map((t) => (
+                                  <span key={a.relationField + t} className="clo26-tag">{t}</span>
+                                )),
+                            )}
+                          </div>
+                        </div>
+                        <div className="clo26-meta">
+                          <span className="clo26-status">{isActive(item) ? 'Active' : 'Archived'}</span>
+                        </div>
+                      </div>
+                      <div className="po26-actions">
+                        <button type="button" onClick={() => startEdit(item)} disabled={busy || !!editingId}>Edit</button>
+                        <button type="button" onClick={() => handleUpdate(item.id, { status: isActive(item) ? 'archived' : 'active' } as unknown as Partial<T>, toggleAction(isActive(item) ? 'archived' : 'active'), item)} disabled={busy || !!editingId}>
+                          {isActive(item) ? 'Archive' : 'Restore'}
+                        </button>
+                        {!isActive(item) && allowDelete && (
+                          <button type="button" className="clo26-danger" onClick={() => handleDelete(item.id, deleteAction, item)} disabled={busy || !!editingId}>Delete</button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="program-panel">
@@ -530,48 +655,7 @@ alignments,
             <div className="resource-list">
               {visible.map((item) => (
                 <div key={item.id} className={`resource-card ${isActive(item) ? '' : 'resource-card--archived'}`}>
-                  {editingId === item.id ? (
-                    <div className="resource-card__edit">
-                      <label className="field">
-                        <span>{codeLabel}</span>
-                        <input className="input input--sm" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: e.target.value })} placeholder={codeLabel} />
-                      </label>
-                      {showTitle && (
-                        <label className="field">
-                          <span>{titleLabel}</span>
-                          {titleMultiline ? (
-                            <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.title} onChange={(e) => { setEditForm({ ...editForm, title: e.target.value }); autoResize(e.target) }} placeholder={titleLabel} />
-                          ) : (
-                            <input className="input input--sm" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder={titleLabel} />
-                          )}
-                        </label>
-                      )}
-                      {(tableAlignments ?? alignments ?? []).map((a) => (
-                        <label className="field" key={a.relationField} style={{ marginBottom: 0 }}>
-                          <span>{a.label}</span>
-                          {alignmentSelect(a, editForm.align[a.relationField] || '', (v) =>
-                            setEditForm({ ...editForm, align: { ...editForm.align, [a.relationField]: v } }), isPeoSgDisabled(editForm.align, a))}
-                        </label>
-                      ))}
-                      {stackedAlignments.map((a) => (
-                        <label className="field" key={a.relationField} style={{ marginBottom: 0 }}>
-                          <span>{a.label}</span>
-                          {alignmentSelect(a, editForm.align[a.relationField] || '', (v) =>
-                            setEditForm({ ...editForm, align: { ...editForm.align, [a.relationField]: v } }), isPeoSgDisabled(editForm.align, a))}
-                        </label>
-                      ))}
-                      {!alignments && showDescription && (
-                        <label className="field">
-                          <span>{descriptionLabel}</span>
-                          <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder={descriptionLabel} />
-                        </label>
-                      )}
-                      <div className="resource-card__actions">
-                        <button className="btn btn--primary btn--sm" onClick={saveEdit} disabled={busy}><Icon name="check" size={13} /> Save</button>
-                        <button className="btn btn--ghost btn--sm" onClick={() => setEditingId(null)}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
+                  {editingId === item.id ? renderEditCard() : (
                     <>
                       <div className="resource-card__body">
                         {outcomeCard ? (
@@ -598,7 +682,7 @@ alignments,
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
                                 {(tableAlignments ?? alignments ?? []).map((a) => (
                                   <div key={a.relationField} style={{ fontSize: 12.5, color: '#475569' }}>
-                                    <strong style={{ color: '#64748b' }}>{a.label}:</strong>{' '}{alignLabelOf(item, a)}
+                                    <strong style={{ color: 'var(--text-muted)' }}>{a.label}:</strong>{' '}{alignLabelOf(item, a)}
                                   </div>
                                 ))}
                               </div>
@@ -606,7 +690,7 @@ alignments,
                             {!alignments && showDescription && descOf(item) && <p>{descOf(item)}</p>}
                           </>
                         )}
-                        {counts && <div style={{ fontSize: 12, color: '#64748b' }}>{countLabel}: <strong style={{ color: '#0f172a' }}>{counts[item.id] ?? 0}</strong></div>}
+                        {counts && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{countLabel}: <strong style={{ color: 'var(--text)' }}>{counts[item.id] ?? 0}</strong></div>}
                         <div className="resource-card__meta" style={{ marginTop: 6 }}>
                           <span className={`status-badge status-badge--${isActive(item) ? 'active' : 'archived'}`}>{isActive(item) ? 'Active' : 'Archived'}</span>
                         </div>
@@ -682,14 +766,14 @@ alignments,
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {(tableAlignments ?? alignments ?? []).map((a) => (
                             <div key={a.relationField} style={{ fontSize: 12.5, color: '#475569', display: 'flex', gap: 6 }}>
-                              <span style={{ fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>{a.label}:</span>
-                              <span style={{ color: '#0f172a' }}>{alignLabelOf(item, a)}</span>
+                              <span style={{ fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.label}:</span>
+                              <span style={{ color: 'var(--text)' }}>{alignLabelOf(item, a)}</span>
                             </div>
                           ))}
                         </div>
                       )}
                       {!alignments && showDescription && <p className="program-card__desc">{descOf(item) || '—'}</p>}
-                      {counts && <div style={{ fontSize: 12, color: '#64748b' }}>{countLabel}: <strong style={{ color: '#0f172a' }}>{counts[item.id] ?? 0}</strong></div>}
+                      {counts && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{countLabel}: <strong style={{ color: 'var(--text)' }}>{counts[item.id] ?? 0}</strong></div>}
                       <div className="program-card__actions">
                         <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} disabled={busy || !!editingId} title="Edit"><Icon name="edit" size={13} /></button>
                         <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleUpdate(item.id, { status: isActive(item) ? 'archived' : 'active' } as unknown as Partial<T>, toggleAction(isActive(item) ? 'archived' : 'active'), item)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>
