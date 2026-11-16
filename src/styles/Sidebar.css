@@ -531,6 +531,10 @@
   color: #fff;
 }
 
+.app-layout--rail-dark .brand-text b {
+  color: #fff;
+}
+
 .app-layout--rail-dark .brand-collapse {
   color: #b6bab7;
 }
@@ -1197,6 +1201,10 @@
 
 .app-layout--topbar-dark .topnav .brand-text b {
   color: #fff;
+}
+
+.app-layout--topbar-dark .topnav .brand-text small {
+  color: #8f948f;
 }
 
 .app-layout--topbar-dark .topnav__item {
