@@ -742,30 +742,30 @@ export default function Grasps() {
           describes: the editor is the thing you came here to use, and the list
           is a record of what you have used. */}
       <div className="panel table-wrap tos-library no-print">
-        <div className="program-toolbar">
-          <div className="sd-tabs" style={{ marginBottom: 0, flex: 1, flexWrap: 'wrap' }}>
+        <div className="clo26-toolbar">
+          <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
             <button
               type="button"
-              className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`}
+              className={`clo26-tab ${!archived ? 'active' : ''}`}
               onClick={() => setArchived(false)}
             >
               Active
             </button>
             <button
               type="button"
-              className={`sd-tab ${archived ? 'sd-tab--active' : ''}`}
+              className={`clo26-tab ${archived ? 'active' : ''}`}
               onClick={() => setArchived(true)}
             >
-              Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
+              Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
             </button>
           </div>
         </div>
 
-        <div className="resource-list">
+        <div className="clo26-list">
           {visibleRows.length === 0 && (
-            <div className="program-empty" style={{ marginTop: 14 }}>
-              <strong>{archived ? 'No archived tasks yet.' : 'No saved GRASPS tasks yet.'}</strong>
-              <span>
+            <div className="clo26-empty">
+              {archived ? 'No archived tasks yet.' : 'No saved GRASPS tasks yet.'}
+              <span style={{ display: 'block', marginTop: 4 }}>
                 {archived
                   ? 'Archived tasks stay here — nothing is deleted.'
                   : 'Fill in the task above and press Save.'}
@@ -774,64 +774,42 @@ export default function Grasps() {
           )}
 
           {visibleRows.map((row) => (
-            <div
+            <article
               key={row.id}
-              className={`resource-card ${row.status === 'archived' ? 'resource-card--archived' : ''}`}
+              className={`clo26-course ${row.status === 'archived' ? 'clo26-course--archived' : ''}`}
             >
-              <div className="resource-card__body">
-                {/* Mirrors the task's own header lines — "Course Title: …" then
-                    the term — so a card identifies a task the same way the
-                    document and its exported Word file do. */}
-                <h4>
-                  <span className="tos-card__label">Course Title:</span>{' '}
-                  {row.title || 'No course title yet'}
-                </h4>
-                <p>
-                  {row.semester || row.school_year
-                    ? composeTerm(row.semester ?? '', row.school_year ?? '')
-                    : row.term || 'No semester set'}
-                </p>
-                {/* The document's own title line, so the card, the editor and
-                    the exported file all name the task the same way. */}
-                <p className="tos-card__doctitle">{docTitle(row.task_type)}</p>
-                <div className="resource-card__meta">
-                  <span className={`status-badge status-badge--${row.status}`}>{row.status}</span>
-                  {row.code && <span>{row.code}</span>}
-                  {/* The six-component frame, counted honestly: an incomplete
-                      task says so instead of looking finished. */}
-                  <span>
-                    {filledCount(row)} of {PART_KEYS.length} components written
+              <div className="po26-head">
+                <div className="clo26-code">{row.code || 'GRASPS'}</div>
+                <div className="po26-info">
+                  <strong>{row.title || 'No course title yet'}</strong>
+                  <small>
+                    {row.semester || row.school_year
+                      ? composeTerm(row.semester ?? '', row.school_year ?? '')
+                      : row.term || 'No semester set'}
+                  </small>
+                  <small className="tos-card__doctitle">{docTitle(row.task_type)}</small>
+                </div>
+                <div className="clo26-meta">
+                  <span className="clo26-count">
+                    {filledCount(row)} of {PART_KEYS.length} written
                   </span>
-                  <span>{new Date(row.updated_at).toLocaleString()}</span>
+                  <span className={`clo26-status${row.status === 'archived' ? ' clo26-status--archived' : ''}`}>{row.status === 'archived' ? 'Archived' : 'Active'}</span>
                 </div>
               </div>
-              <div className="resource-card__actions">
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => editRow(row)}
-                  aria-label={`Edit ${row.code || row.title || 'task'}`}
-                  title="Edit — loads this task into the editor above"
-                >
-                  <Icon name="edit" size={13} />
+              <div className="po26-actions">
+                <button type="button" onClick={() => editRow(row)}
+                  aria-label={`Edit ${row.code || row.title || 'task'}`}>
+                  Edit
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => void exportRow(row)}
-                  aria-label={`Download ${row.code || row.title || 'task'} as Word`}
-                  title="Download as Word"
-                >
-                  <Icon name="download" size={13} />
+                <button type="button" onClick={() => void exportRow(row)}
+                  aria-label={`Download ${row.code || row.title || 'task'} as Word`}>
+                  Download
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => void setRowStatus(row.id, row.status === 'archived' ? 'active' : 'archived')}
-                >
+                <button type="button" onClick={() => void setRowStatus(row.id, row.status === 'archived' ? 'active' : 'archived')}>
                   {row.status === 'archived' ? 'Restore' : 'Archive'}
                 </button>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>
