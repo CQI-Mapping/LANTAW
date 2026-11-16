@@ -724,7 +724,7 @@ function App() {
   const topbarAvatar = profile?.avatar_url ?? emailAvatar
 
   return (
-    <div className={`app-layout ${sidebarMini && navLayout === 'left' ? 'app-layout--mini' : ''} ${navLayout === 'top' ? 'app-layout--topnav' : ''} ${railDark && navLayout === 'left' ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
+    <div className={`app-layout ${sidebarMini && navLayout === 'left' ? 'app-layout--mini' : ''} ${navLayout === 'top' ? 'app-layout--topnav' : ''} ${navbarsDark ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
