@@ -81,14 +81,6 @@
   color: var(--text);
 }
 
-.brand-text small {
-  display: block;
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: #829087;
-  margin-top: 3px;
-}
-
 /* The collapse toggle rides in the rail's own header row (ChatGPT-style):
    brand text left, panel icon right. The topbar keeps a twin for the
    collapsed state, where this rail is off-screen. */
@@ -537,10 +529,6 @@
 
 .app-layout--rail-dark .brand-text b {
   color: #fff;
-}
-
-.app-layout--rail-dark .brand-text small {
-  color: #8f948f;
 }
 
 .app-layout--rail-dark .brand-collapse {
@@ -1209,10 +1197,6 @@
 
 .app-layout--topbar-dark .topnav .brand-text b {
   color: #fff;
-}
-
-.app-layout--topbar-dark .topnav .brand-text small {
-  color: #8f948f;
 }
 
 .app-layout--topbar-dark .topnav__item {

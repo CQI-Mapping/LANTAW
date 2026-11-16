@@ -416,7 +416,6 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
           )}
           <div className="brand-text">
             <b>LANTAW</b>
-            <small>CQI MONITORING SYSTEM</small>
           </div>
           {/* ChatGPT-style: the collapse toggle lives in the rail's own header
               row. The topbar keeps a twin for the collapsed state, where this
