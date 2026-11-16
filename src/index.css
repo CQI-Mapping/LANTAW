@@ -9278,18 +9278,18 @@ button.reports-panel__more:hover {
    ====================================================================== */
 
 html.lantaw-dark {
-  --bg-app: #0f1310;
-  --bg-panel: #171c18;
-  --bg-soft: #1d231f;
-  --border: #2a332d;
-  --border-strong: #3a453d;
-  --text: #e6ebe7;
-  --text-muted: #9aa39c;
+  --bg-app: #0d0d0d;
+  --bg-panel: #161616;
+  --bg-soft: #1c1c1c;
+  --border: #262626;
+  --border-strong: #333333;
+  --text: #ececec;
+  --text-muted: #a3a3a3;
   --primary: #2e7a4f;
   --primary-dark: #266543;
   --primary-light: #4b9c6d;
-  --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 html.lantaw-dark ::selection {
@@ -9297,31 +9297,31 @@ html.lantaw-dark ::selection {
 }
 
 html.lantaw-dark code {
-  background: #20281f;
+  background: #1c1c1c;
 }
 
 /* ---- Messages ---- */
 html.lantaw-dark .msg--error {
-  background: #2a1b1b;
-  border-color: #4a2626;
+  background: #161616;
+  border-color: #3a2626;
   border-left-color: #d96a60;
   color: #f0a8a0;
 }
 
 html.lantaw-dark .msg--error::before {
-  background: #4a2626;
+  background: #3a2626;
   color: #f0a8a0;
 }
 
 html.lantaw-dark .msg--success {
-  background: #14241a;
-  border-color: #274a34;
+  background: #161616;
+  border-color: #26392e;
   border-left-color: #4b9c6d;
   color: #9fd0ae;
 }
 
 html.lantaw-dark .msg--success::before {
-  background: #274a34;
+  background: #26392e;
   color: #9fd0ae;
 }
 
@@ -9350,8 +9350,8 @@ html.lantaw-dark .sd-tab--active .sd-tab__count {
 
 /* ---- Notice, footer, dashboard cards with literal whites ---- */
 html.lantaw-dark .notice {
-  background: #16221b;
-  border-color: #274a34;
+  background: #161616;
+  border-color: #26392e;
   color: #9fd0ae;
 }
 
@@ -9384,7 +9384,7 @@ html.lantaw-dark .pocov__popover {
 }
 
 html.lantaw-dark .outcome-details__item--unresolved {
-  background: #20281f;
+  background: #1c1c1c;
 }
 
 /* The fullscreen map canvas picks up the page ground while the drawing's

@@ -584,7 +584,7 @@
 }
 
 .mode-swatch__preview--dark {
-  background: #141715;
+  background: #0d0d0d;
   border-color: rgba(255, 255, 255, 0.14);
 }
 
@@ -617,8 +617,8 @@
    re-ink the rail only — the workspace beside it stays light. */
 
 .app-layout--rail-dark .sidebar {
-  background: #141715;
-  border-right-color: rgba(255, 255, 255, 0.06);
+  background: #0d0d0d;
+  border-right-color: rgba(255, 255, 255, 0.05);
   color: #ececec;
   scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
 }
@@ -684,7 +684,7 @@
 }
 
 .app-layout--rail-dark .profile-menu {
-  background: #1d201e;
+  background: #161616;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.25);
 }
@@ -964,8 +964,8 @@
    this class when the Navbar pick resolves dark, or when the full color
    mode is dark. */
 .app-layout--topbar-dark .topbar {
-  background: rgba(16, 19, 17, 0.96);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: rgba(13, 13, 13, 0.96);
+  border-bottom-color: rgba(255, 255, 255, 0.05);
 }
 
 .app-layout--topbar-dark .crumb {
@@ -1042,7 +1042,7 @@
 }
 
 .app-layout--rail-dark .position-pill {
-  background: #1d201e;
+  background: #161616;
   border-color: rgba(255, 255, 255, 0.08);
   color: #c9cdc9;
 }
@@ -1174,7 +1174,7 @@
 }
 
 .app-layout--topbar-dark .topnav {
-  background: #141715;
+  background: #0d0d0d;
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
