@@ -899,6 +899,13 @@
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 
+/* Top-bar layout: there is no left rail, so the fullscreen Subject Graph
+   spans the whole width (the top bar stays above it, z-1100 over its
+   z-1000). */
+.app-layout--topnav .subject-view__right--fullscreen {
+  inset: 0;
+}
+
 /* Top-bar layout: App's own topbar would duplicate the bar — hidden, and
    the workspace takes the full width. */
 .app-layout--topnav .topbar {
