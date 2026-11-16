@@ -11,8 +11,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
-import { useViewMode } from '../../hooks/useViewMode'
-import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
 import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import { normalizeCode } from '../../utils/courseCodes'
@@ -217,8 +215,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
   // Multi-pick: subjects checked in the assign list, waiting for one Assign
   // press that files them all as a single write.
   const [picks, setPicks] = useState<string[]>([])
-  // List (default) or grid card style — the user decides per browser.
-  const [viewMode, setViewMode] = useViewMode('cqi.viewMode.course')
+  // The course accordion open in the list ('' = all collapsed).
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // The term selects only render when the database actually carries the
   // courses.year_level / courses.semester columns — the same probe the
   // Curriculum Mapping Summary uses before it shows its edit controls. A
@@ -949,19 +947,20 @@ export default function ManagerCourse({ profile }: CourseProps) {
             </div>
           </form>
 
-          <div className="program-panel">
-            <div className="program-toolbar">
-              <div className="sd-tabs" style={{ marginBottom: 0, flex: 1 }}>
-                <button className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(false)}>Active</button>
-                <button className={`sd-tab ${archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(true)}>
-                  Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
+          <div className="clo-2026">
+            <div className="clo26-toolbar">
+              <div className="clo26-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="M20 20L15.5 15.5" /></svg>
+                <input type="search" placeholder="Search course code, title, or description..." value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search courses" />
+              </div>
+              <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
+                <button type="button" role="tab" aria-selected={!archived}
+                  className={`clo26-tab ${!archived ? 'active' : ''}`} onClick={() => setArchived(false)}>Active</button>
+                <button type="button" role="tab" aria-selected={archived}
+                  className={`clo26-tab ${archived ? 'active' : ''}`} onClick={() => setArchived(true)}>
+                  Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
                 </button>
               </div>
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <label className="program-search" aria-label="Search courses">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M20 20L15.5 15.5"/></svg>
-                <input className="input input--sm" type="search" placeholder="Search courses..." value={query} onChange={(e) => setQuery(e.target.value)} />
-              </label>
             </div>
             {/* Faculty assignment navbar: a second tab row, one pill per
                 faculty member with their active-subject count. Picking a pill
@@ -1007,131 +1006,98 @@ export default function ManagerCourse({ profile }: CourseProps) {
               />
             )}
             {visible.length === 0 ? (
-              <div className="program-empty" style={{ marginTop: 14 }}>
-                <strong>{facultyFilter
+              <div className="clo26-empty" style={{ marginTop: 14 }}>
+                {facultyFilter
                   ? `${facultyNameOf(facultyFilter) || 'This faculty member'} has no ${archived ? 'archived' : 'active'} subjects here yet.`
-                  : `No ${archived ? 'archived' : 'active'} courses yet.`}</strong>
-                <span>{query
+                  : `No ${archived ? 'archived' : 'active'} courses yet.`}
+                <span style={{ display: 'block', marginTop: 4 }}>{query
                   ? `No results for "${query}"`
                   : facultyFilter
-                    ? 'Use the assign bar above to hand out subjects.'
+                    ? 'Use the assign panel above to hand out subjects.'
                     : `Add your first course for ${programs.find(p => p.id === programId)?.code || 'this program'}.`}</span>
               </div>
-            ) : viewMode === 'list' ? (
-              <div className="resource-list">
-                {visible.map((c) => (
-                  <div key={c.id} className={`resource-card ${isActive(c) ? '' : 'resource-card--archived'}`}
-                    // Marks the card whose inline editor is open, so the
-                    // click-outside handler above knows what counts as "the
-                    // course" (presses inside the edit never auto-close it).
-                    data-course-edit={editId === c.id ? 'open' : undefined}
-                    onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
-                    title={editId === c.id ? undefined : 'Double-click to edit'}>
-                    {editId === c.id ? renderCourseEdit() : (
-                      <>
-                        <div className="resource-card__body">
-                          <h4>{c.code} — {c.title}</h4>
-                          {c.description && <p>{c.description}</p>}
-                          <div className="resource-card__meta">
-                            <span className={`status-badge status-badge--${isActive(c) ? 'active' : 'archived'}`}>{isActive(c) ? 'Active' : 'Archived'}</span>
-                            <span>{curriculumLabel(c.curriculum_id)}</span>
-                            {termLabelOf(c) && <span title="Term placement — which column the subject stands in on the OBE Curriculum Map">{termLabelOf(c)}</span>}
-                            <span>{c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab</span>
-                            {instructorLabelOf(c.instructor_id) && (
-                              <span title="Faculty member assigned to teach this subject">
-                                Instructor: {instructorLabelOf(c.instructor_id)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="resource-card__actions">
-                          <button className="btn btn--ghost btn--sm" onClick={() => startEdit(c)} disabled={busy} aria-label={`Edit ${c.code}`} title="Edit"><Icon name="edit" size={13} /></button>
-                          {facultyFilter && (
-                            <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
-                              aria-label={`Remove ${c.code} from ${facultyNameOf(facultyFilter)}`}
-                              title={`Remove from ${facultyNameOf(facultyFilter)}`}>
-                              <Icon name="x" size={13} />
-                            </button>
-                          )}
-                          <button className={`btn btn--sm ${isActive(c) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(c)} disabled={busy || !!editId} aria-label={isActive(c) ? `Archive ${c.code}` : `Restore ${c.code}`} title={isActive(c) ? 'Archive' : 'Restore'}>
-                            <Icon name={isActive(c) ? 'archive' : 'restore'} size={13} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
             ) : (
-              <div className="program-grid" style={{ marginTop: 14 }}>
-                {visible.map((c) => (
-                  <div key={c.id} className="program-card--2026 card-enter" data-status={isActive(c) ? 'active' : 'archived'}
-                    // Same click-outside marker as the list view above: the
-                    // open editor's own card never closes itself, everything
-                    // else on the page dismisses it.
-                    data-course-edit={editId === c.id ? 'open' : undefined}
-                    onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
-                    title={editId === c.id ? undefined : 'Double-click to edit'}>
-                    {editId === c.id ? renderCourseEdit() : (
-                      <>
-                        <div className="program-card__top">
-                          <span className="program-card__code">{c.code}</span>
-                          <span className={`program-card__status ${isActive(c) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
-                            <span className="program-card__status-dot" />{isActive(c) ? 'Active' : 'Archived'}
-                          </span>
+              <div className="clo26-list">
+                {visible.map((c) => {
+                  const open = expandedCourse === c.id || editId === c.id
+                  return (
+                    <article key={c.id} className={`clo26-course ${open ? 'open' : ''}`}
+                      // Marks the card whose inline editor is open, so the
+                      // click-outside handler knows what counts as "the
+                      // course" (presses inside the edit never auto-close it).
+                      data-course-edit={editId === c.id ? 'open' : undefined}
+                      onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
+                      title={editId === c.id ? undefined : 'Double-click to edit'}>
+                      <button type="button" className="clo26-course-head"
+                        onClick={() => { if (editId === c.id) return; setExpandedCourse(open && editId !== c.id ? null : c.id) }}
+                        aria-expanded={open}>
+                        <div className="clo26-code">{c.code}</div>
+                        <div className="clo26-info">
+                          <strong>{c.title}</strong>
+                          <small>
+                            {curriculumLabel(c.curriculum_id)}
+                            {termLabelOf(c) ? ` · ${termLabelOf(c)}` : ''}
+                          </small>
                         </div>
-                        <h3 className="program-card__name">{c.title}</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Curriculum:</span><span style={{ color: 'var(--text)' }}>{curriculumLabel(c.curriculum_id)}</span></div>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Term:</span><span style={{ color: 'var(--text)' }}>{termLabelOf(c) || 'Not placed'}</span></div>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Instructor:</span>
-                            <span style={instructorLabelOf(c.instructor_id) ? { color: 'var(--text)' } : { color: '#94a3b8', fontStyle: 'italic' }}>
-                              {instructorLabelOf(c.instructor_id) || 'Unassigned'}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <div style={{ color: '#475569' }}>
-                              <strong style={{ color: 'var(--text-muted)' }}>Pre-req:</strong>
-                              {listTokens(c.prerequisite).length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  {listTokens(c.prerequisite).map((p, i) => (
-                                    <span key={i}>{p}</span>
-                                  ))}
-                                </div>
-                              ) : <span> N/A</span>}
-                            </div>
-                            <div style={{ color: '#475569' }}>
-                              <strong style={{ color: 'var(--text-muted)' }}>Co-req:</strong>
-                              {listTokens(c.corequisite).length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  {listTokens(c.corequisite).map((p, i) => (
-                                    <span key={i}>{p}</span>
-                                  ))}
-                                </div>
-                              ) : <span> N/A</span>}
-                            </div>
-                          </div>
-                          <div style={{ color: '#475569' }}><strong style={{ color: 'var(--text-muted)' }}>Credits:</strong> {c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</div>
+                        <div className="clo26-meta">
+                          <span className="clo26-count">{c.units ?? 0} units</span>
+                          <span className="clo26-status">{isActive(c) ? 'Active' : 'Archived'}</span>
+                          <span className="clo26-chevron" aria-hidden="true">›</span>
                         </div>
-                        <p className="program-card__desc">{c.description || 'No description.'}</p>
-                        <div className="program-card__actions">
-                          <button className="btn btn--ghost btn--sm" onClick={() => startEdit(c)} disabled={busy} aria-label={`Edit ${c.code}`} title="Edit"><Icon name="edit" size={13} /></button>
-                          {facultyFilter && (
-                            <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
-                              aria-label={`Remove ${c.code} from ${facultyNameOf(facultyFilter)}`}
-                              title={`Remove from ${facultyNameOf(facultyFilter)}`}>
-                              <Icon name="x" size={13} />
-                            </button>
+                      </button>
+                      {(open || editId === c.id) && (
+                        <div className="clo26-body">
+                          {editId === c.id ? (
+                            <div className="clo26-editrow">{renderCourseEdit()}</div>
+                          ) : (
+                            <>
+                              <div className="clo26-details">
+                                <div>
+                                  <strong>Instructor:</strong>
+                                  <span style={instructorLabelOf(c.instructor_id) ? undefined : { color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    {instructorLabelOf(c.instructor_id) || 'Unassigned'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <strong>Pre-req:</strong>
+                                  <span className="clo26-pos">
+                                    {listTokens(c.prerequisite).length > 0
+                                      ? listTokens(c.prerequisite).map((p) => <span key={p} className="clo26-tag">{p}</span>)
+                                      : <span>N/A</span>}
+                                  </span>
+                                </div>
+                                <div>
+                                  <strong>Co-req:</strong>
+                                  <span className="clo26-pos">
+                                    {listTokens(c.corequisite).length > 0
+                                      ? listTokens(c.corequisite).map((p) => <span key={p} className="clo26-tag">{p}</span>)
+                                      : <span>N/A</span>}
+                                  </span>
+                                </div>
+                                <div>
+                                  <strong>Credits:</strong>
+                                  <span>{c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</span>
+                                </div>
+                                {c.description && <p style={{ margin: 0 }}>{c.description}</p>}
+                              </div>
+                              <div className="po26-actions">
+                                <button type="button" onClick={() => startEdit(c)} disabled={busy}>Edit</button>
+                                {facultyFilter && (
+                                  <button type="button" onClick={() => handleUnassign(c)} disabled={busy}>
+                                    Remove from {facultyNameOf(facultyFilter) || 'faculty'}
+                                  </button>
+                                )}
+                                <button type="button" onClick={() => handleToggleStatus(c)} disabled={busy || !!editId}>
+                                  {isActive(c) ? 'Archive' : 'Restore'}
+                                </button>
+                              </div>
+                            </>
                           )}
-                          <button className={`btn btn--sm ${isActive(c) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleToggleStatus(c)} disabled={busy || !!editId} aria-label={isActive(c) ? `Archive ${c.code}` : `Restore ${c.code}`} title={isActive(c) ? 'Archive' : 'Restore'}>
-                            <Icon name={isActive(c) ? 'archive' : 'restore'} size={13} />
-                          </button>
                         </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </article>
+                  )
+                })}
               </div>
             )}
           </div>

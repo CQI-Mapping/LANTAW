@@ -9772,6 +9772,39 @@ html.lantaw-dark .position-pill.selected {
   border-radius: 9px;
 }
 
+/* The course accordion's expanded details: labels muted, values normal,
+   pre-req/co-req lists rendered as the same tag chips. */
+.clo26-details {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 10px 10px;
+}
+
+.clo26-details > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clo26-details strong {
+  color: var(--text);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.clo26-details .clo26-pos {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.clo26-details p {
+  margin: 0;
+}
+
 .clo26-editrow {
   padding: 6px 10px 14px;
   border-top: 1px solid var(--border);
