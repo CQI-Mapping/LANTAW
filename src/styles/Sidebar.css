@@ -439,17 +439,120 @@
 }
 
 /* The Appearance row's current-value pill (Light / Dark). */
-.profile-menu__value {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 999px;
+/* ---- Appearance: the ChatGPT color-mode picker ----
+   Three preview swatches — System (half light, half dark), Light, Dark —
+   each a miniature of the rail, with the picked one ringed. */
+
+.profile-menu__section {
+  padding: 8px 10px 10px;
+  margin: 0 4px;
+  border-top: 1px solid var(--line);
+}
+
+.profile-menu__section-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0 2px;
+  color: #425148;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-menu__section-hint {
+  margin: 0;
+  font-size: 9.5px;
+  line-height: 1.4;
+  color: #8b968e;
+}
+
+.profile-menu__modes {
+  display: flex;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.mode-swatch {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 4px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s ease;
+}
+
+.mode-swatch:hover {
   background: var(--g50);
-  border: 1px solid var(--border);
-  color: var(--g700);
-  font-size: 10px;
+}
+
+.mode-swatch__preview {
+  width: 52px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  overflow: hidden;
+  padding: 6px 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.mode-swatch__preview i {
+  display: block;
+  height: 3.5px;
+  border-radius: 3px;
+  background: #347b52;
+}
+
+.mode-swatch__preview i:nth-child(1) { width: 72%; }
+.mode-swatch__preview i:nth-child(2) { width: 88%; }
+.mode-swatch__preview i:nth-child(3) { width: 55%; }
+
+.mode-swatch__preview--system {
+  /* The split card: light half, dark half — following the OS. */
+  background: linear-gradient(90deg, #fff 0 50%, #141715 50% 100%);
+}
+
+.mode-swatch__preview--system i {
+  background: linear-gradient(90deg, #347b52 0 50%, #8f948f 50% 100%);
+}
+
+.mode-swatch__preview--dark {
+  background: #141715;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.mode-swatch__preview--dark i {
+  background: #8f948f;
+}
+
+.mode-swatch__preview--dark i:nth-child(2) {
+  background: #d7e8d9;
+}
+
+.mode-swatch--selected .mode-swatch__preview {
+  border-color: var(--g700);
+  box-shadow: 0 0 0 2px var(--g100);
+}
+
+.mode-swatch__label {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #6b756e;
+}
+
+.mode-swatch--selected .mode-swatch__label {
+  color: var(--g800);
   font-weight: 700;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
 }
 
 /* ---- Rail appearance: ChatGPT-dark ----
@@ -565,10 +668,37 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.app-layout--rail-dark .profile-menu__value {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #c9cdc9;
+.app-layout--rail-dark .profile-menu__section {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.app-layout--rail-dark .profile-menu__section-head {
+  color: #ececec;
+}
+
+.app-layout--rail-dark .profile-menu__section-hint {
+  color: #8f948f;
+}
+
+.app-layout--rail-dark .mode-swatch:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--rail-dark .mode-swatch__preview--dark {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.app-layout--rail-dark .mode-swatch--selected .mode-swatch__preview {
+  border-color: #d7e8d9;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.app-layout--rail-dark .mode-swatch__label {
+  color: #9b9f9b;
+}
+
+.app-layout--rail-dark .mode-swatch--selected .mode-swatch__label {
+  color: #fff;
 }
 
 /* ---- Main shell + topbar (rendered by App.tsx) ---- */

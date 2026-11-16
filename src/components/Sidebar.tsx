@@ -21,9 +21,12 @@ interface SidebarProps {
       toggle brings it back. */
   mini?: boolean
   onToggleMini?: () => void
-  /** The rail's appearance: light by default, ChatGPT-dark when on. */
+  /** The rail's color mode: system (follows the OS), light, or dark. */
+  colorMode?: 'system' | 'light' | 'dark'
+  onColorModeChange?: (mode: 'system' | 'light' | 'dark') => void
+  /** The mode as it resolves right now (system resolved against the OS
+      preference) — drives the section's sun/moon icon. */
   railDark?: boolean
-  onToggleRailDark?: () => void
   profileName?: string | null
   profileEmail?: string | null
   profileAvatar?: string | null
@@ -104,7 +107,7 @@ const ROLE_TITLE: Record<UserRole, string> = {
   user: 'Faculty Member',
 }
 
-function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, railDark = false, onToggleRailDark, profileName, profileEmail, profileAvatar }: SidebarProps) {
+function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, colorMode = 'light', onColorModeChange, railDark = false, profileName, profileEmail, profileAvatar }: SidebarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -301,15 +304,29 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                     <Icon d={ICONS.security} className="profile-menu__ico" />
                     <span>Security &amp; Privacy</span>
                   </button>
-                  {/* Appearance: light rail or the ChatGPT-dark theme. The
-                      row flips it instantly and reads as a checkbox. */}
-                  <button type="button" role="menuitemcheckbox" aria-checked={railDark}
-                    className="profile-menu__item"
-                    onClick={onToggleRailDark}>
-                    <Icon d={railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
-                    <span>Appearance</span>
-                    <span className="profile-menu__value">{railDark ? 'Dark' : 'Light'}</span>
-                  </button>
+                  {/* Appearance: the ChatGPT color-mode picker — System
+                      follows the OS, Light and Dark pin the rail. */}
+                  <div className="profile-menu__section" role="group" aria-label="Appearance">
+                    <div className="profile-menu__section-head">
+                      <Icon d={railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
+                      <span>Appearance</span>
+                    </div>
+                    <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
+                    <div className="profile-menu__modes">
+                      {(['system', 'light', 'dark'] as const).map((mode) => (
+                        <button key={mode} type="button"
+                          className={`mode-swatch ${colorMode === mode ? 'mode-swatch--selected' : ''}`}
+                          onClick={() => onColorModeChange?.(mode)}
+                          aria-pressed={colorMode === mode}
+                          title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light rail' : 'Dark rail'}>
+                          <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
+                            <i /><i /><i />
+                          </span>
+                          <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="profile-menu__sep" role="separator" />
                   <button type="button" role="menuitem" className="profile-menu__item profile-menu__item--danger" onClick={onLogout}>
                     <Icon d={LOGOUT_ICON} className="profile-menu__ico" />

@@ -175,10 +175,11 @@ const LAST_PAGE_KEY = 'cqi.lastPage'
 // keeps working from it across visits.
 const SIDEBAR_MINI_KEY = 'cqi.sidebar.mini'
 
-// The rail's appearance (light or the ChatGPT-dark theme) is an account
-// preference, not a build decision — the Appearance item in the profile
-// menu flips it, and it persists per browser the same way.
+// The rail's color mode: 'system' follows the OS preference (live), the
+// other two pin it. Chosen from the profile menu's Appearance swatches and
+// persisted per browser — the old railDark flag migrates in on first read.
 const SIDEBAR_RAIL_DARK_KEY = 'cqi.sidebar.railDark'
+const SIDEBAR_COLOR_MODE_KEY = 'cqi.sidebar.colorMode'
 
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
@@ -265,26 +266,41 @@ function App() {
     })
   }, [])
 
-  // The rail's light/dark appearance, flipped from the profile menu's
-  // Appearance item and persisted per browser.
-  const [railDark, setRailDark] = useState(() => {
+  // The rail's color mode — System / Light / Dark. System tracks the OS
+  // preference live; a legacy railDark=1 migrates to 'dark' on first read.
+  const [colorMode, setColorModeState] = useState<'system' | 'light' | 'dark'>(() => {
     try {
-      return localStorage.getItem(SIDEBAR_RAIL_DARK_KEY) === '1'
+      const saved = localStorage.getItem(SIDEBAR_COLOR_MODE_KEY)
+      if (saved === 'system' || saved === 'light' || saved === 'dark') return saved
+      return localStorage.getItem(SIDEBAR_RAIL_DARK_KEY) === '1' ? 'dark' : 'light'
+    } catch {
+      return 'light'
+    }
+  })
+  const setColorMode = useCallback((next: 'system' | 'light' | 'dark') => {
+    setColorModeState(next)
+    try {
+      localStorage.setItem(SIDEBAR_COLOR_MODE_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
+
+  // The OS's dark preference, tracked live so a System pick reacts to it.
+  const [systemDark, setSystemDark] = useState(() => {
+    try {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
     } catch {
       return false
     }
   })
-  const toggleRailDark = useCallback(() => {
-    setRailDark((v) => {
-      const next = !v
-      try {
-        localStorage.setItem(SIDEBAR_RAIL_DARK_KEY, next ? '1' : '0')
-      } catch {
-        // Storage unavailable — the pick still applies for this visit.
-      }
-      return next
-    })
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
   }, [])
+  const railDark = colorMode === 'dark' || (colorMode === 'system' && systemDark)
   // Set when the profile fetch fails (e.g. flaky network). The app then shows
   // a retry screen instead of a stale identity or a silent wrong-role fallback.
   const [profileError, setProfileError] = useState('')
@@ -643,8 +659,9 @@ function App() {
         onToggle={() => setSidebarOpen((v) => !v)}
         mini={sidebarMini}
         onToggleMini={toggleSidebarMini}
+        colorMode={colorMode}
+        onColorModeChange={setColorMode}
         railDark={railDark}
-        onToggleRailDark={toggleRailDark}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}
