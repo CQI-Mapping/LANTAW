@@ -10,14 +10,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "@huggingface/transformers": "^4.3.1",
+    "@supabase/supabase-js": "^2.45.4",
     "d3": "^7.9.0",
     "docx": "^9.11.0",
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.3.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
