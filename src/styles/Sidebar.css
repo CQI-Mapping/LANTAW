@@ -438,96 +438,8 @@
   color: var(--danger);
 }
 
-/* The Appearance row's current-value pill (Light / Dark). */
-/* ---- Appearance: the ChatGPT color-mode picker ----
-   The row stays folded until clicked; the picker then unfolds beneath it.
-   Three preview swatches — System (half light, half dark), Light, Dark —
-   each a miniature of the rail, with the picked one ringed. */
-
-.profile-menu__section {
-  padding: 6px 8px 8px;
-  margin: 0 4px;
-  border-top: 1px solid var(--line);
-}
-
-.profile-menu__section-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: #425148;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
-}
-
-.profile-menu__section-toggle:hover {
-  background: var(--g50);
-  color: var(--g800);
-}
-
-.profile-menu__chevron {
-  margin-left: auto;
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  color: #8b968e;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.profile-menu__chevron.open {
-  transform: rotate(90deg);
-}
-
-/* The picker folds by height, mirroring the rail's accordion. */
-.profile-menu__section-body {
-  max-height: 0;
-  overflow: hidden;
-  visibility: hidden;
-  transition:
-    max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s linear 0.24s;
-}
-
-.profile-menu__section-body.open {
-  max-height: 320px;
-  visibility: visible;
-  transition:
-    max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s linear 0s;
-}
-
-.profile-menu__section-hint {
-  margin: 2px 10px 0;
-  font-size: 9.5px;
-  line-height: 1.4;
-  color: #8b968e;
-}
-
-.profile-menu__mode-row + .profile-menu__mode-row {
-  margin-top: 8px;
-}
-
-.profile-menu__mode-label {
-  margin: 8px 10px 0;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  color: #425148;
-}
-
-.profile-menu__modes {
-  display: flex;
-  gap: 8px;
-  margin: 6px 10px 2px;
-}
+/* The look-and-feel swatches (mode-swatch, position-pill) are shared with
+   the Appearance page — their rules live below. */
 
 .mode-swatch {
   flex: 1;
@@ -725,25 +637,13 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.app-layout--rail-dark .profile-menu__section {
-  border-top-color: rgba(255, 255, 255, 0.08);
+.app-layout--rail-dark .profile-menu__item--danger,
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  color: #ff8f86;
 }
 
-.app-layout--rail-dark .profile-menu__section-toggle {
-  color: #c9cdc9;
-}
-
-.app-layout--rail-dark .profile-menu__section-toggle:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-}
-
-.app-layout--rail-dark .profile-menu__chevron {
-  color: #8f948f;
-}
-
-.app-layout--rail-dark .profile-menu__section-hint {
-  color: #8f948f;
+.app-layout--rail-dark .profile-menu__item--danger:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .app-layout--rail-dark .mode-swatch:hover {
@@ -1009,13 +909,7 @@
   margin-left: 0;
 }
 
-/* ---- Position pills (Appearance > Position: Left side / Top bar) ---- */
-
-.profile-menu__positions {
-  display: flex;
-  gap: 8px;
-  margin: 6px 10px 2px;
-}
+/* ---- Position pills (Appearance page: Left side / Top bar) ---- */
 
 .position-pill {
   flex: 1;

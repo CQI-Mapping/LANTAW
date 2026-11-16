@@ -65,6 +65,7 @@ import type { Profile as ProfileType, UserRole, NavItem } from './services/datab
 import type { Session } from '@supabase/supabase-js'
 import { loadEmailAvatar } from './utils/avatar'
 import { CURRENT_SY_START } from './utils/schoolYear'
+import AppearancePage from './pages/shared/Appearance'
 
 const NAV: Record<UserRole, NavItem[]> = {
   admin: [
@@ -81,6 +82,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'activity-logs', label: 'Activity Logs' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
   manager: [
     { id: 'dashboard', label: 'Dashboard' },
@@ -98,6 +100,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'activity-logs', label: 'Activity Logs' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
   user: [
     { id: 'dashboard', label: 'Dashboard' },
@@ -107,6 +110,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'tos', label: 'Generate TOS' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
+    { id: 'appearance', label: 'Appearance' },
   ],
 }
 
@@ -133,6 +137,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     'activity-logs': AdminActivityLogs,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
   manager: {
     dashboard: ManagerDashboard,
@@ -150,6 +155,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     'activity-logs': ManagerActivityLogs,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
   user: {
     dashboard: UserDashboard,
@@ -159,6 +165,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     tos: UserTOS,
     profile: Profile,
     security: SecurityPrivacy,
+    appearance: AppearancePage,
   },
 }
 
@@ -683,6 +690,19 @@ function App() {
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
     // so offering them an Admins filter would only ever yield an empty table.
     if (page === 'activity-logs') return <Page viewerRole={role} />
+    if (page === 'appearance') {
+      return (
+        <AppearancePage
+          colorMode={colorMode}
+          onColorModeChange={setColorMode}
+          navMode={navMode}
+          onNavModeChange={setNavMode}
+          navLayout={navLayout}
+          onNavLayoutChange={setNavLayout}
+          systemDark={systemDark}
+        />
+      )
+    }
     return <Page profile={profile} onNavigate={navigate} />
   }
 
@@ -715,13 +735,8 @@ function App() {
         onToggle={() => setSidebarOpen((v) => !v)}
         mini={sidebarMini && navLayout === 'left'}
         onToggleMini={toggleSidebarMini}
-        navLayout={navLayout}
-        onNavLayoutChange={setNavLayout}
-        colorMode={colorMode}
-        onColorModeChange={setColorMode}
-        navMode={navMode}
-        onNavModeChange={setNavMode}
         railDark={navbarsDark}
+        navLayout={navLayout}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}

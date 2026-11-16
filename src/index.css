@@ -9399,6 +9399,44 @@ html.lantaw-dark .subject-view__graph-controls {
   background: var(--bg-panel);
 }
 
+/* The Appearance page's swatches on dark panels. */
+html.lantaw-dark .mode-swatch:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html.lantaw-dark .mode-swatch__preview--dark {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+html.lantaw-dark .mode-swatch--selected .mode-swatch__preview {
+  border-color: #d7e8d9;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+html.lantaw-dark .mode-swatch__label {
+  color: var(--text-muted);
+}
+
+html.lantaw-dark .mode-swatch--selected .mode-swatch__label {
+  color: #7cc08e;
+}
+
+html.lantaw-dark .position-pill {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+html.lantaw-dark .position-pill:hover {
+  border-color: #4a544d;
+}
+
+html.lantaw-dark .position-pill.selected {
+  border-color: #7cc08e;
+  background: rgba(124, 192, 142, 0.08);
+  color: #9fd0ae;
+}
+
 /* The subject graph's placeholder nodes ride the theme: neutral dark fill,
    soft stroke on the dark canvas. */
 html.lantaw-dark {
@@ -9428,6 +9466,46 @@ html.lantaw-dark .assign-multi__code {
 
 html.lantaw-dark .assign-multi__current {
   color: #d4a24c;
+}
+
+/* ---- Appearance page ---- */
+.app-appear {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+}
+
+.app-appear__desc {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.app-appear__desc strong {
+  color: var(--text);
+}
+
+.app-appear__modes,
+.app-appear__positions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* The page's swatches read larger than the popover's ever did. */
+.app-appear .mode-swatch__preview {
+  width: 64px;
+  height: 46px;
+}
+
+.app-appear .mode-swatch__label {
+  font-size: 10.5px;
+}
+
+.app-appear .position-pill {
+  padding: 9px 16px;
+  font-size: 12px;
 }
 
 /* The TOS workbook mimics the printed sheet: in dark mode its grid stays a
