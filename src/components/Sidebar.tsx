@@ -193,6 +193,21 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
             <b>LANTAW</b>
             <small>CQI MONITORING SYSTEM</small>
           </div>
+          {/* ChatGPT-style: the collapse toggle lives in the rail's own header
+              row. The topbar keeps a twin for the collapsed state, where this
+              rail is off-screen. */}
+          <button
+            type="button"
+            className="brand-collapse"
+            onClick={onToggleMini}
+            aria-label="Minimize sidebar"
+            title="Minimize sidebar"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+            </svg>
+          </button>
         </div>
 
         <nav className="side-nav" aria-label="Main navigation">

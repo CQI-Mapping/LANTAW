@@ -18,22 +18,25 @@
   position: fixed;
   inset: 0 auto 0 0;
   width: 250px;
-  background: #fff;
-  color: var(--text);
-  padding: 22px 16px 14px;
+  /* ChatGPT-vibes dark rail: near-black with a green whisper, white rows,
+     soft hover pills — anchoring the light workspace beside it. */
+  background: #141715;
+  color: #ececec;
+  padding: 18px 12px 12px;
   display: flex;
   flex-direction: column;
   /* Above every page overlay, including the z-1000 fullscreen curriculum
      map — the rail stays visible and clickable over it. Full-screen modals
      (.modal-overlay, z-2000) still dim and cover it. */
   z-index: 1100;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   overflow-y: auto;
   /* The mini transition slides content under the clipping edge — nothing
      may poke out horizontally mid-animation. */
   overflow-x: hidden;
   scrollbar-width: thin;
-  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  transition: width 0.24s cubic-bezier(0.16, 1, 0.3, 1), padding 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .brand {
@@ -41,9 +44,30 @@
   align-items: center;
   gap: 11px;
   min-width: 218px;
-  padding: 0 9px 22px;
+  padding: 2px 6px 20px;
   flex-shrink: 0;
-  transition: padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: padding 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.brand-collapse {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #b6bab7;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.brand-collapse:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
 }
 
 /* The program logo occupies the brand mark slot for program-scoped roles
@@ -78,14 +102,14 @@
   font-family: 'Space Grotesk', 'Inter', sans-serif;
   font-size: 17px;
   letter-spacing: 2px;
-  color: var(--text);
+  color: #fff;
 }
 
 .brand-text small {
   display: block;
   font-size: 8px;
   letter-spacing: 1px;
-  color: #829087;
+  color: #8f948f;
   margin-top: 3px;
 }
 
@@ -93,9 +117,9 @@
 
 .nav-label {
   font-size: 9px;
-  color: #929d95;
+  color: #8f948f;
   letter-spacing: 1.2px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   padding: 17px 11px 7px;
 }
@@ -115,23 +139,23 @@
   text-align: left;
   font-family: inherit;
   font-size: 9px;
-  color: #929d95;
+  color: #8f948f;
   letter-spacing: 1.2px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
   transition: color 0.14s ease;
 }
 
 .nav-group-toggle:hover {
-  color: #5f6d63;
+  color: #b6bab7;
 }
 
 .nav-chevron {
   width: 11px;
   height: 11px;
   flex-shrink: 0;
-  color: #929d95;
+  color: #8f948f;
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -175,7 +199,7 @@
   min-width: 218px;
   padding: 10px 11px;
   border-radius: 7px;
-  color: #5f6d63;
+  color: #b6bab7;
   margin: 2px 0;
   border: 0;
   background: none;
@@ -188,14 +212,14 @@
 }
 
 .nav-item:hover {
-  background: #f4f7f4;
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
 }
 
 .nav-item.active {
-  background: #eaf3ec;
-  color: var(--g800);
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-weight: 600;
 }
 
 .nav-ico {
@@ -230,7 +254,7 @@
 
 .user-mini {
   position: relative;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding: 12px 0 2px;
 }
 
@@ -251,7 +275,7 @@
 
 .user-mini__btn:hover,
 .user-mini__btn.open {
-  background: var(--g50);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .avatar,
@@ -263,7 +287,7 @@
   place-items: center;
   background: #d7e8d9;
   color: var(--g900);
-  font-weight: 700;
+  font-weight: 600;
   font-size: 11px;
   flex-shrink: 0;
   overflow: hidden;
@@ -290,7 +314,7 @@
 .user-mini__text b {
   display: block;
   font-size: 11.5px;
-  color: var(--text);
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -298,7 +322,7 @@
 
 .user-mini__text small {
   display: block;
-  color: #89958d;
+  color: #9b9f9b;
   font-size: 9px;
   margin-top: 3px;
   white-space: nowrap;
@@ -308,23 +332,24 @@
 
 .more-btn {
   margin-left: auto;
-  color: #718078;
+  color: #9b9f9b;
   font-size: 18px;
   letter-spacing: 1px;
   line-height: 1;
 }
 
 /* The profile menu opens UPWARD from the chip — the chip sits at the rail's
-   bottom edge, so a downward menu would fall off the viewport. */
+   bottom edge, so a downward menu would fall off the viewport. It shares the
+   rail's dark theme. */
 .profile-menu {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 0;
   width: 218px;
-  background: #fff;
-  border: 1px solid var(--border);
+  background: #1d201e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(13, 33, 24, 0.14), 0 2px 10px rgba(13, 33, 24, 0.06);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   z-index: 20;
 }
@@ -334,8 +359,8 @@
   align-items: center;
   gap: 10px;
   padding: 14px 14px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--g50);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .profile-menu__id {
@@ -345,7 +370,7 @@
 .profile-menu__id b {
   display: block;
   font-size: 12px;
-  color: var(--text);
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -354,7 +379,7 @@
 .profile-menu__id small {
   display: block;
   font-size: 10px;
-  color: var(--text-muted);
+  color: #9b9f9b;
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -374,7 +399,7 @@
   border: 0;
   border-radius: 8px;
   background: none;
-  color: #425148;
+  color: #c9cdc9;
   font-size: 12px;
   font-family: inherit;
   font-weight: 500;
@@ -385,12 +410,12 @@
 
 .profile-menu__item:hover,
 .profile-menu__item.active {
-  background: var(--g50);
-  color: var(--g800);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
 }
 
 .profile-menu__item.active {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .profile-menu__ico {
@@ -401,17 +426,17 @@
 
 .profile-menu__sep {
   height: 1px;
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.08);
   margin: 5px 4px;
 }
 
 .profile-menu__item--danger {
-  color: var(--danger);
+  color: #ff8f86;
 }
 
 .profile-menu__item--danger:hover {
-  background: #fbeceb;
-  color: var(--danger);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ff8f86;
 }
 
 /* ---- Main shell + topbar (rendered by App.tsx) ---- */
@@ -463,10 +488,12 @@
   background: var(--g50);
 }
 
-/* Desktop's minimize toggle: collapses the rail to an icon column. The
-   hamburger takes over below 960px, where the rail is a drawer. */
+/* Desktop: the rail's own header row carries the collapse toggle
+   (.brand-collapse). The topbar's twin appears only when the rail is
+   collapsed away — the only way back. The hamburger takes over below
+   960px, where the rail is a drawer. */
 .topbar__collapse {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 34px;
@@ -478,6 +505,10 @@
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.14s ease, color 0.14s ease;
+}
+
+.app-layout--mini .topbar__collapse {
+  display: inline-flex;
 }
 
 .topbar__collapse:hover {
@@ -525,7 +556,7 @@
   padding: 8px 11px;
   border-radius: 8px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
@@ -584,11 +615,13 @@
 
 .nav-item:focus-visible,
 .nav-group-toggle:focus-visible,
+.brand-collapse:focus-visible,
 .user-mini__btn:focus-visible,
 .top-avatar:focus-visible,
 .profile-menu__item:focus-visible,
-.topbar__menu:focus-visible {
-  outline: 2px solid var(--g700);
+.topbar__menu:focus-visible,
+.topbar__collapse:focus-visible {
+  outline: 2px solid rgba(236, 244, 238, 0.85);
   outline-offset: 2px;
 }
 
@@ -634,7 +667,8 @@
     display: inline-flex;
   }
 
-  .topbar__collapse {
+  .topbar__collapse,
+  .brand-collapse {
     display: none;
   }
 
