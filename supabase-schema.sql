@@ -656,6 +656,8 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- their own rows (ownership is stamped on insert by the app service),
 -- managers keep read oversight of everything, admins keep full control.
 -- Unowned rows (pre-ownership legacy) are admin/manager-visible only.
+-- Faculty writes are ALSO scoped to the subjects the manager assigned
+-- them (courses.instructor_id) — see 026-faculty-clo-assigned-subjects.sql.
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
@@ -666,12 +668,54 @@ CREATE POLICY "Managers can read every course learning outcome" ON public.admin_
 CREATE POLICY "Faculty see only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR SELECT
     USING (public.current_user_role() = 'user' AND owner_id = auth.uid());
 
-CREATE POLICY "Outcomes are created owned by their creator" ON public.admin_course_learning_outcomes FOR INSERT
-    WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_course_learning_outcomes FOR INSERT
+    WITH CHECK (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND EXISTS (
+                    SELECT 1 FROM public.courses c
+                    WHERE c.instructor_id = auth.uid()
+                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
+                )
+            )
+        )
+    );
 
-CREATE POLICY "Faculty edit only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR UPDATE
-    USING (owner_id = auth.uid())
-    WITH CHECK (owner_id = auth.uid());
+CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_course_learning_outcomes FOR UPDATE
+    USING (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND EXISTS (
+                    SELECT 1 FROM public.courses c
+                    WHERE c.instructor_id = auth.uid()
+                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+                        = upper(regexp_replace(OLD.course, '\s', '', 'g'))
+                )
+            )
+        )
+    )
+    WITH CHECK (
+        owner_id = auth.uid()
+        AND (
+            public.current_user_role() = 'admin'
+            OR (
+                public.current_user_role() = 'user'
+                AND EXISTS (
+                    SELECT 1 FROM public.courses c
+                    WHERE c.instructor_id = auth.uid()
+                      AND upper(regexp_replace(c.code, '\s', '', 'g'))
+                        = upper(regexp_replace(NEW.course, '\s', '', 'g'))
+                )
+            )
+        )
+    );
 
 CREATE POLICY "Faculty delete their own course learning outcomes" ON public.admin_course_learning_outcomes FOR DELETE
     USING (owner_id = auth.uid());
