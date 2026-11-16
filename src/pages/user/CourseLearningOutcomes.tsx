@@ -636,7 +636,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         )}
         <div className="clo-code-input">
           <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
-          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="CLO Code (e.g. 1)" />
+          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
         </div>
       </div>
       <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
@@ -788,7 +788,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           <span>CLO Code</span>
           <div className="clo-code-input">
             <span className={`clo-code-input__prefix${form.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
-            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="e.g. 1" value={form.code}
+            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="1" value={form.code}
               onChange={(e) => setForm({ ...form, code: digitsOnly(e.target.value) })} required />
           </div>
         </label>

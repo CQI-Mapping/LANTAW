@@ -6865,13 +6865,22 @@ button.reports-panel__more:hover {
 
 /* CLO Code entry: the stored code is a bare number, so the "CLO" word is a
    rendered prefix inside the box — a typed "1" reads as "CLO 1" while the
-   value stays numeric. The prefix is a flex sibling (never an absolutely
-   positioned overlay, which used to collapse into a vertical sliver in
-   narrow containers) and its slot stays reserved via visibility when
-   hidden, so digits never jump sideways when it appears. */
+   value stays numeric. The WRAPPER carries the frame (border, radius,
+   focus ring) and the inner input renders bare, so the CLO word sits
+   inside the box with the digits. The flex sibling layout keeps the
+   prefix un-collapsible whatever container it lands in. */
 .clo-code-input {
   display: flex;
   align-items: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clo-code-input:focus-within {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(40, 99, 68, 0.1);
 }
 
 .clo-code-input__prefix {
@@ -6893,8 +6902,20 @@ button.reports-panel__more:hover {
 .clo-code-input__field {
   flex: 1;
   min-width: 0;
-  padding-left: 10px;
+  padding: 7px 10px;
   font-weight: 600;
+  color: var(--text);
+  /* The wrapper owns the frame: the inner field renders bare. */
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.clo-code-input__field:focus {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
 }
 
 .clo-layout__ref-group {
