@@ -9803,6 +9803,66 @@ html.lantaw-dark .clo26-code {
   color: #7cc08e;
 }
 
+/* ---- Program Outcomes (prototype design): flat cards with a number
+   tile, the CMO category as the sub-line, alignment tags, and text
+   actions. ---- */
+.po26-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px 10px;
+}
+
+.po26-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.po26-info strong {
+  display: block;
+  font: 700 13px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--text);
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+
+.po26-info small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.po26-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: flex-end;
+  padding: 0 18px 12px;
+}
+
+.po26-actions button {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: 600 10px 'DM Sans', 'Inter', sans-serif;
+  cursor: pointer;
+  padding: 3px;
+  font-family: inherit;
+}
+
+.po26-actions button:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.po26-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.po26-actions .clo26-danger {
+  color: var(--danger);
+}
+
 /* ======================================================================
    TOP-BAR BANNERS — with Position = Top bar, the pages carry the old
    design's dark artwork banners again (the watercolor strips with white
