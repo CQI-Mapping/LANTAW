@@ -325,7 +325,7 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
               <span>{dashboardItem.label}</span>
             </button>
           )}
-          {academics.length > 0 && (
+          {academics.length > 0 && (role !== 'user' ? (
             <div className="topnav__dd" ref={topAcademicsRef}>
               <button type="button"
                 className={`topnav__item ${topAcademicsOpen ? 'open' : ''}`}
@@ -355,7 +355,20 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                 </div>
               )}
             </div>
-          )}
+          ) : (
+            /* The faculty bar carries only four academic pages — flat pills
+               read faster than a dropdown. */
+            academics.map((item) => (
+              <button key={item.id} type="button"
+                className={`topnav__item ${activePage === item.id ? 'active' : ''}`}
+                onClick={() => navigate(item.id)}
+                aria-current={activePage === item.id ? 'page' : undefined}
+                title={item.label}>
+                <Icon d={ICONS[item.id] || ICONS.dashboard} className="topnav__ico" />
+                <span>{item.label}</span>
+              </button>
+            ))
+          ))}
           {others.map((item) => (
             <button key={item.id} type="button"
               className={`topnav__item ${activePage === item.id ? 'active' : ''}`}
