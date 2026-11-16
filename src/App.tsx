@@ -301,6 +301,14 @@ function App() {
     return () => mq.removeEventListener('change', onChange)
   }, [])
   const railDark = colorMode === 'dark' || (colorMode === 'system' && systemDark)
+
+  // The picked color mode is a FULL system theme: the class lands on <html>
+  // so the token remap (index.css, FULL DARK MODE) re-inks the whole app,
+  // while the layout keeps its rail-specific dark class for the sidebar.
+  useEffect(() => {
+    document.documentElement.classList.toggle('lantaw-dark', railDark)
+    return () => document.documentElement.classList.remove('lantaw-dark')
+  }, [railDark])
   // Set when the profile fetch fails (e.g. flaky network). The app then shows
   // a retry screen instead of a stale identity or a silent wrong-role fallback.
   const [profileError, setProfileError] = useState('')
