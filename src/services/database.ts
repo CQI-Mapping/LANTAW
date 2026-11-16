@@ -635,6 +635,23 @@ export async function assignCourseInstructor(courseId: string, instructorId: str
   return updateCourse(courseId, { instructor_id: instructorId })
 }
 
+/**
+ * Hand many subjects to one faculty member in a single UPDATE (`id in (...)`),
+ * returning the updated rows so the caller can name each in the audit trail.
+ * The manager's multi-pick builds its whole term load as one press — one
+ * round trip instead of one per subject.
+ */
+export async function assignCourseInstructorsBulk(courseIds: string[], instructorId: string | null): Promise<Course[]> {
+  if (courseIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('courses')
+    .update({ instructor_id: instructorId })
+    .in('id', courseIds)
+    .select()
+  if (error) throw error
+  return (data ?? []) as Course[]
+}
+
 export async function createCourse(payload: Partial<Course>): Promise<Course> {
   const { data, error } = await supabase
     .from('courses')

@@ -10,11 +10,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Icon from '../../components/icons'
+import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import {
   fetchPrograms,
   fetchCourses,
   fetchAllProfiles,
   assignCourseInstructor,
+  assignCourseInstructorsBulk,
   addActivityLog,
 } from '../../services/database'
 import type { Program, Course, Profile } from '../../services/database'
@@ -63,7 +65,9 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
   const [faculty, setFaculty] = useState<Profile[]>([])
   const [programId, setProgramId] = useState('')
   const [facultyId, setFacultyId] = useState('')
-  const [assignPick, setAssignPick] = useState('')
+  // Multi-pick: the subjects checked in the assign list, waiting for one
+  // Assign press that files them all at once.
+  const [picks, setPicks] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -122,24 +126,31 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
     return f ? (f.full_name || f.email) : ''
   }
 
+  const togglePick = (id: string) =>
+    setPicks((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
+  const selectAllPicks = () => setPicks(assignable.map((c) => c.id))
+
   const handleAssign = async () => {
-    const course = courses.find((c) => c.id === assignPick)
-    if (!facultyId || !course) return
+    if (!facultyId || picks.length === 0) return
     setError('')
     setMessage('')
     setBusy(true)
     try {
-      await assignCourseInstructor(course.id, facultyId)
-      await addActivityLog('course.instructor_assigned', {
-        entity: 'course',
-        entity_id: course.id,
-        label: `${course.code} → ${nameOf(facultyId) || 'faculty'}`,
-      })
-      setMessage(`Assigned ${course.code} to ${nameOf(facultyId)}.`)
-      setAssignPick('')
+      // One write for the whole pick; the returned rows carry the codes the
+      // audit trail names, one entry per subject.
+      const updated = await assignCourseInstructorsBulk(picks, facultyId)
+      for (const c of updated) {
+        await addActivityLog('course.instructor_assigned', {
+          entity: 'course',
+          entity_id: c.id,
+          label: `${c.code} → ${nameOf(facultyId) || 'faculty'}`,
+        })
+      }
+      setMessage(`Assigned ${updated.length} subject${updated.length === 1 ? '' : 's'} to ${nameOf(facultyId)}.`)
+      setPicks([])
       load()
     } catch (err) {
-      setError('Failed to assign instructor: ' + errMsg(err))
+      setError('Failed to assign subjects: ' + errMsg(err))
     } finally {
       setBusy(false)
     }
@@ -212,7 +223,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
             <label className="field" style={{ margin: 0, minWidth: 240 }}>
               <span>Program</span>
               <select className="input" value={programId}
-                onChange={(e) => { setProgramId(e.target.value); setAssignPick('') }}>
+                onChange={(e) => { setProgramId(e.target.value); setPicks([]) }}>
                 {programs.length === 0 && <option value="">No programs yet</option>}
                 {programs.map((p) => (
                   <option key={p.id} value={p.id}>{p.code ? `${p.code} — ${p.name}` : p.name}</option>
@@ -244,7 +255,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                     return (
                       <button key={f.id} type="button"
                         className={`assign-fac ${facultyId === f.id ? 'assign-fac--active' : ''}`}
-                        onClick={() => { setFacultyId(f.id); setAssignPick(''); setMessage(''); setError('') }}>
+                        onClick={() => { setFacultyId(f.id); setPicks([]); setMessage(''); setError('') }}>
                         <span className="assign-fac__avatar">{initialsOf(f.full_name, f.email)}</span>
                         <span className="assign-fac__body">
                           <span className="assign-fac__name">{displayName(f)}</span>
@@ -311,27 +322,22 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                       ))
                     )}
                   </div>
-                  <div className="program-assign-bar">
-                    <span>Assign a subject to <strong>{displayName(selected)}</strong></span>
-                    <select className="input input--sm" value={assignPick}
-                      onChange={(e) => setAssignPick(e.target.value)}
-                      aria-label={`Subject to assign to ${displayName(selected)}`}>
-                      <option value="">Select a subject…</option>
-                      {assignable.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.code} — {c.title}{instructorLabelOf(c.instructor_id) ? ` (currently ${instructorLabelOf(c.instructor_id)})` : ' (unassigned)'}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="btn btn--primary btn--sm" onClick={handleAssign} disabled={busy || !assignPick}>
-                      {busy ? 'Assigning…' : (<><Icon name="plus" size={13} /> Assign</>)}
-                    </button>
-                  </div>
-                  {assignable.length === 0 && (
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: -8 }}>
-                      Every active subject in this program is already theirs.
-                    </div>
-                  )}
+                  <SubjectMultiAssign
+                    facultyName={displayName(selected)}
+                    options={assignable.map((c) => ({
+                      id: c.id,
+                      code: c.code,
+                      title: c.title,
+                      current: instructorLabelOf(c.instructor_id) || null,
+                    }))}
+                    picks={picks}
+                    onToggle={togglePick}
+                    onSelectAll={selectAllPicks}
+                    onClear={() => setPicks([])}
+                    onAssign={handleAssign}
+                    busy={busy}
+                    emptyHint={`Every active subject in this program is already ${displayName(selected)}'s.`}
+                  />
                 </>
               )}
             </div>

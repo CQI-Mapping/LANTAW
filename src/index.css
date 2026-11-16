@@ -6171,23 +6171,119 @@ button.reports-panel__more:hover {
   padding: 8px 2px;
 }
 
-/* The hand-out bar shown while a faculty member is picked: subject picker +
-   Assign button, so the assignment happens on the list itself. */
-.program-assign-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: -4px 0 14px;
+/* The multi-pick assign panel (SubjectMultiAssign): shown while a faculty
+   member is picked, on both the Assign Faculty module and the Course page.
+   Check rows, then one Assign press files the whole pick. */
+.assign-multi {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  padding: 10px 12px;
+  margin: 0 0 14px;
 }
 
-.program-assign-bar > span {
+.assign-multi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 13px;
   color: #334155;
 }
 
-.program-assign-bar select {
-  min-width: 280px;
+.assign-multi__tools {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.assign-multi__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.assign-multi__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.assign-multi__item:hover {
+  background: #f0fdf4;
+}
+
+.assign-multi__item--checked {
+  background: #f0fdf4;
+}
+
+.assign-multi__item input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* The .cb-box checked state is painted through sibling selectors that the
+   N/A checkbox (.na-check) owns — same two rules, re-homed on this row. */
+.assign-multi__item input:checked + .cb-box {
+  background: var(--primary, #16a34a);
+  border-color: var(--primary, #16a34a);
+}
+
+.assign-multi__item input:checked + .cb-box::after {
+  content: '\2713';
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.assign-multi__code {
+  font-weight: 700;
+  color: #166534;
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+
+.assign-multi__title {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assign-multi__current {
+  font-size: 12px;
+  color: #b45309;
+  flex-shrink: 0;
+}
+
+.assign-multi__empty {
+  margin: 8px 0 2px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.assign-multi__foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 /* Assign Faculty module (manager sidebar: between Course and Generate Map).

@@ -11,6 +11,7 @@ import { useDraft } from '../../hooks/useDraft'
 import { useViewMode } from '../../hooks/useViewMode'
 import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
+import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import { normalizeCode } from '../../utils/courseCodes'
 import {
   fetchPrograms,
@@ -20,6 +21,7 @@ import {
   createCourse,
   updateCourse,
   assignCourseInstructor,
+  assignCourseInstructorsBulk,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
@@ -211,8 +213,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
   // Faculty assignment navbar: '' shows every subject; a profile id filters
   // the cards to that faculty member's subjects and opens the assign bar.
   const [facultyFilter, setFacultyFilter] = useState('')
-  // The subject picked in the assign bar, waiting for the Assign press.
-  const [assignPick, setAssignPick] = useState('')
+  // Multi-pick: subjects checked in the assign list, waiting for one Assign
+  // press that files them all as a single write.
+  const [picks, setPicks] = useState<string[]>([])
   // List (default) or grid card style — the user decides per browser.
   const [viewMode, setViewMode] = useViewMode('cqi.viewMode.course')
   // The term selects only render when the database actually carries the
@@ -550,29 +553,31 @@ export default function ManagerCourse({ profile }: CourseProps) {
     }
   }
 
-  // Navbar quick actions: hand the picked faculty member another subject, or
-  // take one away. Both write straight through assignCourseInstructor — no
-  // form detour — and the log entry matches the edit form's wording, so the
-  // audit trail never splits its voice.
+  // Navbar quick actions: hand the picked faculty member more subjects in one
+  // press, or take one away. The pick travels as a single bulk write and the
+  // log entry matches the edit form's wording, so the audit trail never
+  // splits its voice.
+  const togglePick = (id: string) =>
+    setPicks((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
   const handleQuickAssign = async () => {
-    if (!facultyFilter || !assignPick) return
-    const course = courses.find((c) => c.id === assignPick)
-    if (!course) return
+    if (!facultyFilter || picks.length === 0) return
     setError('')
     setMessage('')
     setBusy(true)
     try {
-      await assignCourseInstructor(course.id, facultyFilter)
-      await addActivityLog('course.instructor_assigned', {
-        entity: 'course',
-        entity_id: course.id,
-        label: `${course.code} → ${facultyNameOf(facultyFilter) || 'faculty'}`,
-      })
-      setMessage(`Assigned ${course.code} to ${facultyNameOf(facultyFilter)}.`)
-      setAssignPick('')
+      const updated = await assignCourseInstructorsBulk(picks, facultyFilter)
+      for (const c of updated) {
+        await addActivityLog('course.instructor_assigned', {
+          entity: 'course',
+          entity_id: c.id,
+          label: `${c.code} → ${facultyNameOf(facultyFilter) || 'faculty'}`,
+        })
+      }
+      setMessage(`Assigned ${updated.length} subject${updated.length === 1 ? '' : 's'} to ${facultyNameOf(facultyFilter)}.`)
+      setPicks([])
       load()
     } catch (err) {
-      setError('Failed to assign instructor: ' + errMsg(err))
+      setError('Failed to assign subjects: ' + errMsg(err))
     } finally {
       setBusy(false)
     }
@@ -992,13 +997,13 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 form. Counts stay on the current program. */}
             <div className="program-faculty-tabs sd-tabs">
               <button className={`sd-tab ${!facultyFilter ? 'sd-tab--active' : ''}`}
-                onClick={() => { setFacultyFilter(''); setAssignPick('') }}>
+                onClick={() => { setFacultyFilter(''); setPicks([]) }}>
                 All subjects
                 <span className="sd-tab__count">{activeInProgram}</span>
               </button>
               {faculty.map((f) => (
                 <button key={f.id} className={`sd-tab ${facultyFilter === f.id ? 'sd-tab--active' : ''}`}
-                  onClick={() => { setFacultyFilter(f.id); setAssignPick('') }}>
+                  onClick={() => { setFacultyFilter(f.id); setPicks([]) }}>
                   <Icon name="user" size={13} />
                   {f.full_name || f.email}
                   {facultyCountOf(f.id) > 0 && <span className="sd-tab__count">{facultyCountOf(f.id)}</span>}
@@ -1011,22 +1016,22 @@ export default function ManagerCourse({ profile }: CourseProps) {
               )}
             </div>
             {facultyFilter && (
-              <div className="program-assign-bar">
-                <span>Assign a subject to <strong>{facultyNameOf(facultyFilter) || 'faculty'}</strong></span>
-                <select className="input input--sm" value={assignPick}
-                  onChange={(e) => setAssignPick(e.target.value)}
-                  aria-label={`Subject to assign to ${facultyNameOf(facultyFilter)}`}>
-                  <option value="">Select a subject…</option>
-                  {assignable.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} — {c.title}{instructorLabelOf(c.instructor_id) ? ` (currently ${instructorLabelOf(c.instructor_id)})` : ' (unassigned)'}
-                    </option>
-                  ))}
-                </select>
-                <button className="btn btn--primary btn--sm" onClick={handleQuickAssign} disabled={busy || !assignPick}>
-                  {busy ? 'Assigning…' : (<><Icon name="plus" size={13} /> Assign</>)}
-                </button>
-              </div>
+              <SubjectMultiAssign
+                facultyName={facultyNameOf(facultyFilter) || 'faculty'}
+                options={assignable.map((c) => ({
+                  id: c.id,
+                  code: c.code,
+                  title: c.title,
+                  current: instructorLabelOf(c.instructor_id) || null,
+                }))}
+                picks={picks}
+                onToggle={togglePick}
+                onSelectAll={() => setPicks(assignable.map((c) => c.id))}
+                onClear={() => setPicks([])}
+                onAssign={handleQuickAssign}
+                busy={busy}
+                emptyHint={`Every active subject in this program is already ${facultyNameOf(facultyFilter) || 'theirs'}.`}
+              />
             )}
             {visible.length === 0 ? (
               <div className="program-empty" style={{ marginTop: 14 }}>
