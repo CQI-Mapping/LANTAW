@@ -50,6 +50,7 @@ const ICONS: Record<string, string> = {
   curriculum: 'path M4 19.5A2.5 2.5 0 0 1 6.5 17H20|path M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
   program: 'path M22 10L12 5 2 10l10 5 10-5z|path M6 12v5c3 3 9 3 12 0v-5|line 22 10 22 16',
   course: 'path M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+  'faculty-assign': 'path M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2|circle 8.5 7 4|line 20 8 20 14|line 23 11 17 11',
   clo: 'rect 3 3 18 18 2|path M3 9h18|path M3 15h18|path M9 3v18|path M15 3v18',
   'clo-po': 'rect 3 3 18 18 2|path M3 9h18|path M3 15h18|path M9 3v18|path M15 3v18',
   'ched-memo': 'path M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z|polyline 14 2 14 8 20 8|line 16 13 8 13|line 16 17 8 17',
@@ -75,7 +76,7 @@ function initialsOf(name: string | null | undefined, fallback: string): string {
 // Academic-related IDs that get grouped under "Academics" — unified dropdown for all roles
 const ACADEMICS_IDS = new Set([
   'program', 'ched-memo', 'strategic-goals', 'peos',
-  'program-outcomes', 'curriculum', 'course', 'clo', 'subject-view', 'grasps', 'tos',
+  'program-outcomes', 'curriculum', 'course', 'faculty-assign', 'clo', 'subject-view', 'grasps', 'tos',
 ])
 
 const ACADEMICS_META: Record<string, { desc: string }> = {
@@ -86,6 +87,7 @@ const ACADEMICS_META: Record<string, { desc: string }> = {
   'program-outcomes': { desc: 'Program outcomes mapping' },
   curriculum: { desc: 'Curriculum structure & maps' },
   course: { desc: 'Course catalog & details' },
+  'faculty-assign': { desc: 'Assign faculty to subjects' },
   clo: { desc: 'Course learning outcomes' },
   'subject-view': { desc: 'Start Visualizing' },
   grasps: { desc: 'Performance task design' },

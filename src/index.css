@@ -6190,6 +6190,148 @@ button.reports-panel__more:hover {
   min-width: 280px;
 }
 
+/* Assign Faculty module (manager sidebar: between Course and Generate Map).
+   Two panes: the faculty roster on the left, the picked member's subjects
+   and the assign bar on the right. */
+.assign-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.assign-fac-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.assign-fac {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.assign-fac:hover {
+  border-color: #16a34a;
+}
+
+.assign-fac--active {
+  border-color: #16a34a;
+  box-shadow: inset 3px 0 0 #16a34a;
+  background: #f0fdf4;
+}
+
+.assign-fac__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.assign-fac__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.assign-fac__name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assign-fac__mail {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assign-fac__count {
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 999px;
+  font-size: 12px;
+  padding: 2px 9px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.assign-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.assign-subject-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.assign-subject {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+}
+
+.assign-subject__code {
+  font-weight: 700;
+  color: #166534;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.assign-subject__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assign-subject__term {
+  font-size: 12px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .assign-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

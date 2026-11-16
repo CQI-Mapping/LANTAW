@@ -42,6 +42,7 @@ import ManagerDashboard from './pages/manager/Dashboard'
 import ManagerUsers from './pages/manager/Users'
 import ManagerCurriculum from './pages/manager/Curriculum'
 import ManagerCourse from './pages/manager/Course'
+import AssignFaculty from './pages/manager/FacultyAssign'
 import ManagerActivityLogs from './pages/admin/ActivityLogs'
 import UserDashboard from './pages/user/Dashboard'
 import SecurityPrivacy from './pages/SecurityPrivacy'
@@ -89,6 +90,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'program-outcomes', label: 'Program Outcomes' },
     { id: 'curriculum', label: 'Curriculum' },
     { id: 'course', label: 'Course' },
+    { id: 'faculty-assign', label: 'Assign Faculty' },
     { id: 'subject-view', label: 'Generate Map' },
     { id: 'view', label: 'View Syllabus' },
     { id: 'users', label: 'Users & Accounts' },
@@ -139,6 +141,7 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
     peos: AdminPEOs,
     curriculum: ManagerCurriculum,
     course: ManagerCourse,
+    'faculty-assign': AssignFaculty,
     'program-outcomes': ManagerProgramOutcomes,
     'subject-view': AdminSubjectView,
     view: AdminView,

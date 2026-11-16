@@ -58,6 +58,7 @@ No CSS framework, no router library — deliberately simple so it's easy to exte
 | Archive / restore curriculum records | yes | yes | — |
 | Delete curriculum records | yes | — | — |
 | Manage courses (create/edit/archive, no delete for manager) | yes | yes | — |
+| Assign faculty to subjects (Assign Faculty module + Course page) | — | yes | — |
 | Browse subjects + CLOs | yes | yes | yes |
 | View Subject Graph | yes | yes | yes |
 | View users directory (all profiles) | yes | yes | — |
@@ -155,7 +156,8 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
     │   │   ├── Users.tsx             # Users directory + add/remove users (`user` role only)
     │   │   ├── Curriculum.tsx        # Create/edit/archive (no delete) + search
     │   │   ├── ProgramOutcomes.tsx   # Manager-side PO alignment; inline add form with a reader leg (all POs, grouped per CMO category)
-    │   │   └── Course.tsx            # Wraps AdminCourse with `hideDelete`-style gating (no delete)
+    │   │   ├── Course.tsx            # Wraps AdminCourse with `hideDelete`-style gating (no delete)
+    │   │   └── FacultyAssign.tsx     # Assign Faculty module: pick a faculty member, hand out / drop their subjects
     │   └── user/
     │       ├── Dashboard.tsx         # Faculty home: next step, own-outcome figures, subjects, quick actions, program brief
     │       ├── CourseLearningOutcomes.tsx  # Faculty CLO editor (same bespoke page)
@@ -565,6 +567,13 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - The only Course page (admin has no Course entry): programs + curriculums + courses with prereq/coreq, lecture/lab credits, search, Active/Archive tabs, stats, skeleton cards. No delete (RLS blocks it too). Falls through `renderPage` with the `profile` prop.
 - **Instructor (Faculty) assignment:** both the New Course form and the inline card editor carry an Instructor (Faculty) select listing active faculty accounts only (`role='user'`, archived ones excluded), shown as "Full name — email". The pick saves into `courses.instructor_id` with the rest of the form, and when the pick changes on an existing course the page also writes a dedicated `course.instructor_assigned` audit entry (`CODE → Name`, or `unassigned` when cleared). The list row shows the instructor only when one is assigned; the grid card shows "Unassigned" in muted text when none is. A profiles read that RLS or the network refuses degrades to an empty picker, never a dead page.
 - **Faculty assignment navbar** (under the Active/Archive tabs): a second tab row — "All subjects" plus one pill per active faculty member, each with a count of the current program's active subjects they hold. Picking a pill filters the cards to that person's subjects and opens an **assign bar** ("Assign a subject to *Name*"): a picker of every active subject in the program they don't already hold — a subject someone else teaches reads "(currently Name)", so a hand-over is never silent — and an Assign button that writes straight through `assignCourseInstructor`, logging the same `course.instructor_assigned` entry. Each filtered card gains a quick Remove-assignment button (✕). The stats row grows an **Unassigned** card (active subjects without an instructor), and the empty state names the picked member when they hold nothing here yet.
+
+### `manager/FacultyAssign.tsx` (Assign Faculty — sidebar module between Course and Generate Map)
+- The dedicated assignment workspace, a manager-only module (`faculty-assign` in the manager NAV + PAGES; the Academics mega-menu lists it with a user-plus icon and the description "Assign faculty to subjects"). The manager opens the module directly from the sidebar instead of hunting through the Course page.
+- **Two panes.** Left: the faculty roster — one row per active faculty account (`role='user'`, archived excluded) with an initials avatar, name, email, and a green count badge of the current program's subjects they hold; the picked row is highlighted. Right: the picked member's workspace — their subjects in curriculum order (code, title, term placement), a quick Remove button (✕) on each, and the same **assign bar** the Course page uses (every active subject in the program they don't already hold, with "(currently Name)" / "(unassigned)" option labels).
+- Program-scoped like the Course page: a Program select sits above the panes and opens on the account's own `profiles.program_id` assignment when it matches a program on file (the same courtesy `MapBrief` extends), else the first program. Stats row: Faculty (active accounts), Subjects (active in program), Assigned (green), Unassigned (amber).
+- Writes go through `assignCourseInstructor` and log the same `course.instructor_assigned` audit entry (`CODE → Name` / `CODE → unassigned`) the Course page writes, so the two surfaces never split the trail's voice. Empty states are named: no faculty accounts (points at Users & Accounts), no active subjects in the program (points at the Course page), and "Every active subject in this program is already theirs" when the picker runs dry.
+- Styles are the `assign-*` classes in `index.css`; the two panes stack to one column under 900px.
 
 ### `admin/Syllabus.tsx`
 - Printable curriculum map / syllabus report. Displays Vision, Mission, Strategic Goals, PEOs, Program Outcomes, Curriculum Mapping, Course Learning Outcomes, and Course Details in a formatted document layout.
