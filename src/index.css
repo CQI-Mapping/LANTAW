@@ -11,7 +11,8 @@
   --g50: #f4f8f5;
   --lime: #c8dfca;
 
-  --bg-app: #f8faf8;            /* prototype --paper */
+  --bg-app: #eaede9;            /* the workspace's ground — a step darker
+                                   than paper so the white panels pop */
   --bg-panel: #ffffff;
   --bg-soft: #f4f8f5;
   --border: #e7ece8;            /* prototype --line */
