@@ -175,6 +175,11 @@ const LAST_PAGE_KEY = 'cqi.lastPage'
 // keeps working from it across visits.
 const SIDEBAR_MINI_KEY = 'cqi.sidebar.mini'
 
+// The rail's appearance (light or the ChatGPT-dark theme) is an account
+// preference, not a build decision — the Appearance item in the profile
+// menu flips it, and it persists per browser the same way.
+const SIDEBAR_RAIL_DARK_KEY = 'cqi.sidebar.railDark'
+
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
 // real auth-layer gate; this constant backs it up in code so a personal
@@ -253,6 +258,27 @@ function App() {
       const next = !v
       try {
         localStorage.setItem(SIDEBAR_MINI_KEY, next ? '1' : '0')
+      } catch {
+        // Storage unavailable — the pick still applies for this visit.
+      }
+      return next
+    })
+  }, [])
+
+  // The rail's light/dark appearance, flipped from the profile menu's
+  // Appearance item and persisted per browser.
+  const [railDark, setRailDark] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_RAIL_DARK_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleRailDark = useCallback(() => {
+    setRailDark((v) => {
+      const next = !v
+      try {
+        localStorage.setItem(SIDEBAR_RAIL_DARK_KEY, next ? '1' : '0')
       } catch {
         // Storage unavailable — the pick still applies for this visit.
       }
@@ -606,7 +632,7 @@ function App() {
   const topbarAvatar = profile?.avatar_url ?? emailAvatar
 
   return (
-    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''}`.trim()}>
+    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''} ${railDark ? 'app-layout--rail-dark' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
@@ -617,6 +643,8 @@ function App() {
         onToggle={() => setSidebarOpen((v) => !v)}
         mini={sidebarMini}
         onToggleMini={toggleSidebarMini}
+        railDark={railDark}
+        onToggleRailDark={toggleRailDark}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}

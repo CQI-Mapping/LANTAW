@@ -21,6 +21,9 @@ interface SidebarProps {
       toggle brings it back. */
   mini?: boolean
   onToggleMini?: () => void
+  /** The rail's appearance: light by default, ChatGPT-dark when on. */
+  railDark?: boolean
+  onToggleRailDark?: () => void
   profileName?: string | null
   profileEmail?: string | null
   profileAvatar?: string | null
@@ -72,6 +75,8 @@ const ICONS: Record<string, string> = {
   'activity-logs': 'path M3 12a9 9 0 1 0 3-6.7L3 8|path M3 3v5h5|path M12 7v5l4 2',
   profile: 'circle 12 8 4|path M4 21c0-4.418 3.582-7 8-7s8 2.582 8 7',
   security: 'path M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  sun: 'circle 12 12 4.5|line 12 2 12 4.5|line 12 19.5 12 22|line 2 12 4.5 12|line 19.5 12 22 12|line 4.6 4.6 6.4 6.4|line 17.6 17.6 19.4 19.4|line 2 19.4 4.4 19.4|line 19.6 19.4 22 19.4|line 2 4.6 4.4 4.6|line 19.6 4.6 22 4.6|line 17.6 6.4 19.4 4.6',
+  moon: 'path M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
 }
 
 const LOGOUT_ICON = 'path M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4|polyline 16 17 21 12 16 7|line 21 12 9 12'
@@ -99,7 +104,7 @@ const ROLE_TITLE: Record<UserRole, string> = {
   user: 'Faculty Member',
 }
 
-function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, profileName, profileEmail, profileAvatar }: SidebarProps) {
+function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, railDark = false, onToggleRailDark, profileName, profileEmail, profileAvatar }: SidebarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -295,6 +300,15 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                     onClick={() => navigate('security')}>
                     <Icon d={ICONS.security} className="profile-menu__ico" />
                     <span>Security &amp; Privacy</span>
+                  </button>
+                  {/* Appearance: light rail or the ChatGPT-dark theme. The
+                      row flips it instantly and reads as a checkbox. */}
+                  <button type="button" role="menuitemcheckbox" aria-checked={railDark}
+                    className="profile-menu__item"
+                    onClick={onToggleRailDark}>
+                    <Icon d={railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
+                    <span>Appearance</span>
+                    <span className="profile-menu__value">{railDark ? 'Dark' : 'Light'}</span>
                   </button>
                   <div className="profile-menu__sep" role="separator" />
                   <button type="button" role="menuitem" className="profile-menu__item profile-menu__item--danger" onClick={onLogout}>
