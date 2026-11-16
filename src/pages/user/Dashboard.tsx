@@ -69,7 +69,7 @@ const ACTIONS: Array<{ page: string; label: string; hint: string; tone: string; 
     page: 'clo',
     label: 'Course Outcomes',
     hint: 'Write and edit CLOs',
-    tone: '#15803d',
+    tone: 'var(--primary-dark)',
     icon: (
       <Glyph>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -96,7 +96,7 @@ const ACTIONS: Array<{ page: string; label: string; hint: string; tone: string; 
     page: 'tos',
     label: 'Generate TOS',
     hint: 'Build a table of specifications',
-    tone: '#16a34a',
+    tone: 'var(--primary)',
     icon: (
       <Glyph>
         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -179,7 +179,7 @@ function EditTrend({ weeks }: { weeks: EditWeek[] }) {
             width={7}
             height={Math.max(2, Math.round((w.count / peak) * 22))}
             rx={2.5}
-            fill="#16a34a"
+            fill="var(--primary)"
             opacity={age === 0 ? 1 : 0.35}
           >
             <title>{age === 0 ? 'This week' : age === 1 ? 'Last week' : `${age} weeks ago`} — {labelFor(age, w.count)}</title>
@@ -297,7 +297,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
               <polyline points="14 2 14 8 20 8" />
             </Glyph>
           }
-          tone="#15803d"
+          tone="var(--primary-dark)"
           label="Outcomes written"
           value={ready ? figures.total : '—'}
           sub={
@@ -334,7 +334,7 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </Glyph>
           }
-          tone="#16a34a"
+          tone="var(--primary)"
           label="Edited this week"
           value={ready ? figures.editedThisWeek : '—'}
           sub={ready ? 'Changed in the last 7 days' : pending}

@@ -382,12 +382,12 @@ alignments,
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently in use</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from selection</div>
         </div>
       </div>
@@ -403,7 +403,7 @@ alignments,
           once rendered it only inside the reader pair and silently dropped
           the add form from every page without one (PEO / SG / CMO). */}
       <div className={formRef ? 'clo-layout__pair' : 'clo-layout__pair clo-layout__pair--solo'}>
-      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid #16a34a' }}>
+      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>New {title}</h3>
         {titleMultiline ? (
           <>
@@ -598,7 +598,7 @@ alignments,
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
                                 {(tableAlignments ?? alignments ?? []).map((a) => (
                                   <div key={a.relationField} style={{ fontSize: 12.5, color: '#475569' }}>
-                                    <strong style={{ color: '#64748b' }}>{a.label}:</strong>{' '}{alignLabelOf(item, a)}
+                                    <strong style={{ color: 'var(--text-muted)' }}>{a.label}:</strong>{' '}{alignLabelOf(item, a)}
                                   </div>
                                 ))}
                               </div>
@@ -606,7 +606,7 @@ alignments,
                             {!alignments && showDescription && descOf(item) && <p>{descOf(item)}</p>}
                           </>
                         )}
-                        {counts && <div style={{ fontSize: 12, color: '#64748b' }}>{countLabel}: <strong style={{ color: '#0f172a' }}>{counts[item.id] ?? 0}</strong></div>}
+                        {counts && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{countLabel}: <strong style={{ color: 'var(--text)' }}>{counts[item.id] ?? 0}</strong></div>}
                         <div className="resource-card__meta" style={{ marginTop: 6 }}>
                           <span className={`status-badge status-badge--${isActive(item) ? 'active' : 'archived'}`}>{isActive(item) ? 'Active' : 'Archived'}</span>
                         </div>
@@ -682,14 +682,14 @@ alignments,
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {(tableAlignments ?? alignments ?? []).map((a) => (
                             <div key={a.relationField} style={{ fontSize: 12.5, color: '#475569', display: 'flex', gap: 6 }}>
-                              <span style={{ fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>{a.label}:</span>
-                              <span style={{ color: '#0f172a' }}>{alignLabelOf(item, a)}</span>
+                              <span style={{ fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.label}:</span>
+                              <span style={{ color: 'var(--text)' }}>{alignLabelOf(item, a)}</span>
                             </div>
                           ))}
                         </div>
                       )}
                       {!alignments && showDescription && <p className="program-card__desc">{descOf(item) || '—'}</p>}
-                      {counts && <div style={{ fontSize: 12, color: '#64748b' }}>{countLabel}: <strong style={{ color: '#0f172a' }}>{counts[item.id] ?? 0}</strong></div>}
+                      {counts && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{countLabel}: <strong style={{ color: 'var(--text)' }}>{counts[item.id] ?? 0}</strong></div>}
                       <div className="program-card__actions">
                         <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} disabled={busy || !!editingId} title="Edit"><Icon name="edit" size={13} /></button>
                         <button className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`} onClick={() => handleUpdate(item.id, { status: isActive(item) ? 'archived' : 'active' } as unknown as Partial<T>, toggleAction(isActive(item) ? 'archived' : 'active'), item)} disabled={busy || !!editingId} title={isActive(item) ? 'Archive' : 'Restore'}>

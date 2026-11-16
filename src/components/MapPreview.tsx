@@ -442,7 +442,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
         body.append('line')
           .attr('x1', from.x).attr('y1', from.y)
           .attr('x2', to.x).attr('y2', to.y)
-          .attr('stroke', '#b45309')
+          .attr('stroke', '#b47a32')
           // Standing bands run thinner and dimmer in the home state so the
           // band wires never drown the code wires they share the page with —
           // the whole net stays visible, just quieter.
@@ -499,7 +499,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('font-weight', '700')
-      .attr('fill', '#0f172a')
+      .attr('fill', 'var(--text)')
       .attr('opacity', (d) => (focusDot && !inChainIds(d.id) ? 0.12 : 1))
       .attr('pointer-events', 'none')
       .attr('paint-order', 'stroke')

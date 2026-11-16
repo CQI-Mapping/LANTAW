@@ -141,13 +141,13 @@ interface OutcomeDatasets {
 
 const colorMap: Record<NodeKind, string> = {
   curriculum: '#4d7c0f',
-  subject: '#16a34a',
-  prerequisite: '#b45309',
-  corequisite: '#15803d',
-  clo: '#15803d',
+  subject: 'var(--primary)',
+  prerequisite: '#b47a32',
+  corequisite: 'var(--primary-dark)',
+  clo: 'var(--primary-dark)',
   po: '#3f6212',
   peo: '#4d7c0f',
-  sg: '#64748b',
+  sg: 'var(--text-muted)',
   cmo: '#475569',
 }
 
@@ -2203,7 +2203,7 @@ export default function SubjectView() {
         zoomGroup.append('line')
           .attr('x1', from.x).attr('y1', from.y)
           .attr('x2', to.x).attr('y2', to.y)
-          .attr('stroke', '#b45309')
+          .attr('stroke', '#b47a32')
           // Standing bands run thinner and dimmer in the home state so the
           // ~125 band wires never drown the ~20 code wires they share the page
           // with — the whole net stays visible, just quieter.
@@ -2295,7 +2295,7 @@ export default function SubjectView() {
       .attr('text-anchor', 'middle')
       .attr('font-size', '12px')
       .attr('font-weight', '700')
-      .attr('fill', '#0f172a')
+      .attr('fill', 'var(--text)')
       .attr('opacity', (d) => (focusNode ? (focusPeerIds.has(d.id) ? 1 : 0.12) : d.dim ? 0.25 : 1))
       .attr('pointer-events', 'none')
       .attr('paint-order', 'stroke')
@@ -2617,7 +2617,7 @@ export default function SubjectView() {
       .attr('dy', (d) => (d.id === rootId || d.kind === 'subject' ? 26 : d.kind === 'curriculum' ? 22 : 16))
       .attr('font-size', (d) => (d.id === rootId || d.kind === 'subject' ? '11px' : '9px'))
       .attr('font-weight', '700')
-      .attr('fill', '#0f172a')
+      .attr('fill', 'var(--text)')
       .attr('pointer-events', 'none')
       .attr('paint-order', 'stroke')
       .attr('stroke', 'rgba(255,255,255,0.85)')
@@ -3418,16 +3418,16 @@ export default function SubjectView() {
             <div className="subject-view__summary">
               <div className="subject-view__summary-item">
                 <span className="subject-view__summary-label">{rootType === 'po' ? 'CLOs' : rootType === 'peo' || rootType === 'clo' || rootType === 'sg' || rootType === 'cmo' ? 'POs' : rootType === 'curriculum' || rootType === 'program' ? 'Subjects' : 'Pre-reqs'}</span>
-                <span className="subject-view__summary-value" style={{ color: '#b45309' }}>{leftCounts.pre}</span>
+                <span className="subject-view__summary-value" style={{ color: '#b47a32' }}>{leftCounts.pre}</span>
               </div>
               <div className="subject-view__summary-item">
                 <span className="subject-view__summary-label">{rootType === 'curriculum' || rootType === 'program' ? 'POs' : rootType === 'subject' ? 'Co-reqs' : 'Subjects'}</span>
-                <span className="subject-view__summary-value" style={{ color: '#15803d' }}>{leftCounts.core}</span>
+                <span className="subject-view__summary-value" style={{ color: 'var(--primary-dark)' }}>{leftCounts.core}</span>
               </div>
               {rootType === 'subject' && (
                 <div className="subject-view__summary-item">
                   <span className="subject-view__summary-label">CLOs</span>
-                  <span className="subject-view__summary-value" style={{ color: '#15803d' }}>{leftCounts.clos >= 0 ? leftCounts.clos : '–'}</span>
+                  <span className="subject-view__summary-value" style={{ color: 'var(--primary-dark)' }}>{leftCounts.clos >= 0 ? leftCounts.clos : '–'}</span>
                 </div>
               )}
             </div>
@@ -3458,7 +3458,7 @@ export default function SubjectView() {
             <div className="subject-view__placeholder">
               <div className="subject-view__placeholder-card">
                 <div className="subject-view__placeholder-icon">
-                  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <circle cx="6" cy="6" r="2.5" />
                     <circle cx="18" cy="6" r="2.5" />
                     <circle cx="12" cy="18" r="2.5" />
@@ -3638,14 +3638,14 @@ export default function SubjectView() {
       (rootType === 'peo' && selectedPeo) ? (
         <div className="subject-view__about">
           {detailsCard ?? (
-            <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>
               Loading the connected details…
             </p>
           )}
           {rootType === 'subject' && (
             <div className="subject-view__report">
               {subjectReport ?? (
-                <p style={{ margin: 0, color: '#64748b', fontSize: 13 }}>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>
                   {isInspecting
                     ? 'Click “Back to root” above to return to the full Curriculum Report.'
                     : 'Loading the course report…'}

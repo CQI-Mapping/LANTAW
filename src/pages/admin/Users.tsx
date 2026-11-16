@@ -461,12 +461,12 @@ export default function Users() {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Managers</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeManagers}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeManagers}</div>
           <div className="program-stat__sub">Active program heads</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedUsers.length}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedUsers.length}</div>
           <div className="program-stat__sub">Restorable accounts</div>
         </div>
       </div>
@@ -774,7 +774,7 @@ export default function Users() {
           <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modal__header">
               <h3>Edit account</h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{editingUser.email}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{editingUser.email}</p>
             </div>
             <form onSubmit={handleEditSubmit}>
               <div className="modal__body">

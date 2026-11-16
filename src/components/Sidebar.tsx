@@ -1,5 +1,9 @@
-// Sidebar — top header bar, clean 2026 design.
-// Desktop: horizontal bar (brand | nav | user). Mobile: vertical drawer.
+// Sidebar — premium 2026 shell (design/premium/theme.css): a fixed left rail
+// carrying the brand block, grouped navigation, and the user chip with its
+// profile menu. The topbar (breadcrumb + academic-year pill + avatar) is
+// rendered by App.tsx's main shell; this component owns only the aside.
+// On small screens the rail becomes a drawer behind a scrim, driven by the
+// hamburger in the topbar.
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import '../styles/Sidebar.css'
@@ -19,10 +23,10 @@ interface SidebarProps {
 }
 
 /** The brand mark for program-scoped roles rides the real logo file
- *  (BSIT is the program for now — accounts carry
- *  profiles.program_id, but the UI doesn't read per-account programs
- *  yet, so the same logo stands in for every program). Admins are not
- *  bounded to a program, so their brand stays the neutral monogram. */
+ *  (BSIT is the program for now — accounts carry profiles.program_id,
+ *  but the UI doesn't read per-account programs yet, so the same logo
+ *  stands in for every program). Admins are not bounded to a program,
+ *  so their brand keeps the neutral monogram. */
 const PROGRAM_LOGO = '/LOGO.png'
 
 // ---- Icons ----
@@ -73,67 +77,47 @@ function initialsOf(name: string | null | undefined, fallback: string): string {
   return src.split(/[\s-]+/).map((w) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || 'U'
 }
 
-// Academic-related IDs that get grouped under "Academics" — unified dropdown for all roles
+// Academic pages group under the "Academics" label; everything else that is
+// neither the dashboard nor part of the profile menu lands in
+// "Administration". The dashboard opens its own "Overview" group, matching
+// the prototype's labeled sections.
 const ACADEMICS_IDS = new Set([
   'program', 'ched-memo', 'strategic-goals', 'peos',
   'program-outcomes', 'curriculum', 'course', 'faculty-assign', 'clo', 'subject-view', 'grasps', 'tos',
 ])
 
-const ACADEMICS_META: Record<string, { desc: string }> = {
-  program: { desc: 'Degree programs & offerings' },
-  'ched-memo': { desc: 'CHED memorandums & policies' },
-  'strategic-goals': { desc: 'Institutional alignment' },
-  peos: { desc: 'Graduate attributes & PEOs' },
-  'program-outcomes': { desc: 'Program outcomes mapping' },
-  curriculum: { desc: 'Curriculum structure & maps' },
-  course: { desc: 'Course catalog & details' },
-  'faculty-assign': { desc: 'Assign faculty to subjects' },
-  clo: { desc: 'Course learning outcomes' },
-  'subject-view': { desc: 'Start Visualizing' },
-  grasps: { desc: 'Performance task design' },
-  tos: { desc: 'Exam blueprint & Bloom coverage' },
+// The small role line under the name in the user chip, worded like the
+// prototype's chip (Admin → System Administrator, …).
+const ROLE_TITLE: Record<UserRole, string> = {
+  admin: 'System Administrator',
+  manager: 'Program Manager',
+  user: 'Faculty Member',
 }
 
 function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, profileName, profileEmail, profileAvatar }: SidebarProps) {
-  const [ddOpen, setDdOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const ddRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
-  const navRef = useRef<HTMLDivElement>(null)
 
-  // Separate dashboard, academics, and other items — profile and security live
-  // in the avatar dropdown
-  const academics = navItems.filter((n) => ACADEMICS_IDS.has(n.id))
-  const hasAcademics = academics.length >= 2
+  // Grouped navigation: dashboard under Overview, the academic pages under
+  // Academics, the rest under Administration.
   const dashboardItem = navItems.find((n) => n.id === 'dashboard')
   const inProfileMenu = (n: { id: string }) => n.id === 'profile' || n.id === 'security'
-  const otherItems = hasAcademics
-    ? navItems.filter((n) => n.id !== 'dashboard' && !ACADEMICS_IDS.has(n.id) && !inProfileMenu(n))
-    : navItems.filter((n) => n.id !== 'dashboard' && !inProfileMenu(n))
+  const academics = navItems.filter((n) => ACADEMICS_IDS.has(n.id))
+  const others = navItems.filter((n) => n.id !== 'dashboard' && !ACADEMICS_IDS.has(n.id) && !inProfileMenu(n))
 
-  const isAcademicsActive = academics.some((n) => n.id === activePage)
   const displayName = (profileName ?? '').trim() || `${role.charAt(0).toUpperCase() + role.slice(1)} User`
   const displayEmail = (profileEmail ?? '').trim() || `Signed in as ${role}`
   const avatarInitials = initialsOf(profileName, role)
 
-  // The Academics dropdown is strictly click-driven: the button toggles it,
-  // an outside click or Esc closes it, and picking an item closes it. No
-  // hover auto-open — brushing the header on the way elsewhere never springs
-  // the mega menu open by accident.
-
-  // Close dropdowns on outside click + Esc (Awwwards-style)
+  // The profile menu closes on any outside press or Escape — the chip is the
+  // only trigger, so the listener only lives while the menu is open.
   useEffect(() => {
-    if (!ddOpen && !profileOpen) return
+    if (!profileOpen) return
     const onDown = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (ddOpen && ddRef.current && !ddRef.current.contains(target)) setDdOpen(false)
-      if (profileOpen && profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false)
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDdOpen(false)
-        setProfileOpen(false)
-      }
+      if (e.key === 'Escape') setProfileOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
@@ -141,224 +125,123 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [ddOpen, profileOpen])
+  }, [profileOpen])
 
-  // Close everything on navigate
+  // Navigating closes the menu, and on drawer-sized screens the rail itself.
   const navigate = useCallback((id: string) => {
     onNavigate(id)
-    setDdOpen(false)
     setProfileOpen(false)
-    if (window.innerWidth <= 1024 && isOpen) onToggle()
+    if (window.innerWidth <= 960 && isOpen) onToggle()
   }, [onNavigate, isOpen, onToggle])
 
-  // Close dropdown when nav changes
+  // Page changes close the menu (an open menu across a page swap reads wrong).
   useEffect(() => {
-    setDdOpen(false)
     setProfileOpen(false)
   }, [activePage])
 
+  const renderItem = (item: NavItem) => (
+    <button
+      key={item.id}
+      type="button"
+      className={`nav-item ${activePage === item.id ? 'active' : ''}`}
+      onClick={() => navigate(item.id)}
+      aria-current={activePage === item.id ? 'page' : undefined}
+    >
+      <span className="nav-ico"><Icon d={ICONS[item.id] || ICONS.dashboard} className="nav-svg" /></span>
+      <span className="nav-text">{item.label}</span>
+    </button>
+  )
+
   return (
     <>
-      <header className={`hdr ${isOpen ? 'hdr--open' : ''}`}>
-        <div className="hdr__inner">
-          {/* Brand — program roles (manager, faculty) carry the program's
-              logo image; admins are not bounded to a program and keep the
-              neutral C monogram. One color/size rule in Sidebar.css keeps
-              both aligned to the same slot. */}
-          <div className="hdr__brand" aria-label={role === 'admin' ? 'LANTAW' : 'LANTAW — BSIT'}>
-            {role === 'admin' ? (
-              <span className="hdr__mark hdr__mark--temp" aria-hidden="true">C</span>
-            ) : (
-              <img className="hdr__mark-img" src={PROGRAM_LOGO} alt="" />
-            )}
-          </div>
-
-          {/* Hamburger */}
-          <button
-            type="button"
-            className="hdr__hamburger"
-            onClick={onToggle}
-            aria-label={isOpen ? 'Close menu' : 'Open menu'}
-          >
-            <span className={`hdr__hamburger-line ${isOpen ? 'hdr__hamburger-line--open' : ''}`} />
-            <span className={`hdr__hamburger-line ${isOpen ? 'hdr__hamburger-line--open' : ''}`} />
-            <span className={`hdr__hamburger-line ${isOpen ? 'hdr__hamburger-line--open' : ''}`} />
-          </button>
-
-          {/* Nav items — desktop */}
-          <nav className="hdr__nav" aria-label="Main navigation">
-            {dashboardItem && (
-              <button
-                type="button"
-                className={`hdr__item ${activePage === dashboardItem.id ? 'hdr__item--active' : ''}`}
-                onClick={() => navigate(dashboardItem.id)}
-                aria-current={activePage === dashboardItem.id ? 'page' : undefined}
-              >
-                <Icon d={ICONS[dashboardItem.id] || ICONS.dashboard} className="hdr__icon" />
-                <span>Dashboard</span>
-              </button>
-            )}
-
-            {hasAcademics && (
-              <div
-                className="hdr__dd"
-                ref={ddRef}
-              >
-                <button
-                  type="button"
-                  className={`hdr__item hdr__item--academics ${isAcademicsActive ? 'hdr__item--active' : ''}`}
-                  onClick={() => {
-                    setDdOpen((v) => !v)
-                    setProfileOpen(false)
-                  }}
-                  aria-expanded={ddOpen}
-                  aria-haspopup="menu"
-                >
-                  <Icon d={ICONS.curriculum} className="hdr__icon" />
-                  <span>Academics</span>
-                  <svg className={`hdr__chevron ${ddOpen ? 'hdr__chevron--open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-                {ddOpen && (
-                  <div className="hdr__dd-menu" role="menu">
-                    <div className="hdr__dd-grid" role="none">
-                      {academics.map(({ id, label }) => (
-                        <button
-                          key={id}
-                          type="button"
-                          role="menuitem"
-                          className={`hdr__dd-item ${activePage === id ? 'hdr__dd-item--active' : ''}`}
-                          onClick={() => navigate(id)}
-                        >
-                          <span className="hdr__dd-iconWrap">
-                            <Icon d={ICONS[id] || ICONS.dashboard} className="hdr__dd-icon" />
-                          </span>
-                          <span className="hdr__dd-text">
-                            <span className="hdr__dd-label">{label}</span>
-                            <span className="hdr__dd-desc">{ACADEMICS_META[id]?.desc ?? ''}</span>
-                          </span>
-                          <svg className="hdr__dd-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="hdr__dd-foot">
-                      <span>Quick access to all academic records</span>
-                      <span className="hdr__dd-foot-hint">Press Esc to close</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!hasAcademics && academics.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                className={`hdr__item ${activePage === id ? 'hdr__item--active' : ''}`}
-                onClick={() => navigate(id)}
-                aria-current={activePage === id ? 'page' : undefined}
-              >
-                <Icon d={ICONS[id] || ICONS.dashboard} className="hdr__icon" />
-                <span>{label}</span>
-              </button>
-            ))}
-
-            {otherItems.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                className={`hdr__item ${activePage === id ? 'hdr__item--active' : ''}`}
-                onClick={() => navigate(id)}
-                aria-current={activePage === id ? 'page' : undefined}
-              >
-                <Icon d={ICONS[id] || ICONS.dashboard} className="hdr__icon" />
-                <span>{label}</span>
-              </button>
-            ))}
-          </nav>
-
-          {/* Profile — avatar dropdown (logout lives inside) */}
-          <div className="hdr__right">
-            <div className="hdr__profile" ref={profileRef}>
-              <button
-                type="button"
-                className={`hdr__profileBtn ${profileOpen ? 'hdr__profileBtn--open' : ''} ${activePage === 'profile' || activePage === 'security' ? 'hdr__profileBtn--active' : ''}`}
-                onClick={() => {
-                  setProfileOpen((v) => !v)
-                  if (!profileOpen) setDdOpen(false)
-                }}
-                aria-expanded={profileOpen}
-                aria-haspopup="menu"
-                aria-label="Profile menu"
-              >
-                <div className="hdr__avatar">
-                  {profileAvatar ? <img src={profileAvatar} alt="" className="hdr__avatar-img" /> : avatarInitials}
-                </div>
-                <span className="hdr__role">{role}</span>
-                <svg className={`hdr__chevron hdr__chevron--sm ${profileOpen ? 'hdr__chevron--open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-              {profileOpen && (
-                <div className="hdr__profile-menu" role="menu">
-                  <div className="hdr__profile-head">
-                    <div className="hdr__profile-avatarLg">
-                      {profileAvatar ? <img src={profileAvatar} alt="" className="hdr__avatar-img" /> : avatarInitials}
-                    </div>
-                    <div className="hdr__profile-info">
-                      <span className="hdr__profile-name">{displayName}</span>
-                      <span className="hdr__profile-sub">{displayEmail}</span>
-                    </div>
-                    <span className="hdr__profile-badge">{role}</span>
-                  </div>
-                  <div className="hdr__profile-list" role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={`hdr__profile-item ${activePage === 'profile' ? 'hdr__profile-item--active' : ''}`}
-                      onClick={() => navigate('profile')}
-                    >
-                      <Icon d={ICONS.profile} className="hdr__profile-icon" />
-                      <span>My Profile</span>
-                      <svg className="hdr__profile-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={`hdr__profile-item ${activePage === 'security' ? 'hdr__profile-item--active' : ''}`}
-                      onClick={() => navigate('security')}
-                    >
-                      <Icon d={ICONS.security} className="hdr__profile-icon" />
-                      <span>Security &amp; Privacy</span>
-                      <svg className="hdr__profile-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
-                    </button>
-                    <div className="hdr__profile-sep" role="separator" />
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="hdr__profile-item hdr__profile-item--danger"
-                      onClick={onLogout}
-                    >
-                      <Icon d={LOGOUT_ICON} className="hdr__profile-icon" />
-                      <span>Logout</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <div className="brand">
+          {role === 'admin' ? (
+            <span className="brand-mark" aria-hidden="true">C</span>
+          ) : (
+            <img className="brand-mark-img" src={PROGRAM_LOGO} alt="" />
+          )}
+          <div className="brand-text">
+            <b>LANTAW</b>
+            <small>CQI MONITORING SYSTEM</small>
           </div>
         </div>
-      </header>
 
-      {/* Mobile drawer backdrop */}
-      {isOpen && <button type="button" className="hdr__backdrop" onClick={onToggle} aria-label="Close menu" />}
+        <nav className="side-nav" aria-label="Main navigation">
+          {dashboardItem && (
+            <>
+              <div className="nav-label">Overview</div>
+              {renderItem(dashboardItem)}
+            </>
+          )}
+          {academics.length > 0 && (
+            <>
+              <div className="nav-label">Academics</div>
+              {academics.map(renderItem)}
+            </>
+          )}
+          {others.length > 0 && (
+            <>
+              <div className="nav-label">Administration</div>
+              {others.map(renderItem)}
+            </>
+          )}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="user-mini" ref={profileRef}>
+            <button
+              type="button"
+              className={`user-mini__btn ${profileOpen ? 'open' : ''}`}
+              onClick={() => setProfileOpen((v) => !v)}
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
+            >
+              <span className="avatar">
+                {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}
+              </span>
+              <span className="user-mini__text">
+                <b>{displayName}</b>
+                <small>{ROLE_TITLE[role]}</small>
+              </span>
+              <span className="more-btn" aria-hidden="true">···</span>
+            </button>
+            {profileOpen && (
+              <div className="profile-menu" role="menu">
+                <div className="profile-menu__head">
+                  <span className="avatar avatar--lg">
+                    {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}
+                  </span>
+                  <span className="profile-menu__id">
+                    <b>{displayName}</b>
+                    <small>{displayEmail}</small>
+                  </span>
+                </div>
+                <div className="profile-menu__list" role="none">
+                  <button type="button" role="menuitem"
+                    className={`profile-menu__item ${activePage === 'profile' ? 'active' : ''}`}
+                    onClick={() => navigate('profile')}>
+                    <Icon d={ICONS.profile} className="profile-menu__ico" />
+                    <span>My Profile</span>
+                  </button>
+                  <button type="button" role="menuitem"
+                    className={`profile-menu__item ${activePage === 'security' ? 'active' : ''}`}
+                    onClick={() => navigate('security')}>
+                    <Icon d={ICONS.security} className="profile-menu__ico" />
+                    <span>Security &amp; Privacy</span>
+                  </button>
+                  <div className="profile-menu__sep" role="separator" />
+                  <button type="button" role="menuitem" className="profile-menu__item profile-menu__item--danger" onClick={onLogout}>
+                    <Icon d={LOGOUT_ICON} className="profile-menu__ico" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+      {isOpen && <button type="button" className="sidebar-scrim" onClick={onToggle} aria-label="Close menu" />}
     </>
   )
 }

@@ -102,15 +102,19 @@ Ready-made accounts for the demo (created in the Supabase project, roles set in 
 ├── .env                      # Local secrets (gitignored) — fill with your keys
 ├── .gitignore
 ├── GUIDE.md                  # Simple step-by-step setup guide for new users
-├── index.html                # Vite entry HTML
+├── index.html                # Vite entry HTML (loads Space Grotesk + Inter)
 ├── package.json              # Dependencies + scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── vite.config.js            # Vite config (React plugin)
 ├── supabase-schema.sql       # FULL database schema — run in Supabase SQL Editor
+├── design/
+│   └── premium/
+│       ├── theme.css         # The premium prototype's full stylesheet (design source)
+│       └── APP_NOTES.md      # Its page-layout notes
 └── src/
     ├── main.tsx              # React entry point
-    ├── App.tsx               # Session handling, role-based nav + page gating
-    ├── index.css             # Theme variables + all component styles
+    ├── App.tsx               # Session handling, role-based nav + page gating + topbar shell
+    ├── index.css             # Theme tokens + all component styles (premium chrome layer at the end)
     ├── vite-env.d.ts         # Vite environment variable types
     ├── components/
     │   ├── Sidebar.tsx               # Dark-glass top navbar, per-role nav + mega dropdown + profile menu
@@ -502,7 +506,7 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Styles are the `fac-*` classes in `index.css`. `MapBrief`'s panel tokens (`--reports-gap`, `--reports-radius`, `--reports-band`) are defined only under `.reports`, so `.fac-dash` sets them itself. The admin and manager dashboards do not, so their brief panels lose the gap and corner radius; defining the tokens on `.map-brief` would fix all three dashboards at once.
 - CLO stats are role-scoped: RLS lets managers/admins read every outcome, while a faculty user counts only their own (migration `009-private-clos.sql`). The faculty figures depend on that scope.
 
-> **Theme note (2026 look):** the app sits on the same dark circuit wallpaper everywhere. Dashboards keep the entrance-art banner; every content page's banner strip uses the open-book artwork (`banner-bg-page.jpg`); page banners, panels, table headers and hairlines are sage-tinted so the light content sits comfortably against the dark background. Both banners carry a deep drop shadow + faint green rim so they lift off the wallpaper.
+> **Theme note (2026 premium look):** the app wears the **LANTAW premium prototype's** design (`design/premium/theme.css`, fetched from the hatchable preview): a flat academic-paper background (`#f8faf8`), white hairline-bordered panels with a soft single-layer shadow, the deep green scale (`#163d2c → #347b52`, primary `#286344`) with quiet tinted pills, compact Inter text under Space Grotesk display headings, and the fixed-left-rail + topbar shell described above. Page heads are flat titles on the paper — the old artwork banners (open-book/campus strips) are retired from content pages; the NBSC artwork keeps living on the Login page, and the school logo still rides the sidebar brand. The chrome layer sits at the end of `src/index.css` (PREMIUM CHROME) so the earlier families stay readable as history.
 
 ### `admin/Users.tsx`
 - Create accounts with role select (**admin**, **manager**, or **faculty**) plus table of all users with role badges. Needs `VITE_SUPABASE_SERVICE_ROLE_KEY`. No role `<select>` on existing rows — role changes via SQL or `updateUserRole()`.
@@ -607,9 +611,12 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Holds `session`, `profile`, `activePage`. Defines the `NAV` map (role → nav items) and the `PAGES` map (role → page components, one per role folder; `Profile` is shared). On session change, loads the profile via `ensureProfile` (auto-creates the row if missing — e.g. after a schema re-run) and renders `Login` when signed out; otherwise renders the header + current page.
 - **Gating:** `page` is coerced to a role-valid page, so even a crafted `activePage` value can't show an unauthorized page.
 - **Login guard:** A `profileLoaded` flag prevents rendering the dashboard before the user's role is known, so the correct role-specific page appears immediately without a flash.
+- **Shell:** the app renders the premium layout — `<Sidebar/>` (fixed left rail) plus a `.main-shell` holding the **topbar** (workspace breadcrumb, the `AY …` term pill from `utils/schoolYear.ts`, profile avatar) and the page container.
 
 ### `Sidebar.tsx`
-- Dark-glass top navbar (`styles/Sidebar.css`): brand + role-specific pill nav + profile menu, blur + green hairline edge matching the circuit wallpaper. Academic pages group under an `Academics` dropdown (all roles); `subject-view` included. Shows real `full_name`/`email` in the profile menu with role badge; logout lives inside. Active items get `aria-current="page"`; the active pill and avatar sit on the green gradient; the mobile drawer tray stays dark so the light menu text survives; dropdown and profile menus open as sage cards over the dark bar.
+- **Premium 2026 shell** (`styles/Sidebar.css`, matching `design/premium/theme.css`): a fixed **left rail** (250px, white, hairline edge) carrying the brand block (program logo / admin monogram + letterspaced LANTAW), grouped navigation — **Overview** (Dashboard), **Academics** (every academic page, flat — the old mega dropdown is retired), **Administration** (Users, Activity Logs) — and a bottom **user chip** (avatar, name, role line) whose ··· opens the profile menu (My Profile / Security & Privacy / Logout) upward.
+- The **topbar** (rendered by `App.tsx` inside the main shell) holds the workspace breadcrumb (`Workspace / <page>`), the **academic-year pill** (`AY 2026–2027 · 2nd Semester`, derived from `utils/schoolYear.ts` + the Philippine term calendar), and the avatar button (opens Profile). The hamburger appears only under 960px, where the rail becomes a drawer behind a scrim.
+- Active items get `aria-current="page"`; the active nav row sits on the soft green `#eaf3ec`. The fullscreen Subject Graph slides under both rail and topbar (each z-1100 over the map's z-1000); dialogs (z-2000) still dim over everything.
 
 ---
 

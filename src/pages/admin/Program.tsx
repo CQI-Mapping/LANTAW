@@ -167,12 +167,12 @@ export default function Program({ allowDelete = true }: ProgramProps) {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently offered</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from lists</div>
         </div>
       </div>

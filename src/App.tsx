@@ -64,6 +64,7 @@ import { ensureProfile, syncDemoRole, addActivityLog, recordLoginEvent } from '.
 import type { Profile as ProfileType, UserRole, NavItem } from './services/database'
 import type { Session } from '@supabase/supabase-js'
 import { loadEmailAvatar } from './utils/avatar'
+import { CURRENT_SY_START } from './utils/schoolYear'
 
 const NAV: Record<UserRole, NavItem[]> = {
   admin: [
@@ -561,6 +562,23 @@ function App() {
     return <Page profile={profile} onNavigate={navigate} />
   }
 
+  const activeLabel = navItems.find((n: NavItem) => n.id === page)?.label ?? 'Workspace'
+
+  // The topbar's academic-year pill, derived from the shared school-year
+  // authority: "AY 2026–2027 · 1st Semester". Philippine terms run
+  // Jun–Oct (1st), Nov–Mar (2nd), Apr–May (Summer).
+  const now = new Date()
+  const syStart = CURRENT_SY_START
+  const month = now.getMonth() + 1
+  const semesterLabel = month >= 6 && month <= 10
+    ? '1st Semester'
+    : (month >= 11 || month <= 3) ? '2nd Semester' : 'Summer'
+  const termPill = `AY ${syStart}–${syStart + 1} · ${semesterLabel}`
+
+  const topbarInitials = ((profile?.full_name ?? '').trim() || role)
+    .split(/[\s-]+/).map((w) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || 'U'
+  const topbarAvatar = profile?.avatar_url ?? emailAvatar
+
   return (
     <div className="app-layout">
       <Sidebar
@@ -576,7 +594,30 @@ function App() {
         profileAvatar={profile?.avatar_url ?? emailAvatar}
       />
 
-      <div className="main-content">
+      <div className="main-shell">
+        <header className="topbar">
+          <button
+            type="button"
+            className="topbar__menu"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <div className="crumb">
+            <span>Workspace</span>
+            <i>/</i>
+            <b>{activeLabel}</b>
+          </div>
+          <div className="top-actions">
+            <span className="term-pill">{termPill}</span>
+            <button type="button" className="top-avatar" onClick={() => navigate('profile')} aria-label="Open profile">
+              {topbarAvatar ? <img src={topbarAvatar} alt="" className="avatar-img" /> : topbarInitials}
+            </button>
+          </div>
+        </header>
         <main className="content-area">
           <div className="page-container">{renderPage()}</div>
         </main>

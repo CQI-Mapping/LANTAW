@@ -455,7 +455,7 @@ function Curriculum({ userEmail }: CurriculumProps) {
                     </div>
                     <h3 className="program-card__name">{item.code || item.title}</h3>
                     {item.description && <p className="program-card__desc">{item.description}</p>}
-                    <div style={{ display: 'flex', gap: 10, fontSize: 12, color: '#64748b' }}>
+                    <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
                       {item.units != null && <span>{item.units} unit{item.units === 1 ? '' : 's'}</span>}
                       {item.sy_start != null && <span>SY {item.sy_start}-{item.sy_start + 1}</span>}
                       <span>by {(typeof item.created_by === 'object' && item.created_by?.full_name) || 'Unknown'}</span>

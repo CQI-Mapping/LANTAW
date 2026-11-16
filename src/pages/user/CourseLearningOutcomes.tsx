@@ -573,7 +573,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
-          <span style={{ fontSize: 12, color: '#64748b', width: '100%' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', width: '100%' }}>
             Suggested POs for this draft.
           </span>
           {editDisplay.map((r) => (
@@ -590,7 +590,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           ))}
         </div>
       ) : editForm.description.trim().length >= DRAFT_MIN && (
-        <div style={{ fontSize: 12, color: '#64748b', margin: '6px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0' }}>
           {poTexts.length === 0
             ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
             : mushy(editForm.description)
@@ -599,7 +599,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </div>
       )}
       {autoEditFor.current === editForm.description && editForm.programOutcomes.trim() && (
-        <div style={{ fontSize: 12, color: '#15803d', margin: '6px 0' }}>
+        <div style={{ fontSize: 12, color: 'var(--primary-dark)', margin: '6px 0' }}>
           Auto-filled {editForm.programOutcomes.trim()} —{' '}
           <button type="button" className="btn btn--ghost btn--sm"
             onClick={() => {
@@ -637,12 +637,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Active</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{activeCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{activeCount}</div>
           <div className="program-stat__sub">Currently mapped</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden</div>
         </div>
       </div>
@@ -655,7 +655,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       <div className="clo-layout">
         <div className="clo-layout__main">
         <div className="clo-layout__pair">
-      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid #16a34a' }}>
+      <form className="panel create-resource" onSubmit={submit} style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>New Course Learning Outcome</h3>
         {/* Year · Semester filters on top: two compact picks that narrow the
             Course dropdown below. "All years" / "All semesters" reset them;
@@ -737,7 +737,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         </label>
         {createDisplay.length > 0 ? (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Suggested POs for this draft.
             </span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
@@ -757,7 +757,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         ) : form.description.trim().length >= DRAFT_MIN && (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {poTexts.length === 0
                 ? 'No Curriculum Mapping outcomes yet — add them on the Program Outcomes page first.'
                 : mushy(form.description)
@@ -768,7 +768,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         )}
         {autoCreateFor.current === form.description && form.programOutcomes.trim() && (
           <div className="field" style={{ marginTop: -4 }}>
-            <span style={{ fontSize: 12, color: '#15803d' }}>
+            <span style={{ fontSize: 12, color: 'var(--primary-dark)' }}>
               Auto-filled {form.programOutcomes.trim()} —{' '}
               <button type="button" className="btn btn--ghost btn--sm"
                 onClick={() => {
@@ -886,7 +886,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               </button>
             )}
             {feedback !== null && feedback.length > 0 && (
-              <details style={{ fontSize: 12, color: '#64748b' }}>
+              <details style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 <summary style={{ cursor: 'pointer' }}>Feedback log ({feedback.length})</summary>
                 <ul style={{ margin: '6px 0 0', paddingLeft: 18, display: 'grid', gap: 2, maxHeight: 120, overflowY: 'auto' }}>
                   {feedback.slice(0, 20).map((f) => (
@@ -923,7 +923,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                         <h4>{cloLabel(item.code) || '—'} — {item.course || 'No course'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</h4>
                         {item.description && <p>{item.description}</p>}
                         <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569', marginTop: 6 }}>
-                          <strong style={{ color: '#64748b' }}>POs:</strong> {item.title || '—'}
+                          <strong style={{ color: 'var(--text-muted)' }}>POs:</strong> {item.title || '—'}
                         </div>
                         <div className="resource-card__meta" style={{ marginTop: 6 }}>
                           <span className={`status-badge status-badge--${isActive(item) ? 'active' : 'archived'}`}>{isActive(item) ? 'Active' : 'Archived'}</span>
@@ -954,14 +954,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                     <>
                       <div className="program-card__top">
                         <span className="program-card__code">{cloLabel(item.code) || '—'}</span>
-                        <span className="program-card__status" style={{ background: '#f1f5f9', color: '#64748b', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>{item.course || '—'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</span>
+                        <span className="program-card__status" style={{ background: '#f1f5f9', color: 'var(--text-muted)', fontSize: 11, padding: '3px 8px', borderRadius: 999 }}>{item.course || '—'}{courseTitleByCode(item.course) ? ` — ${courseTitleByCode(item.course)}` : ''}</span>
                         <span className={`program-card__status ${isActive(item) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
                           <span className="program-card__status-dot" />{isActive(item) ? 'Active' : 'Archived'}
                         </span>
                       </div>
                       <p className="program-card__desc">{item.description || 'No description.'}</p>
                       <div style={{ fontSize: 12.5, background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: 8, padding: '8px 10px', color: '#475569' }}>
-                        <strong style={{ color: '#64748b' }}>POs:</strong> {item.title || '—'}
+                        <strong style={{ color: 'var(--text-muted)' }}>POs:</strong> {item.title || '—'}
                       </div>
                       <div className="program-card__actions">
                         <button className="btn btn--ghost btn--sm" onClick={() => openReader(item)} disabled={busy || !!editingId} title="View"><Icon name="eye" size={13} /></button>

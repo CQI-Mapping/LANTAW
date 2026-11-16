@@ -203,12 +203,12 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Assigned</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{assignedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{assignedCount}</div>
           <div className="program-stat__sub">Have an instructor</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Unassigned</div>
-          <div className="program-stat__value" style={{ color: '#b45309' }}>{unassignedCount}</div>
+          <div className="program-stat__value" style={{ color: '#b47a32' }}>{unassignedCount}</div>
           <div className="program-stat__sub">Still need one</div>
         </div>
       </div>
@@ -230,7 +230,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                 ))}
               </select>
             </label>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Assignment is per program — the roster counts and subject list follow this pick.
             </span>
           </div>
@@ -240,7 +240,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                 account, with the count of this program's subjects they hold. */}
             <div className="program-panel">
               <h3 style={{ margin: 0 }}>Faculty</h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
                 Pick a member to work on their subjects.
               </p>
               <div className="assign-fac-list">
@@ -283,7 +283,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                     <span className="assign-fac__avatar">{initialsOf(selected.full_name, selected.email)}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h3 style={{ margin: 0, fontSize: 16 }}>{displayName(selected)}</h3>
-                      <span style={{ fontSize: 12.5, color: '#64748b' }}>{selected.email}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{selected.email}</span>
                     </div>
                   </div>
                   <div className="program-empty">
@@ -297,7 +297,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                     <span className="assign-fac__avatar">{initialsOf(selected.full_name, selected.email)}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h3 style={{ margin: 0, fontSize: 16 }}>{displayName(selected)}</h3>
-                      <span style={{ fontSize: 12.5, color: '#64748b' }}>{selected.email}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{selected.email}</span>
                     </div>
                     <span className="assign-fac__count">{held.length} subject{held.length === 1 ? '' : 's'}</span>
                   </div>

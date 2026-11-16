@@ -710,7 +710,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
           </label>
         </div>
         {!editForm.prereqNA && dupTokenCount(editForm.prereq) > 0 && (
-          <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
             Repeated pre-requisites are listed once in the report.
           </div>
         )}
@@ -734,7 +734,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
           </label>
         </div>
         {!editForm.coreqNA && dupTokenCount(editForm.coreq) > 0 && (
-          <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
             Repeated co-requisites are listed once in the report.
           </div>
         )}
@@ -784,17 +784,17 @@ export default function ManagerCourse({ profile }: CourseProps) {
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Visible</div>
-          <div className="program-stat__value" style={{ color: '#16a34a' }}>{visible.length}</div>
+          <div className="program-stat__value" style={{ color: 'var(--primary)' }}>{visible.length}</div>
           <div className="program-stat__sub">{archived ? 'Archived' : 'Active'} in current program</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Archived</div>
-          <div className="program-stat__value" style={{ color: '#64748b' }}>{archivedCount}</div>
+          <div className="program-stat__value" style={{ color: 'var(--text-muted)' }}>{archivedCount}</div>
           <div className="program-stat__sub">Hidden from lists</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Unassigned</div>
-          <div className="program-stat__value" style={{ color: '#b45309' }}>{unassignedCount}</div>
+          <div className="program-stat__value" style={{ color: '#b47a32' }}>{unassignedCount}</div>
           <div className="program-stat__sub">Active subjects without an instructor</div>
         </div>
       </div>
@@ -805,7 +805,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
         <p>Loading courses...</p>
       ) : (
         <>
-          <form className="panel create-resource" onSubmit={handleCreate} style={{ borderTop: '3px solid #16a34a' }}>
+          <form className="panel create-resource" onSubmit={handleCreate} style={{ borderTop: '3px solid var(--primary)' }}>
             <h3>New Course</h3>
             <label className="field">
               <span>Program code</span>
@@ -855,7 +855,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                     {/* Summer is a 3rd-year term only. */}
                     {form.yearLevel === '3' && <option value="3">Summer</option>}
                   </select>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                     Places the subject in the OBE Curriculum Map's Year · Semester columns.
                   </div>
                 </label>
@@ -897,7 +897,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
               {!form.prereqNA && dupTokenCount(form.prereq) > 0 && (
-                <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
                   Repeated pre-requisites are listed once in the report.
                 </div>
               )}
@@ -920,7 +920,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
               {!form.coreqNA && dupTokenCount(form.coreq) > 0 && (
-                <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#b47a32', marginTop: 4 }}>
                   Repeated co-requisites are listed once in the report.
                 </div>
               )}
@@ -1082,17 +1082,17 @@ export default function ManagerCourse({ profile }: CourseProps) {
                         </div>
                         <h3 className="program-card__name">{c.title}</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5 }}>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: '#64748b' }}>Curriculum:</span><span style={{ color: '#0f172a' }}>{curriculumLabel(c.curriculum_id)}</span></div>
-                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: '#64748b' }}>Term:</span><span style={{ color: '#0f172a' }}>{termLabelOf(c) || 'Not placed'}</span></div>
+                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Curriculum:</span><span style={{ color: 'var(--text)' }}>{curriculumLabel(c.curriculum_id)}</span></div>
+                          <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Term:</span><span style={{ color: 'var(--text)' }}>{termLabelOf(c) || 'Not placed'}</span></div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, color: '#64748b' }}>Instructor:</span>
-                            <span style={instructorLabelOf(c.instructor_id) ? { color: '#0f172a' } : { color: '#94a3b8', fontStyle: 'italic' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Instructor:</span>
+                            <span style={instructorLabelOf(c.instructor_id) ? { color: 'var(--text)' } : { color: '#94a3b8', fontStyle: 'italic' }}>
                               {instructorLabelOf(c.instructor_id) || 'Unassigned'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <div style={{ color: '#475569' }}>
-                              <strong style={{ color: '#64748b' }}>Pre-req:</strong>
+                              <strong style={{ color: 'var(--text-muted)' }}>Pre-req:</strong>
                               {listTokens(c.prerequisite).length > 0 ? (
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                   {listTokens(c.prerequisite).map((p, i) => (
@@ -1102,7 +1102,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                               ) : <span> N/A</span>}
                             </div>
                             <div style={{ color: '#475569' }}>
-                              <strong style={{ color: '#64748b' }}>Co-req:</strong>
+                              <strong style={{ color: 'var(--text-muted)' }}>Co-req:</strong>
                               {listTokens(c.corequisite).length > 0 ? (
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                   {listTokens(c.corequisite).map((p, i) => (
@@ -1112,7 +1112,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                               ) : <span> N/A</span>}
                             </div>
                           </div>
-                          <div style={{ color: '#475569' }}><strong style={{ color: '#64748b' }}>Credits:</strong> {c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</div>
+                          <div style={{ color: '#475569' }}><strong style={{ color: 'var(--text-muted)' }}>Credits:</strong> {c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab / {c.units ?? 0} total</div>
                         </div>
                         <p className="program-card__desc">{c.description || 'No description.'}</p>
                         <div className="program-card__actions">

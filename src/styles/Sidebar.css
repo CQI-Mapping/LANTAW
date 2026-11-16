@@ -1,827 +1,519 @@
-/* Sidebar — Awwwards-inspired: clean, minimal, pill nav + mega dropdown. */
+/* Sidebar — premium 2026 shell (design/premium/theme.css): a fixed white
+   left rail (250px) with the brand block, grouped nav, and user chip, plus
+   the sticky topbar that App.tsx renders inside the main shell. Small
+   screens turn the rail into a drawer behind a scrim. */
 
 .app-layout {
   display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
-/* ---- Top Navbar ---- */
-/* Reserve the navbar's height for the rest of the app — the fullscreen map
-   overlay stops below it so the navbar stays visible on top of the map. */
-:root { --hdr-h: 70px; }
+/* The topbar's height — the in-panel sticky controls (map filters) pin
+   below it while the page scrolls. */
+:root { --hdr-h: 64px; }
 
-.hdr {
-  position: sticky;
-  top: 0;
-  /* Above every page overlay, including the z-1000 fullscreen curriculum map —
-     the navbar row and BOTH of its dropdowns must stay visible and clickable
-     while the map is expanded. The map's fixed panel only starts below
-     --hdr-h, but the menus extend BELOW the navbar, and a menu living inside
-     a z-30 header context used to slide behind the z-1000 overlay.
-     Full-screen modals (.modal-overlay) and the syllabus reader sit above
-     this (they must dim/cover the navbar when open). */
-  z-index: 1100;
-  width: 100%;
-  height: var(--hdr-h);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(14px) saturate(180%);
-  -webkit-backdrop-filter: blur(14px) saturate(180%);
-  border-bottom: 1px solid #ececec;
-  color: #111;
-}
+/* ---- Left rail ---- */
 
-.hdr__inner {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
-}
-
-/* ---- Hamburger ---- */
-.hdr__hamburger {
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 250px;
+  background: #fff;
+  color: var(--text);
+  padding: 22px 16px 14px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #111;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  /* Above every page overlay, including the z-1000 fullscreen curriculum
+     map — the rail stays visible and clickable over it. Full-screen modals
+     (.modal-overlay, z-2000) still dim and cover it. */
+  z-index: 1100;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-.hdr__hamburger:hover {
-  background: #f2f2f2;
-}
-
-.hdr__hamburger-line {
-  display: block;
-  width: 20px;
-  height: 1.8px;
-  background: currentColor;
-  border-radius: 999px;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
-}
-
-.hdr__hamburger-line--open:nth-child(1) {
-  transform: translateY(5.8px) rotate(45deg);
-}
-.hdr__hamburger-line--open:nth-child(2) {
-  opacity: 0;
-  transform: scaleX(0);
-}
-.hdr__hamburger-line--open:nth-child(3) {
-  transform: translateY(-5.8px) rotate(-45deg);
-}
-
-/* ---- Brand ---- */
-.hdr__brand {
+.brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  padding: 0 9px 22px;
   flex-shrink: 0;
 }
 
-/* The program logo occupies the brand mark slot for program-scoped
-   roles (manager, faculty). The shield artwork is taller than a
-   square and drawn on transparency, so it stands alone at its natural
-   shape — height fixed, never cropped, no backing box: same treatment
-   the login card gives it (contain), just miniaturized. */
-.hdr__mark-img {
+/* The program logo occupies the brand mark slot for program-scoped roles
+   (manager, faculty) — its natural shape, never cropped. Admins keep the
+   quiet green monogram block, exactly the prototype's brand-mark. */
+.brand-mark-img {
   display: block;
   width: auto;
   height: 34px;
   flex-shrink: 0;
   object-fit: contain;
-  filter: drop-shadow(0 2px 3px rgba(6, 20, 12, 0.18));
   user-select: none;
   -webkit-user-drag: none;
 }
 
-/* Admin's neutral fallback mark while they are not bounded to a
-   program: a quiet field-green chip with the monogram C. */
-.hdr__mark--temp {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  flex-shrink: 0;
+.brand-mark {
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  background: #16342a;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--g800);
   color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
-/* ---- Nav — Awwwards pill group (centered, snug) ---- */
-.hdr__nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  overflow: visible;
-  scrollbar-width: none;
-  background: #f5f5f5;
-  border: 1px solid #ececec;
-  border-radius: 999px;
-  margin: 0 auto;
-  max-width: 100%;
-}
-
-.hdr__nav::-webkit-scrollbar {
-  display: none;
-}
-
-.hdr__item {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  max-width: 220px;
-  padding: 7px 13px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #6b7280;
-  font-size: 13.2px;
-  font-family: inherit;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.16s cubic-bezier(0.16,1,0.3,1);
-}
-
-.hdr__item > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.hdr__item:hover {
-  color: #111;
-  background: #f2f2f2;
-  border-color: #ececec;
-}
-
-.hdr__item--active {
-  color: #fff;
-  background: #111;
-  border-color: #111;
-}
-
-.hdr__item--active:hover {
-  background: #111;
-  color: #fff;
-  border-color: #111;
-}
-
-.hdr__icon {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
-.hdr__item--active .hdr__icon {
-  opacity: 1;
-}
-
-.hdr__chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  margin-left: 1px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  opacity: 0.6;
-}
-
-.hdr__item:hover .hdr__chevron {
-  opacity: 1;
-}
-
-.hdr__chevron--open {
-  transform: rotate(180deg);
-}
-
-.hdr__item:focus-visible,
-.hdr__dd-item:focus-visible,
-.hdr__logout:focus-visible,
-.hdr__profileBtn:focus-visible,
-.hdr__profile-item:focus-visible,
-.hdr__hamburger:focus-visible {
-  outline: 2px solid #111;
-  outline-offset: 2px;
-}
-
-/* ---- Academics mega dropdown — Awwwards style ---- */
-.hdr__dd {
-  position: relative;
-}
-
-/* Invisible hover bridge — keeps menu open when moving cursor from button to panel (14px gap) */
-.hdr__dd::before {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: -12px;
-  right: -12px;
-  height: 16px;
-  display: block;
-  /* transparent but keeps :hover / onMouseEnter alive */
-}
-
-/* The old .hdr__dd-overlay (fixed viewport dim) is gone entirely: as a fixed
-   descendant of the backdrop-filtered sticky header it resolved against the
-   header's own 70px box and collapsed to zero height in Chromium 105+ —
-   invisible, unclickable, pure dead markup. Outside clicks are already
-   dismissed by the Sidebar's own document listener. */
-
-/* Filter-style dropdown — unified Academics menu for all roles.
-   No entrance animation: opening mid-scroll or on a busy/throttled tab left
-   the menu stuck at its first fade frame, which reads as "the dropdown is
-   behind the page" (page content ghosting through a ~0.1-opacity menu).
-   It now simply appears — instant, above everything, per the audit spec. */
-.hdr__dd-menu {
-  position: absolute;
-  top: calc(100% + 12px);
-  left: 0;
-  transform: none;
-  width: 360px;
-  max-width: calc(100vw - 24px);
-  background: #ffffff;
-  border: 1px solid #ececec;
-  border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  z-index: 60;
-  overflow: hidden;
-}
-
-.hdr__dd-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-  padding: 8px;
-  background: var(--bg-panel);
-  max-height: 60vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 750;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  flex-shrink: 0;
 }
 
-.hdr__dd-grid::-webkit-scrollbar {
-  width: 6px;
-}
-.hdr__dd-grid::-webkit-scrollbar-thumb {
-  background: #ececec;
-  border-radius: 999px;
+.brand-text b {
+  display: block;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--text);
 }
 
-.hdr__dd-item {
+.brand-text small {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #829087;
+  margin-top: 3px;
+}
+
+/* ---- Grouped nav ---- */
+
+.nav-label {
+  font-size: 9px;
+  color: #929d95;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 17px 11px 7px;
+}
+
+.nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 10px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--bg-panel);
-  color: #111;
+  padding: 10px 11px;
+  border-radius: 7px;
+  color: #5f6d63;
+  margin: 2px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  text-decoration: none;
+  font-size: 12.5px;
   font-family: inherit;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.nav-item:hover {
+  background: #f4f7f4;
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: #eaf3ec;
+  color: var(--g800);
+  font-weight: 700;
+}
+
+.nav-ico {
+  width: 18px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.nav-svg {
+  width: 15px;
+  height: 15px;
+}
+
+.nav-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-nav {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- Sidebar bottom: user chip + profile menu ---- */
+
+.sidebar-bottom {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.user-mini {
+  position: relative;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 2px;
+}
+
+.user-mini__btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 6px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
   text-align: left;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background 0.14s ease;
 }
 
-.hdr__dd-item:hover {
-  background: #f5f5f5;
-  border-color: transparent;
-  transform: none;
-  box-shadow: none;
+.user-mini__btn:hover,
+.user-mini__btn.open {
+  background: var(--g50);
 }
 
-.hdr__dd-item--active {
-  background: #111 !important;
-  border-color: #111 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-}
-
-.hdr__dd-item--active:hover {
-  transform: translateY(-1px);
-}
-
-.hdr__dd-iconWrap {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid #ececec;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.16s ease;
-}
-
-.hdr__dd-item:hover .hdr__dd-iconWrap {
-  border-color: #e5e5e5;
-  background: var(--bg-panel);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.hdr__dd-item--active .hdr__dd-iconWrap {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
-}
-
-.hdr__dd-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: #111;
-  opacity: 0.9;
-}
-
-.hdr__dd-item--active .hdr__dd-icon {
-  color: #fff;
-  opacity: 1;
-}
-
-.hdr__dd-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hdr__dd-label {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #111;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__dd-desc {
-  font-size: 12px;
-  font-weight: 400;
-  color: #6b7280;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__dd-item--active .hdr__dd-label {
-  color: #fff;
-}
-
-.hdr__dd-item--active .hdr__dd-desc {
-  color: rgba(255, 255, 255, 0.68);
-}
-
-.hdr__dd-arrow {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: #9ca3af;
-  opacity: 0;
-  transform: translateX(-6px);
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.hdr__dd-item:hover .hdr__dd-arrow {
-  opacity: 1;
-  transform: translateX(0);
-  color: #111;
-}
-
-.hdr__dd-item--active .hdr__dd-arrow {
-  opacity: 1;
-  transform: translateX(0);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.hdr__dd-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 20px 16px;
-  border-top: 1px solid #f0f0f0;
-  background: #fcfcfc;
-  font-size: 11px;
-  font-weight: 500;
-  color: #9ca3af;
-  letter-spacing: -0.01em;
-}
-
-.hdr__dd-foot-hint {
-  font-weight: 600;
-  color: #6b7280;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 10.5px;
-}
-
-/* ---- Backdrop for mobile drawer ---- */
-.hdr__backdrop {
-  position: fixed;
-  inset: 0;
-  top: 70px;
-  background: rgba(17, 17, 17, 0.32);
-  backdrop-filter: blur(2px);
-  border: none;
-  z-index: 20;
-  cursor: pointer;
-  animation: ddOverlayIn 0.2s ease;
-}
-
-/* ---- Right side — Awwwards minimal (profile dropdown) ---- */
-.hdr__right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.hdr__profile {
-  position: relative;
-}
-
-.hdr__profileBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 4px;
-  border: 1px solid #ececec;
-  background: #f5f5f5;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.hdr__profileBtn:hover {
-  background: var(--bg-panel);
-  border-color: #ececec;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-}
-
-.hdr__profileBtn--open {
-  background: var(--bg-panel);
-  border-color: #ececec;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.hdr__profileBtn--active {
-  border-color: #111;
-}
-
-.hdr__avatar {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
+.avatar,
+.top-avatar {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  display: grid;
+  place-items: center;
+  background: #d7e8d9;
+  color: var(--g900);
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
   overflow: hidden;
 }
 
-/* A profile picture (set on the Profile page) fills the avatar circle. */
-.hdr__avatar-img {
+.avatar-img {
   width: 100%;
   height: 100%;
   border-radius: inherit;
   object-fit: cover;
 }
 
-.hdr__role {
-  color: #111;
-  font-size: 12.5px;
-  font-weight: 600;
-  text-transform: capitalize;
-  letter-spacing: -0.01em;
+.avatar--lg {
+  width: 40px;
+  height: 40px;
+  font-size: 13px;
+}
+
+.user-mini__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-mini__text b {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-mini__text small {
+  display: block;
+  color: #89958d;
+  font-size: 9px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.more-btn {
+  margin-left: auto;
+  color: #718078;
+  font-size: 18px;
+  letter-spacing: 1px;
   line-height: 1;
 }
 
-.hdr__chevron--sm {
-  width: 12px;
-  height: 12px;
-  margin-left: 1px;
-}
-
-.hdr__profile-menu {
+/* The profile menu opens UPWARD from the chip — the chip sits at the rail's
+   bottom edge, so a downward menu would fall off the viewport. */
+.profile-menu {
   position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 280px;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.06);
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 218px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(13, 33, 24, 0.14), 0 2px 10px rgba(13, 33, 24, 0.06);
   overflow: hidden;
-  z-index: 60;
+  z-index: 20;
 }
 
-.hdr__profile-head {
+.profile-menu__head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: #fcfcfc;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--g50);
 }
 
-.hdr__profile-avatarLg {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.hdr__profile-info {
-  flex: 1;
+.profile-menu__id {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
-.hdr__profile-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #111;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+.profile-menu__id b {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.hdr__profile-sub {
-  font-size: 11.5px;
-  font-weight: 400;
-  color: #6b7280;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.hdr__profile-badge {
-  flex-shrink: 0;
+.profile-menu__id small {
+  display: block;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #111;
-  background: var(--bg-panel);
-  border: 1px solid #ececec;
-  padding: 5px 8px;
-  border-radius: 999px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hdr__profile-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
-  background: var(--bg-panel);
+.profile-menu__list {
+  padding: 6px;
 }
 
-.hdr__profile-item {
+.profile-menu__item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  background: var(--bg-panel);
-  border-radius: 10px;
-  color: #111;
-  font-size: 13.5px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #425148;
+  font-size: 12px;
   font-family: inherit;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
-.hdr__profile-item:hover {
-  background: #f5f5f5;
+.profile-menu__item:hover,
+.profile-menu__item.active {
+  background: var(--g50);
+  color: var(--g800);
 }
 
-.hdr__profile-item--active {
-  background: #111;
-  color: #fff;
-  border-color: #111;
+.profile-menu__item.active {
+  font-weight: 700;
 }
 
-.hdr__profile-item--active .hdr__profile-icon,
-.hdr__profile-item--active .hdr__profile-arrow {
-  color: #fff;
-}
-
-.hdr__profile-item--danger {
-  color: #dc2626;
-}
-
-.hdr__profile-item--danger:hover {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.hdr__profile-icon {
-  width: 16px;
-  height: 16px;
+.profile-menu__ico {
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
-  opacity: 0.9;
 }
 
-.hdr__profile-arrow {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  margin-left: auto;
-  color: #9ca3af;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: all 0.15s ease;
-}
-
-.hdr__profile-item:hover .hdr__profile-arrow {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.hdr__profile-sep {
+.profile-menu__sep {
   height: 1px;
-  background: #f0f0f0;
-  margin: 4px 0;
+  background: var(--line);
+  margin: 5px 4px;
 }
 
-/* Legacy logout (kept for compatibility) */
-.hdr__logout {
-  display: inline-flex;
+.profile-menu__item--danger {
+  color: var(--danger);
+}
+
+.profile-menu__item--danger:hover {
+  background: #fbeceb;
+  color: var(--danger);
+}
+
+/* ---- Main shell + topbar (rendered by App.tsx) ---- */
+
+.main-shell {
+  flex: 1;
+  min-width: 0;
+  margin-left: 250px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 64px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid #ececec;
-  background: var(--bg-panel);
-  color: #111;
-  font-size: 13px;
-  font-family: inherit;
-  font-weight: 500;
-  border-radius: 999px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  /* Same ceiling as the rail: the fullscreen map (z-1000) slides under the
+     topbar row, and dialogs (z-2000) dim over both. */
+  z-index: 1100;
+  flex-shrink: 0;
+}
+
+.topbar__menu {
+  display: none;
+  border: 0;
+  background: transparent;
+  color: #627168;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.topbar__menu:hover {
+  background: var(--g50);
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9aa49d;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.crumb i {
+  font-style: normal;
+  color: #c5cec7;
+}
+
+.crumb b {
+  color: var(--text);
+  font-weight: 600;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hdr__logout:hover {
-  background: #111;
-  color: #fff;
-  border-color: #111;
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-/* ---- Responsive — mobile drawer ---- */
-@media (max-width: 1024px) {
-  :root { --hdr-h: 60px; }
+.term-pill {
+  background: var(--g50);
+  color: var(--g800);
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
 
-  .hdr {
-    height: auto;
-    min-height: 60px;
-    padding: 10px 14px;
-    gap: 8px;
-  }
+.top-avatar {
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: box-shadow 0.14s ease;
+}
 
-  .hdr__inner {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+.top-avatar:hover {
+  box-shadow: 0 0 0 3px var(--g100);
+}
 
-  .hdr__hamburger {
-    order: -1;
-  }
+/* ---- Content column ---- */
 
-  .hdr__brand {
-    flex: 1;
-  }
+.content-area {
+  padding: 29px 32px 38px;
+  flex: 1;
+}
 
-  .hdr__nav {
-    order: 9;
-    width: 100%;
-    margin: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
-    max-height: 62vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--bg-panel);
-    border: 1px solid #ececec;
-    border-radius: 16px;
-    padding: 8px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
-  }
+.page-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
 
-  .hdr--open .hdr__nav {
-    display: flex;
-  }
+/* ---- Focus rings ---- */
 
-  .hdr__nav {
-    display: none;
-  }
+.nav-item:focus-visible,
+.user-mini__btn:focus-visible,
+.top-avatar:focus-visible,
+.profile-menu__item:focus-visible,
+.topbar__menu:focus-visible {
+  outline: 2px solid var(--g700);
+  outline-offset: 2px;
+}
 
-  .hdr__item {
-    justify-content: flex-start;
-    padding: 10px 14px;
-    border-radius: 12px;
-  }
+/* ---- Small screens: the rail becomes a drawer ---- */
 
-  .hdr__dd-menu,
-  .hdr__profile-menu {
-    position: static;
-    transform: none;
-    width: 100%;
-    max-width: none;
-    margin-top: 6px;
-    border-radius: 14px;
+.sidebar-scrim {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: none;
-    left: auto;
-    right: auto;
+    width: 262px;
   }
 
-  .hdr__dd-grid {
-    grid-template-columns: 1fr;
-    padding: 10px;
+  .sidebar.open {
+    transform: none;
+    box-shadow: 0 18px 44px rgba(13, 33, 24, 0.25);
   }
 
-  .hdr__dd-foot {
-    padding: 10px 14px 12px;
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 47, 36, 0.5);
+    border: 0;
+    z-index: 1090;
+    cursor: pointer;
   }
 
-  .hdr__right {
-    order: 11;
-    width: 100%;
-    justify-content: space-between;
-    padding-top: 10px;
-    border-top: 1px solid #ececec;
+  .main-shell {
+    margin-left: 0;
   }
 
-  .hdr__profile {
-    flex: 1;
+  .topbar {
+    padding: 0 15px;
+    height: 60px;
   }
 
-  .hdr__profileBtn {
-    width: 100%;
-    justify-content: flex-start;
+  .topbar__menu {
+    display: inline-flex;
+  }
+
+  .crumb {
+    font-size: 11px;
+  }
+
+  .content-area {
+    padding: 20px 14px 30px;
   }
 }
 
-@media (min-width: 1025px) {
-  .hdr__hamburger {
-    display: none;
-  }
-
-  .hdr__backdrop {
+@media (max-width: 760px) {
+  .term-pill {
     display: none;
   }
 }
