@@ -8964,11 +8964,11 @@ button.reports-panel__more:hover {
 .dashbanner__name,
 .dashbanner__title,
 .fac-hero__name {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.55px;
   color: var(--text);
-  margin: 0 0 6px;
+  margin: 0 0 7px;
 }
 
 .program-hero__titles p,
@@ -8976,7 +8976,8 @@ button.reports-panel__more:hover {
 .dashbanner__desc,
 .fac-hero__desc {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
+  line-height: 1.55;
   color: var(--text-muted);
 }
 
@@ -9073,9 +9074,10 @@ button.reports-panel__more:hover {
 }
 
 .program-stat__label {
-  font-size: 10px;
-  letter-spacing: 0.7px;
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
   color: var(--text-muted);
+  font-weight: 700;
 }
 
 .program-stat__value {
@@ -9087,7 +9089,7 @@ button.reports-panel__more:hover {
 }
 
 .program-stat__sub {
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--text-muted);
 }
 
