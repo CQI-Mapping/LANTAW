@@ -12,13 +12,12 @@ export function philippineNow(now: Date = new Date()): Date {
   return new Date(now.getTime() + (phOffsetMin - deviceOffsetMin) * 60_000)
 }
 
-/** The day's clock, not the calendar, sets the mood: the evening runs from
- *  6 PM and carries through the small hours (12–4:59 AM), morning starts
- *  at 5, afternoon at noon. Feed it philippineNow() so the greeting reads
- *  by the school's day, not the device's. */
+/** The day's clock, not the calendar, sets the mood — and the day starts at
+ *  midnight: morning runs 12:00 AM–11:59 AM, afternoon 12:00–5:59 PM,
+ *  evening 6:00–11:59 PM. Feed it philippineNow() so the greeting reads by
+ *  the school's day, not the device's. */
 export function timeGreeting(now: Date): string {
   const h = now.getHours()
-  if (h < 5) return 'Good evening'
   if (h < 12) return 'Good morning'
   if (h < 18) return 'Good afternoon'
   return 'Good evening'

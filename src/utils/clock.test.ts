@@ -8,14 +8,10 @@ import { localISODate, philippineNow, timeGreeting } from './clock'
 const at = (h: number, m = 0) => new Date(2026, 9, 27, h, m)
 
 describe('timeGreeting', () => {
-  it("keeps greeting the evening through the small hours (12–4:59 AM)", () => {
-    expect(timeGreeting(at(0, 0))).toBe('Good evening')
-    expect(timeGreeting(at(2, 45))).toBe('Good evening')
-    expect(timeGreeting(at(4, 59))).toBe('Good evening')
-  })
-
-  it("greets the morning from 5 AM until 11:59 AM", () => {
-    expect(timeGreeting(at(5, 0))).toBe('Good morning')
+  it("greets the morning from midnight until 11:59 AM", () => {
+    expect(timeGreeting(at(0, 0))).toBe('Good morning')
+    expect(timeGreeting(at(2, 45))).toBe('Good morning')
+    expect(timeGreeting(at(4, 59))).toBe('Good morning')
     expect(timeGreeting(at(11, 59))).toBe('Good morning')
   })
 
@@ -29,8 +25,8 @@ describe('timeGreeting', () => {
     expect(timeGreeting(at(23, 59))).toBe('Good evening')
   })
 
-  it('turns over exactly at 5 AM, noon and 6 PM', () => {
-    expect(timeGreeting(at(4, 59))).not.toBe(timeGreeting(at(5, 0)))
+  it('turns over exactly at midnight, noon and 6 PM', () => {
+    expect(timeGreeting(at(23, 59))).not.toBe(timeGreeting(at(0, 0)))
     expect(timeGreeting(at(11, 59))).not.toBe(timeGreeting(at(12, 0)))
     expect(timeGreeting(at(17, 59))).not.toBe(timeGreeting(at(18, 0)))
   })
