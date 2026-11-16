@@ -105,6 +105,17 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   const academics = navItems.filter((n) => ACADEMICS_IDS.has(n.id))
   const others = navItems.filter((n) => n.id !== 'dashboard' && !ACADEMICS_IDS.has(n.id) && !inProfileMenu(n))
 
+  // The Academics group is a collapsible section. It starts open when the
+  // signed-in page already lives there, and auto-opens whenever navigation
+  // lands on an academic page — a highlighted row must never hide behind a
+  // collapsed group.
+  const [academicsOpen, setAcademicsOpen] = useState(() =>
+    ACADEMICS_IDS.has(activePage),
+  )
+  useEffect(() => {
+    if (ACADEMICS_IDS.has(activePage)) setAcademicsOpen(true)
+  }, [activePage])
+
   const displayName = (profileName ?? '').trim() || `${role.charAt(0).toUpperCase() + role.slice(1)} User`
   const displayEmail = (profileEmail ?? '').trim() || `Signed in as ${role}`
   const avatarInitials = initialsOf(profileName, role)
@@ -176,8 +187,24 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
           )}
           {academics.length > 0 && (
             <>
-              <div className="nav-label">Academics</div>
-              {academics.map(renderItem)}
+              <button
+                type="button"
+                className="nav-group-toggle"
+                onClick={() => setAcademicsOpen((v) => !v)}
+                aria-expanded={academicsOpen}
+                aria-controls="nav-group-academics"
+              >
+                <span>Academics</span>
+                <svg className={`nav-chevron ${academicsOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+              {academicsOpen && (
+                <div id="nav-group-academics" className="nav-group">
+                  {academics.map(renderItem)}
+                </div>
+              )}
             </>
           )}
           {others.length > 0 && (
