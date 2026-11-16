@@ -32,6 +32,7 @@ export const ACTION_LABELS: Record<string, string> = {
   // Courses
   'course.created': 'Created course',
   'course.updated': 'Updated course',
+  'course.instructor_assigned': 'Assigned course instructor',
   'course.archived': 'Archived course',
   'course.restored': 'Restored course',
   'course.deleted': 'Deleted course',

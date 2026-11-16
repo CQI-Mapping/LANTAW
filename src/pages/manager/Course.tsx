@@ -16,12 +16,13 @@ import {
   fetchPrograms,
   fetchResources,
   fetchCourses,
+  fetchAllProfiles,
   createCourse,
   updateCourse,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
-import type { Program, Resource, Course } from '../../services/database'
+import type { Program, Resource, Course, Profile } from '../../services/database'
 
 const instructorLabelOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.full_name || v.email : ''
@@ -55,6 +56,7 @@ type CourseForm = {
   creditLecture: string
   creditLaboratory: string
   description: string
+  instructor: string
 }
 
 const blank: CourseForm = {
@@ -70,6 +72,7 @@ const blank: CourseForm = {
   creditLecture: '',
   creditLaboratory: '',
   description: '',
+  instructor: '',
 }
 
 const relId = (v: string | { id: string } | null | undefined) =>
@@ -179,6 +182,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [curriculums, setCurriculums] = useState<Resource[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  // The faculty picker's options: active faculty accounts only. An archived
+  // account should not be handed a subject, and managers/admins do not teach.
+  const [faculty, setFaculty] = useState<Profile[]>([])
   const [programId, setProgramId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -242,6 +248,15 @@ export default function ManagerCourse({ profile }: CourseProps) {
           ),
       )
       setCourses(c)
+      // Faculty list is auxiliary: a profiles read that the network or RLS
+      // refuses must not take the whole page down, so it degrades to an
+      // empty picker instead of a dead page.
+      try {
+        const profiles = await fetchAllProfiles()
+        setFaculty(profiles.filter((p) => p.role === 'user' && p.status !== 'archived'))
+      } catch {
+        setFaculty([])
+      }
       setProgramId((prev) => {
         if (prev && p.some((x) => x.id === prev)) return prev
         return p[0]?.id ?? ''
@@ -318,6 +333,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
     credit_laboratory: parseInt(f.creditLaboratory, 10) || 0,
     units: totalCredits(f),
     description: f.description.trim() || null,
+    instructor_id: f.instructor || null,
   })
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -370,6 +386,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
         creditLecture: String(item.credit_lecture ?? 0),
         creditLaboratory: String(item.credit_laboratory ?? 0),
         description: item.description || '',
+        instructor: relId(item.instructor_id),
       },
     })
   }
@@ -392,6 +409,17 @@ export default function ManagerCourse({ profile }: CourseProps) {
         entity_id: editId,
         label: `${editForm.code.trim().toUpperCase()} — ${editForm.title.trim()}`,
       })
+      // Handing a subject to a faculty member is a curriculum act of its own,
+      // so when the pick changed the log names it explicitly instead of
+      // letting it hide inside "course.updated". Same for clearing it.
+      const prev = courses.find((c) => c.id === editId)
+      if (relId(prev?.instructor_id) !== editForm.instructor) {
+        await addActivityLog('course.instructor_assigned', {
+          entity: 'course',
+          entity_id: editId,
+          label: `${code} → ${editForm.instructor ? facultyNameOf(editForm.instructor) || 'faculty' : 'unassigned'}`,
+        })
+      }
       setMessage('Course updated.')
       clearEdit()
       load()
@@ -498,6 +526,30 @@ export default function ManagerCourse({ profile }: CourseProps) {
       <input className={small ? 'input input--sm' : 'input'} type="number" min={0} max={3} value={f[key]}
         onChange={(e) => setF({ ...f, [key]: clampCredit(e.target.value) })}
         onWheel={(e) => (e.target as HTMLInputElement).blur()} />
+    </label>
+  )
+
+  // Who teaches the subject — the assignment the manager hands out. Active
+  // faculty accounts only (the load step filters role + status); shown as
+  // "Full name — email" so same-named colleagues stay distinguishable.
+  const facultyNameOf = (id: string) => {
+    const f = faculty.find((x) => x.id === id)
+    return f ? (f.full_name || f.email) : ''
+  }
+  const facultyField = (value: string, onChange: (v: string) => void, small = false) => (
+    <label className="field" style={small ? { marginBottom: 0 } : undefined}>
+      <span>Instructor (Faculty)</span>
+      <select className={small ? 'input input--sm' : 'input'} title="Instructor (faculty)"
+        value={value || ''} onChange={(e) => onChange(e.target.value)}>
+        {faculty.length === 0 ? (
+          <option value="">No faculty accounts yet</option>
+        ) : (
+          <option value="">Unassigned</option>
+        )}
+        {faculty.map((f) => (
+          <option key={f.id} value={f.id}>{f.full_name || f.email}{f.full_name ? ` — ${f.email}` : ''}</option>
+        ))}
+      </select>
     </label>
   )
 
@@ -627,6 +679,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
           <input className="input input--sm" type="number" readOnly value={totalCredits(editForm)} />
         </label>
       </div>
+      {facultyField(editForm.instructor, (v) => setEditForm({ ...editForm, instructor: v }), true)}
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Description</span>
         <textarea className="input input--sm" rows={2} placeholder="Optional description"
@@ -811,6 +864,10 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
             </div>
+            {facultyField(form.instructor, (v) => setForm({ ...form, instructor: v }))}
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: -12, marginBottom: 8 }}>
+              The faculty member who teaches this subject.
+            </div>
             <label className="field">
               <span>Description</span>
               <textarea className="input" rows={3} placeholder="Optional description"
@@ -863,7 +920,11 @@ export default function ManagerCourse({ profile }: CourseProps) {
                             <span>{curriculumLabel(c.curriculum_id)}</span>
                             {termLabelOf(c) && <span title="Term placement — which column the subject stands in on the OBE Curriculum Map">{termLabelOf(c)}</span>}
                             <span>{c.credit_lecture ?? 0} lec / {c.credit_laboratory ?? 0} lab</span>
-                            <span>{instructorLabelOf(c.instructor_id)}</span>
+                            {instructorLabelOf(c.instructor_id) && (
+                              <span title="Faculty member assigned to teach this subject">
+                                Instructor: {instructorLabelOf(c.instructor_id)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="resource-card__actions">
@@ -901,7 +962,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
                           <div style={{ display: 'flex', gap: 6 }}><span style={{ fontWeight: 700, color: '#64748b' }}>Term:</span><span style={{ color: '#0f172a' }}>{termLabelOf(c) || 'Not placed'}</span></div>
                           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                             <span style={{ fontWeight: 700, color: '#64748b' }}>Instructor:</span>
-                            <span style={{ color: '#0f172a' }}>{instructorLabelOf(c.instructor_id)}</span>
+                            <span style={instructorLabelOf(c.instructor_id) ? { color: '#0f172a' } : { color: '#94a3b8', fontStyle: 'italic' }}>
+                              {instructorLabelOf(c.instructor_id) || 'Unassigned'}
+                            </span>
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <div style={{ color: '#475569' }}>

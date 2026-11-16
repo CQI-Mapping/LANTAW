@@ -403,6 +403,7 @@ All queries live in `src/services/database.ts`. Signatures, purpose, and who can
 | `fetchCourses()` | List courses with embedded program | all signed-in users |
 | `createCourse(payload)` | Insert a course | admins/managers |
 | `updateCourse(id, updates)` | Edit a course | admins/managers |
+| `assignCourseInstructor(courseId, instructorId)` | Assign or clear the faculty instructor of a course (`instructor_id`) | admins/managers |
 | `deleteCourse(id)` | Permanently delete a course (cascades to CLOs) | admins |
 | `seedIt21Course()` | Seed the IT21 course data | admins |
 | `fetchProgramOutcomes(programId)` | List program outcomes, optionally by program | all signed-in users |
@@ -561,7 +562,8 @@ The rest of the password-reset journey (mockup: `design/profile-reset-redesign.h
 - Props: `userEmail`. Create/edit/archive (no delete), search box, Active/Archive tabs with counts, `role=alert/status` messages.
 
 ### `manager/Course.tsx`
-- Wraps `admin/Course` with `hideDelete` (create/edit/archive/restore, no delete). Falls through `renderPage` with `profile` prop.
+- The only Course page (admin has no Course entry): programs + curriculums + courses with prereq/coreq, lecture/lab credits, search, Active/Archive tabs, stats, skeleton cards. No delete (RLS blocks it too). Falls through `renderPage` with the `profile` prop.
+- **Instructor (Faculty) assignment:** both the New Course form and the inline card editor carry an Instructor (Faculty) select listing active faculty accounts only (`role='user'`, archived ones excluded), shown as "Full name — email". The pick saves into `courses.instructor_id` with the rest of the form, and when the pick changes on an existing course the page also writes a dedicated `course.instructor_assigned` audit entry (`CODE → Name`, or `unassigned` when cleared). The list row shows the instructor only when one is assigned; the grid card shows "Unassigned" in muted text when none is. A profiles read that RLS or the network refuses degrades to an empty picker, never a dead page.
 
 ### `admin/Syllabus.tsx`
 - Printable curriculum map / syllabus report. Displays Vision, Mission, Strategic Goals, PEOs, Program Outcomes, Curriculum Mapping, Course Learning Outcomes, and Course Details in a formatted document layout.
