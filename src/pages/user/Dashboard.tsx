@@ -22,7 +22,7 @@ import CloViewModal from '../../components/CloViewModal'
 import MapBrief from '../../components/MapBrief'
 import MapPreview from '../../components/MapPreview'
 import { useClock } from '../../hooks/useClock'
-import { localISODate, timeGreeting } from '../../utils/clock'
+import { timeGreeting } from '../../utils/clock'
 import { timeAgo } from '../../utils/time'
 import { cloLabel } from '../../utils/courseCodes'
 import { groupOutcomesBySubject, ownFigures, subjectsCovered, weeklyEditTrend } from '../../utils/facultyDashboard'
@@ -269,15 +269,6 @@ function Dashboard({ profile, onNavigate }: DashboardProps) {
     <div className="fac-dash page-enter">
       <section className="fac-hero card-enter" aria-labelledby="fac-hero-name">
         <div className="fac-hero__info">
-          <time className="fac-hero__date" dateTime={localISODate(clock)}>
-            <Glyph size={15}>
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </Glyph>
-            <span>{clock.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
-          </time>
           <p className="fac-hero__greeting">{timeGreeting(clock)}</p>
           <h1 className="fac-hero__name" id="fac-hero-name">{name}</h1>
           <span className="fac-hero__chip">Faculty</span>
