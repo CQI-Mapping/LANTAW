@@ -17,6 +17,9 @@ interface SidebarProps {
   role: UserRole
   isOpen: boolean
   onToggle: () => void
+  /** Minimized rail: icon-only, no labels. Clicking the chip expands it. */
+  mini?: boolean
+  onToggleMini?: () => void
   profileName?: string | null
   profileEmail?: string | null
   profileAvatar?: string | null
@@ -84,6 +87,7 @@ function initialsOf(name: string | null | undefined, fallback: string): string {
 const ACADEMICS_IDS = new Set([
   'program', 'ched-memo', 'strategic-goals', 'peos',
   'program-outcomes', 'curriculum', 'course', 'faculty-assign', 'clo', 'subject-view', 'grasps', 'tos',
+  'view',
 ])
 
 // The small role line under the name in the user chip, worded like the
@@ -94,7 +98,7 @@ const ROLE_TITLE: Record<UserRole, string> = {
   user: 'Faculty Member',
 }
 
-function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, profileName, profileEmail, profileAvatar }: SidebarProps) {
+function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, profileName, profileEmail, profileAvatar }: SidebarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -145,10 +149,14 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
     if (window.innerWidth <= 960 && isOpen) onToggle()
   }, [onNavigate, isOpen, onToggle])
 
-  // Page changes close the menu (an open menu across a page swap reads wrong).
+  // Page changes close the menu (an open menu across a page swap reads wrong),
+  // and minimizing the rail can never leave a menu dangling on a 68px column.
   useEffect(() => {
     setProfileOpen(false)
   }, [activePage])
+  useEffect(() => {
+    if (mini) setProfileOpen(false)
+  }, [mini])
 
   const renderItem = (item: NavItem) => (
     <button
@@ -157,11 +165,17 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
       className={`nav-item ${activePage === item.id ? 'active' : ''}`}
       onClick={() => navigate(item.id)}
       aria-current={activePage === item.id ? 'page' : undefined}
+      title={item.label}
+      aria-label={item.label}
     >
       <span className="nav-ico"><Icon d={ICONS[item.id] || ICONS.dashboard} className="nav-svg" /></span>
       <span className="nav-text">{item.label}</span>
     </button>
   )
+
+  // The mini rail flattens the groups: icons only, hairline dividers between
+  // the sections, tooltips carrying the names.
+  const divider = <div className="nav-divider" role="separator" />
 
   return (
     <>
@@ -179,13 +193,16 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
         </div>
 
         <nav className="side-nav" aria-label="Main navigation">
-          {dashboardItem && (
+          {dashboardItem && (mini ? renderItem(dashboardItem) : (
             <>
               <div className="nav-label">Overview</div>
               {renderItem(dashboardItem)}
             </>
-          )}
-          {academics.length > 0 && (
+          ))}
+          {academics.length > 0 && mini && divider}
+          {academics.length > 0 && (mini ? (
+            <div className="nav-group">{academics.map(renderItem)}</div>
+          ) : (
             <>
               <button
                 type="button"
@@ -206,13 +223,14 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
                 </div>
               )}
             </>
-          )}
-          {others.length > 0 && (
+          ))}
+          {others.length > 0 && mini && divider}
+          {others.length > 0 && (mini ? others.map(renderItem) : (
             <>
               <div className="nav-label">Administration</div>
               {others.map(renderItem)}
             </>
-          )}
+          ))}
         </nav>
 
         <div className="sidebar-bottom">
@@ -220,9 +238,14 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
             <button
               type="button"
               className={`user-mini__btn ${profileOpen ? 'open' : ''}`}
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-expanded={profileOpen}
-              aria-haspopup="menu"
+              onClick={() => {
+                // Minimized: the chip's job is to bring the rail back.
+                if (mini) { onToggleMini?.(); return }
+                setProfileOpen((v) => !v)
+              }}
+              aria-expanded={mini ? undefined : profileOpen}
+              aria-haspopup={mini ? undefined : 'menu'}
+              title={mini ? 'Expand sidebar' : undefined}
             >
               <span className="avatar">
                 {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}

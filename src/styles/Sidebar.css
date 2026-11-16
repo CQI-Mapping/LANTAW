@@ -30,6 +30,7 @@
   border-right: 1px solid var(--line);
   overflow-y: auto;
   scrollbar-width: thin;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), padding 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .brand {
@@ -392,6 +393,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .topbar {
@@ -429,6 +431,33 @@
 
 .topbar__menu:hover {
   background: var(--g50);
+}
+
+/* Desktop's minimize toggle: collapses the rail to an icon column. The
+   hamburger takes over below 960px, where the rail is a drawer. */
+.topbar__collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #627168;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.topbar__collapse:hover {
+  background: var(--g50);
+  color: var(--g800);
+}
+
+.topbar__collapse[aria-pressed='true'] {
+  background: var(--g100);
+  color: var(--g800);
 }
 
 .crumb {
@@ -494,6 +523,71 @@
   margin: 0 auto;
 }
 
+/* ---- Mini (minimized) rail ---- */
+
+.nav-divider {
+  display: none;
+  height: 1px;
+  background: var(--line);
+  margin: 8px 6px;
+}
+
+.app-layout--mini .sidebar {
+  width: 68px;
+  padding: 22px 12px 12px;
+}
+
+.app-layout--mini .main-shell {
+  margin-left: 68px;
+}
+
+.app-layout--mini .brand {
+  justify-content: center;
+  padding: 0 0 16px;
+}
+
+.app-layout--mini .brand-text {
+  display: none;
+}
+
+.app-layout--mini .brand-mark-img {
+  height: 30px;
+}
+
+.app-layout--mini .nav-label,
+.app-layout--mini .nav-group-toggle,
+.app-layout--mini .nav-text,
+.app-layout--mini .user-mini__text,
+.app-layout--mini .more-btn {
+  display: none;
+}
+
+.app-layout--mini .nav-divider {
+  display: block;
+}
+
+.app-layout--mini .nav-group {
+  width: 100%;
+}
+
+.app-layout--mini .nav-item {
+  justify-content: center;
+  padding: 11px 0;
+}
+
+.app-layout--mini .nav-ico {
+  width: auto;
+}
+
+.app-layout--mini .profile-menu {
+  display: none;
+}
+
+.app-layout--mini .user-mini__btn {
+  justify-content: center;
+  padding: 6px 0;
+}
+
 /* ---- Focus rings ---- */
 
 .nav-item:focus-visible,
@@ -546,6 +640,10 @@
 
   .topbar__menu {
     display: inline-flex;
+  }
+
+  .topbar__collapse {
+    display: none;
   }
 
   .crumb {

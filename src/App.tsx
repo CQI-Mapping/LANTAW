@@ -170,6 +170,11 @@ const PAGES: Record<string, Record<string, React.ComponentType<any>>> = {
 // the next session starts fresh.
 const LAST_PAGE_KEY = 'cqi.lastPage'
 
+// The sidebar's minimized state persists per browser in localStorage (same
+// pattern as the view-mode pick): a person who works from the icon rail
+// keeps working from it across visits.
+const SIDEBAR_MINI_KEY = 'cqi.sidebar.mini'
+
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
 // real auth-layer gate; this constant backs it up in code so a personal
@@ -233,6 +238,27 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth > 1024 : true
   )
+  // The minimized rail: persisted per browser, so a person who works from
+  // the icon rail keeps it across visits. Mobile ignores it (the rail is a
+  // drawer there).
+  const [sidebarMini, setSidebarMini] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_MINI_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebarMini = useCallback(() => {
+    setSidebarMini((v) => {
+      const next = !v
+      try {
+        localStorage.setItem(SIDEBAR_MINI_KEY, next ? '1' : '0')
+      } catch {
+        // Storage unavailable — the pick still applies for this visit.
+      }
+      return next
+    })
+  }, [])
   // Set when the profile fetch fails (e.g. flaky network). The app then shows
   // a retry screen instead of a stale identity or a silent wrong-role fallback.
   const [profileError, setProfileError] = useState('')
@@ -580,7 +606,7 @@ function App() {
   const topbarAvatar = profile?.avatar_url ?? emailAvatar
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
@@ -589,6 +615,8 @@ function App() {
         role={role}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((v) => !v)}
+        mini={sidebarMini}
+        onToggleMini={toggleSidebarMini}
         profileName={profile?.full_name}
         profileEmail={profile?.email}
         profileAvatar={profile?.avatar_url ?? emailAvatar}
@@ -604,6 +632,19 @@ function App() {
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="topbar__collapse"
+            onClick={toggleSidebarMini}
+            aria-label={sidebarMini ? 'Expand sidebar' : 'Minimize sidebar'}
+            aria-pressed={sidebarMini}
+            title={sidebarMini ? 'Expand sidebar' : 'Minimize sidebar'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
             </svg>
           </button>
           <div className="crumb">
