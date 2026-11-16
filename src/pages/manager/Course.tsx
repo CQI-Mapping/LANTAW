@@ -5,6 +5,9 @@
 // prerequisite and corequisite from the same program, and credits are split
 // into lecture + laboratory (total is computed automatically).
 // Managers cannot delete courses (RLS blocks it too).
+// Faculty assignment does NOT live in the forms: the navbar below the tabs
+// (multi-pick panel) and the dedicated Assign Faculty module hand subjects
+// out, so a course save here can never wipe a standing assignment.
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
@@ -63,7 +66,6 @@ type CourseForm = {
   creditLecture: string
   creditLaboratory: string
   description: string
-  instructor: string
 }
 
 const blank: CourseForm = {
@@ -79,7 +81,6 @@ const blank: CourseForm = {
   creditLecture: '',
   creditLaboratory: '',
   description: '',
-  instructor: '',
 }
 
 const relId = (v: string | { id: string } | null | undefined) =>
@@ -373,7 +374,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
     credit_laboratory: parseInt(f.creditLaboratory, 10) || 0,
     units: totalCredits(f),
     description: f.description.trim() || null,
-    instructor_id: f.instructor || null,
+    // instructor_id is deliberately absent: course create/edit never touches
+    // the assignment — that is the faculty navbar's and the Assign Faculty
+    // module's job, and a form save here must never wipe a standing one.
   })
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -426,7 +429,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
         creditLecture: String(item.credit_lecture ?? 0),
         creditLaboratory: String(item.credit_laboratory ?? 0),
         description: item.description || '',
-        instructor: relId(item.instructor_id),
       },
     })
   }
@@ -449,17 +451,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
         entity_id: editId,
         label: `${editForm.code.trim().toUpperCase()} — ${editForm.title.trim()}`,
       })
-      // Handing a subject to a faculty member is a curriculum act of its own,
-      // so when the pick changed the log names it explicitly instead of
-      // letting it hide inside "course.updated". Same for clearing it.
-      const prev = courses.find((c) => c.id === editId)
-      if (relId(prev?.instructor_id) !== editForm.instructor) {
-        await addActivityLog('course.instructor_assigned', {
-          entity: 'course',
-          entity_id: editId,
-          label: `${code} → ${editForm.instructor ? facultyNameOf(editForm.instructor) || 'faculty' : 'unassigned'}`,
-        })
-      }
+      // Instructor changes are not logged here: the form no longer carries
+      // the field, and the faculty navbar / Assign Faculty module write the
+      // course.instructor_assigned entry when the assignment moves.
       setMessage('Course updated.')
       clearEdit()
       load()
@@ -619,29 +613,13 @@ export default function ManagerCourse({ profile }: CourseProps) {
     </label>
   )
 
-  // Who teaches the subject — the assignment the manager hands out. Active
-  // faculty accounts only (the load step filters role + status); shown as
-  // "Full name — email" so same-named colleagues stay distinguishable.
+  // The faculty member's display name, for the audit entry and the assign
+  // panel — active faculty accounts only (the load step filters role +
+  // status).
   const facultyNameOf = (id: string) => {
     const f = faculty.find((x) => x.id === id)
     return f ? (f.full_name || f.email) : ''
   }
-  const facultyField = (value: string, onChange: (v: string) => void, small = false) => (
-    <label className="field" style={small ? { marginBottom: 0 } : undefined}>
-      <span>Instructor (Faculty)</span>
-      <select className={small ? 'input input--sm' : 'input'} title="Instructor (faculty)"
-        value={value || ''} onChange={(e) => onChange(e.target.value)}>
-        {faculty.length === 0 ? (
-          <option value="">No faculty accounts yet</option>
-        ) : (
-          <option value="">Unassigned</option>
-        )}
-        {faculty.map((f) => (
-          <option key={f.id} value={f.id}>{f.full_name || f.email}{f.full_name ? ` — ${f.email}` : ''}</option>
-        ))}
-      </select>
-    </label>
-  )
 
   // Inline edit form for a single course card — the same card-expanding editor
   // the CLO page uses: fields stack inside the card and Save/Cancel sit at the
@@ -769,7 +747,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
           <input className="input input--sm" type="number" readOnly value={totalCredits(editForm)} />
         </label>
       </div>
-      {facultyField(editForm.instructor, (v) => setEditForm({ ...editForm, instructor: v }), true)}
       <label className="field" style={{ marginBottom: 0 }}>
         <span>Description</span>
         <textarea className="input input--sm" rows={2} placeholder="Optional description"
@@ -959,10 +936,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
                 </label>
               </div>
             </div>
-            {facultyField(form.instructor, (v) => setForm({ ...form, instructor: v }))}
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: -12, marginBottom: 8 }}>
-              The faculty member who teaches this subject.
-            </div>
             <label className="field">
               <span>Description</span>
               <textarea className="input" rows={3} placeholder="Optional description"
@@ -993,7 +966,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
             {/* Faculty assignment navbar: a second tab row, one pill per
                 faculty member with their active-subject count. Picking a pill
                 filters the cards to that person's subjects and opens the
-                assign bar, so handing out subjects never needs the edit
+                multi-pick assign panel, so handing out subjects never needs a
                 form. Counts stay on the current program. */}
             <div className="program-faculty-tabs sd-tabs">
               <button className={`sd-tab ${!facultyFilter ? 'sd-tab--active' : ''}`}
