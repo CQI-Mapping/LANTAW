@@ -8964,11 +8964,11 @@ button.reports-panel__more:hover {
 .dashbanner__name,
 .dashbanner__title,
 .fac-hero__name {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.55px;
   color: var(--text);
-  margin: 0 0 7px;
+  margin: 0 0 6px;
 }
 
 .program-hero__titles p,
@@ -8976,8 +8976,7 @@ button.reports-panel__more:hover {
 .dashbanner__desc,
 .fac-hero__desc {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 12.5px;
   color: var(--text-muted);
 }
 
@@ -9074,10 +9073,9 @@ button.reports-panel__more:hover {
 }
 
 .program-stat__label {
-  font-size: 10.5px;
-  letter-spacing: 0.6px;
+  font-size: 10px;
+  letter-spacing: 0.7px;
   color: var(--text-muted);
-  font-weight: 700;
 }
 
 .program-stat__value {
@@ -9089,7 +9087,7 @@ button.reports-panel__more:hover {
 }
 
 .program-stat__sub {
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: var(--text-muted);
 }
 
@@ -9119,6 +9117,7 @@ button.reports-panel__more:hover {
   background: var(--primary);
   border: 1px solid var(--primary);
   color: #fff;
+  font-weight: 650;
   box-shadow: none;
 }
 
@@ -9150,11 +9149,16 @@ button.reports-panel__more:hover {
 .program-hero__action .btn--primary {
   background: var(--primary);
   border: 1px solid var(--primary);
+  /* White ink pinned explicitly — the label must read on the green. */
+  color: #fff;
+  font-weight: 650;
   box-shadow: none;
 }
 
 .program-hero__action .btn--primary:hover {
   background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #fff;
   box-shadow: none;
 }
 
