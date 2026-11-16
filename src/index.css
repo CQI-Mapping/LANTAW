@@ -9422,3 +9422,27 @@ html.lantaw-dark .subject-view__right--fullscreen {
 html.lantaw-dark .subject-view__graph-controls {
   background: var(--bg-panel);
 }
+
+/* ---- Dark text fixes: accents brighten, dropdowns de-veil ---- */
+html.lantaw-dark .combo__list,
+html.lantaw-dark .suggestion__list {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+html.lantaw-dark .combo__caret,
+html.lantaw-dark .combo__empty,
+html.lantaw-dark .suggestion__empty {
+  color: var(--text-muted);
+}
+
+/* Deep-green codes/labels that sit directly on dark panels need the
+   lighter accent green; the amber "currently" note lifts to match. */
+html.lantaw-dark .assign-subject__code,
+html.lantaw-dark .assign-multi__code {
+  color: #7cc08e;
+}
+
+html.lantaw-dark .assign-multi__current {
+  color: #d4a24c;
+}
