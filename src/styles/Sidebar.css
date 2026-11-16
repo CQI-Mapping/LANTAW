@@ -497,7 +497,7 @@
 }
 
 .profile-menu__section-body.open {
-  max-height: 240px;
+  max-height: 320px;
   visibility: visible;
   transition:
     max-height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
@@ -993,6 +993,211 @@
 
 .app-layout--topbar-dark .top-avatar:hover {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+.app-layout--topbar-dark .topnav__avatar:hover {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+/* Top-bar layout: App's own topbar would duplicate the bar — hidden, and
+   the workspace takes the full width. */
+.app-layout--topnav .topbar {
+  display: none;
+}
+
+.app-layout--topnav .main-shell {
+  margin-left: 0;
+}
+
+/* ---- Position pills (Appearance > Position: Left side / Top bar) ---- */
+
+.profile-menu__positions {
+  display: flex;
+  gap: 8px;
+  margin: 6px 10px 2px;
+}
+
+.position-pill {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  color: #425148;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+
+.position-pill:hover {
+  border-color: var(--border-strong);
+}
+
+.position-pill.selected {
+  border-color: var(--g700);
+  background: var(--g50);
+  color: var(--g800);
+}
+
+.app-layout--rail-dark .position-pill {
+  background: #1d201e;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #c9cdc9;
+}
+
+.app-layout--rail-dark .position-pill:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.app-layout--rail-dark .position-pill.selected {
+  border-color: #d7e8d9;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+/* ---- Top-bar layout (Appearance > Position > Top bar) ----
+   The whole navigation in a sticky horizontal bar: brand left, pill nav
+   scrolling the middle, avatar menu right. The rail is absent; App's own
+   topbar hides. */
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 62px;
+  padding: 0 20px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.topnav .brand {
+  min-width: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.topnav .brand-mark-img {
+  height: 30px;
+}
+
+.topnav .brand-mark {
+  width: 34px;
+  height: 34px;
+  font-size: 19px;
+}
+
+.topnav__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 2px;
+}
+
+.topnav__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.topnav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #5f6d63;
+  font-family: inherit;
+  font-size: 12.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.topnav__item:hover {
+  background: var(--g50);
+  color: var(--text);
+}
+
+.topnav__item.active {
+  background: var(--g800);
+  color: #fff;
+  font-weight: 600;
+}
+
+.topnav__ico {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.topnav__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.user-mini--topnav {
+  border-top: 0;
+  padding: 0;
+  position: relative;
+}
+
+.topnav__avatar {
+  display: inline-flex;
+  border: 0;
+  background: none;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: box-shadow 0.14s ease;
+}
+
+.topnav__avatar:hover {
+  box-shadow: 0 0 0 3px var(--g100);
+}
+
+/* The popover opens DOWNWARD from the avatar (the rail's chip opens up). */
+.topnav .profile-menu {
+  top: calc(100% + 10px);
+  bottom: auto;
+  left: auto;
+  right: 0;
+}
+
+.app-layout--topbar-dark .topnav {
+  background: #141715;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.app-layout--topbar-dark .topnav .brand-text b {
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav .brand-text small {
+  color: #8f948f;
+}
+
+.app-layout--topbar-dark .topnav__item {
+  color: #b6bab7;
+}
+
+.app-layout--topbar-dark .topnav__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.app-layout--topbar-dark .topnav__item.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
 }
 
 /* ---- Collapsed rail (ChatGPT-style) ----

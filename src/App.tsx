@@ -185,6 +185,10 @@ const SIDEBAR_COLOR_MODE_KEY = 'cqi.sidebar.colorMode'
 // workspace theme — the Appearance picker's second row.
 const SIDEBAR_NAV_MODE_KEY = 'cqi.sidebar.navMode'
 
+// Where the navigation lives: the fixed left rail (default) or a horizontal
+// top bar. The Appearance picker's Position choice, persisted per browser.
+const NAV_LAYOUT_KEY = 'cqi.sidebar.navLayout'
+
 // School-accounts-only: a Google sign-in is only accepted from the official
 // school domain. Supabase's allowed-email-domains dashboard setting is the
 // real auth-layer gate; this constant backs it up in code so a personal
@@ -327,6 +331,24 @@ function App() {
   }, [])
   const navDark = navMode === 'dark' || (navMode === 'system' && systemDark)
   const navbarsDark = railDark || navDark
+
+  // Navigation position: the fixed left rail or a horizontal top bar.
+  const [navLayout, setNavLayoutState] = useState<'left' | 'top'>(() => {
+    try {
+      const saved = localStorage.getItem(NAV_LAYOUT_KEY)
+      return saved === 'top' ? 'top' : 'left'
+    } catch {
+      return 'left'
+    }
+  })
+  const setNavLayout = useCallback((next: 'left' | 'top') => {
+    setNavLayoutState(next)
+    try {
+      localStorage.setItem(NAV_LAYOUT_KEY, next)
+    } catch {
+      // Storage unavailable — the pick still applies for this visit.
+    }
+  }, [])
 
   // The picked color mode is a FULL system theme: the class lands on <html>
   // so the token remap (index.css, FULL DARK MODE) re-inks the whole app,
@@ -682,7 +704,7 @@ function App() {
   const topbarAvatar = profile?.avatar_url ?? emailAvatar
 
   return (
-    <div className={`app-layout ${sidebarMini ? 'app-layout--mini' : ''} ${railDark ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
+    <div className={`app-layout ${sidebarMini && navLayout === 'left' ? 'app-layout--mini' : ''} ${navLayout === 'top' ? 'app-layout--topnav' : ''} ${railDark && navLayout === 'left' ? 'app-layout--rail-dark' : ''} ${navbarsDark ? 'app-layout--topbar-dark' : ''}`.trim()}>
       <Sidebar
         navItems={navItems}
         activePage={page}
@@ -691,8 +713,10 @@ function App() {
         role={role}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen((v) => !v)}
-        mini={sidebarMini}
+        mini={sidebarMini && navLayout === 'left'}
         onToggleMini={toggleSidebarMini}
+        navLayout={navLayout}
+        onNavLayoutChange={setNavLayout}
         colorMode={colorMode}
         onColorModeChange={setColorMode}
         navMode={navMode}

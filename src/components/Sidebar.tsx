@@ -28,6 +28,9 @@ interface SidebarProps {
       workspace theme. */
   navMode?: 'system' | 'light' | 'dark'
   onNavModeChange?: (mode: 'system' | 'light' | 'dark') => void
+  /** Where the navigation lives: the left rail or a horizontal top bar. */
+  navLayout?: 'left' | 'top'
+  onNavLayoutChange?: (layout: 'left' | 'top') => void
   /** The mode as it resolves right now (system resolved against the OS
       preference) — drives the section's sun/moon icon. */
   railDark?: boolean
@@ -111,7 +114,120 @@ const ROLE_TITLE: Record<UserRole, string> = {
   user: 'Faculty Member',
 }
 
-function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, colorMode = 'light', onColorModeChange, navMode = 'light', onNavModeChange, railDark = false, profileName, profileEmail, profileAvatar }: SidebarProps) {
+/** The profile popover, shared by the left rail's user chip and the top
+ *  bar's avatar: identity head, My Profile / Security & Privacy, the
+ *  Appearance picker (color mode, navbar theme, position), and Logout. */
+function ProfileMenu(props: {
+  displayName: string
+  displayEmail: string
+  avatarInitials: string
+  profileAvatar?: string | null
+  activePage: string
+  onNavigate: (id: string) => void
+  onLogout: () => void
+  railDark: boolean
+  colorMode: 'system' | 'light' | 'dark'
+  onColorModeChange?: (mode: 'system' | 'light' | 'dark') => void
+  navMode: 'system' | 'light' | 'dark'
+  onNavModeChange?: (mode: 'system' | 'light' | 'dark') => void
+  navLayout: 'left' | 'top'
+  onNavLayoutChange?: (layout: 'left' | 'top') => void
+  appearanceOpen: boolean
+  onToggleAppearance: () => void
+}) {
+  return (
+    <div className="profile-menu" role="menu">
+      <div className="profile-menu__head">
+        <span className="avatar avatar--lg">
+          {props.profileAvatar ? <img src={props.profileAvatar} alt="" className="avatar-img" /> : props.avatarInitials}
+        </span>
+        <span className="profile-menu__id">
+          <b>{props.displayName}</b>
+          <small>{props.displayEmail}</small>
+        </span>
+      </div>
+      <div className="profile-menu__list" role="none">
+        <button type="button" role="menuitem"
+          className={`profile-menu__item ${props.activePage === 'profile' ? 'active' : ''}`}
+          onClick={() => props.onNavigate('profile')}>
+          <Icon d={ICONS.profile} className="profile-menu__ico" />
+          <span>My Profile</span>
+        </button>
+        <button type="button" role="menuitem"
+          className={`profile-menu__item ${props.activePage === 'security' ? 'active' : ''}`}
+          onClick={() => props.onNavigate('security')}>
+          <Icon d={ICONS.security} className="profile-menu__ico" />
+          <span>Security &amp; Privacy</span>
+        </button>
+        {/* Appearance: the ChatGPT color-mode picker — System follows the
+            OS, Light and Dark pin it. The picker stays folded until the
+            row is clicked. */}
+        <div className="profile-menu__section">
+          <button type="button" className="profile-menu__section-toggle"
+            onClick={props.onToggleAppearance}
+            aria-expanded={props.appearanceOpen}
+            aria-controls="profile-appearance">
+            <Icon d={props.railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
+            <span>Appearance</span>
+            <svg className={`profile-menu__chevron ${props.appearanceOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+          <div id="profile-appearance" className={`profile-menu__section-body ${props.appearanceOpen ? 'open' : ''}`}>
+            <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
+            {([
+              ['Color mode', props.colorMode, props.onColorModeChange],
+              ['Navbar', props.navMode, props.onNavModeChange],
+            ] as const).map(([label, value, onChange]) => (
+              <div key={label} className="profile-menu__mode-row">
+                <div className="profile-menu__mode-label">{label}</div>
+                <div className="profile-menu__modes">
+                  {(['system', 'light', 'dark'] as const).map((mode) => (
+                    <button key={mode} type="button"
+                      className={`mode-swatch ${value === mode ? 'mode-swatch--selected' : ''}`}
+                      onClick={() => onChange?.(mode)}
+                      aria-pressed={value === mode}
+                      title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light' : 'Dark'}>
+                      <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
+                        <i /><i /><i />
+                      </span>
+                      <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="profile-menu__mode-row">
+              <div className="profile-menu__mode-label">Position</div>
+              <div className="profile-menu__positions">
+                <button type="button"
+                  className={`position-pill ${props.navLayout === 'left' ? 'selected' : ''}`}
+                  onClick={() => props.onNavLayoutChange?.('left')}
+                  aria-pressed={props.navLayout === 'left'}>
+                  Left side
+                </button>
+                <button type="button"
+                  className={`position-pill ${props.navLayout === 'top' ? 'selected' : ''}`}
+                  onClick={() => props.onNavLayoutChange?.('top')}
+                  aria-pressed={props.navLayout === 'top'}>
+                  Top bar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="profile-menu__sep" role="separator" />
+        <button type="button" role="menuitem" className="profile-menu__item profile-menu__item--danger" onClick={props.onLogout}>
+          <Icon d={LOGOUT_ICON} className="profile-menu__ico" />
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onToggle, mini = false, onToggleMini, navLayout = 'left', onNavLayoutChange, colorMode = 'light', onColorModeChange, navMode = 'light', onNavModeChange, railDark = false, profileName, profileEmail, profileAvatar }: SidebarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
@@ -194,6 +310,70 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
   useEffect(() => {
     if (mini) setProfileOpen(false)
   }, [mini])
+
+  const profileMenuEl = profileOpen ? (
+    <ProfileMenu
+      displayName={displayName}
+      displayEmail={displayEmail}
+      avatarInitials={avatarInitials}
+      profileAvatar={profileAvatar}
+      activePage={activePage}
+      onNavigate={navigate}
+      onLogout={onLogout}
+      railDark={railDark}
+      colorMode={colorMode}
+      onColorModeChange={onColorModeChange}
+      navMode={navMode}
+      onNavModeChange={onNavModeChange}
+      navLayout={navLayout}
+      onNavLayoutChange={onNavLayoutChange}
+      appearanceOpen={appearanceOpen}
+      onToggleAppearance={() => setAppearanceOpen((v) => !v)}
+    />
+  ) : null
+
+  // Top-bar layout: the whole navigation sits in a sticky horizontal bar —
+  // brand left, pill nav scrolling the middle, avatar menu right.
+  if (navLayout === 'top') {
+    return (
+      <header className="topnav">
+        <div className="brand">
+          {role === 'admin' ? (
+            <span className="brand-mark" aria-hidden="true">C</span>
+          ) : (
+            <img className="brand-mark-img" src={PROGRAM_LOGO} alt="" />
+          )}
+          <div className="brand-text">
+            <b>LANTAW</b>
+            <small>CQI MONITORING SYSTEM</small>
+          </div>
+        </div>
+        <nav className="topnav__nav" aria-label="Main navigation">
+          {navItems.filter((n) => !inProfileMenu(n)).map((item) => (
+            <button key={item.id} type="button"
+              className={`topnav__item ${activePage === item.id ? 'active' : ''}`}
+              onClick={() => navigate(item.id)}
+              aria-current={activePage === item.id ? 'page' : undefined}
+              title={item.label}>
+              <Icon d={ICONS[item.id] || ICONS.dashboard} className="topnav__ico" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="topnav__right">
+          <div className="user-mini user-mini--topnav" ref={profileRef}>
+            <button type="button" className="topnav__avatar" onClick={() => setProfileOpen((v) => !v)}
+              aria-expanded={profileOpen} aria-haspopup="menu" aria-label="Profile menu">
+              <span className="avatar">
+                {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}
+              </span>
+            </button>
+            {profileMenuEl}
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <>
@@ -287,79 +467,7 @@ function Sidebar({ navItems, activePage, onNavigate, onLogout, role, isOpen, onT
               </span>
               <span className="more-btn" aria-hidden="true">···</span>
             </button>
-            {profileOpen && (
-              <div className="profile-menu" role="menu">
-                <div className="profile-menu__head">
-                  <span className="avatar avatar--lg">
-                    {profileAvatar ? <img src={profileAvatar} alt="" className="avatar-img" /> : avatarInitials}
-                  </span>
-                  <span className="profile-menu__id">
-                    <b>{displayName}</b>
-                    <small>{displayEmail}</small>
-                  </span>
-                </div>
-                <div className="profile-menu__list" role="none">
-                  <button type="button" role="menuitem"
-                    className={`profile-menu__item ${activePage === 'profile' ? 'active' : ''}`}
-                    onClick={() => navigate('profile')}>
-                    <Icon d={ICONS.profile} className="profile-menu__ico" />
-                    <span>My Profile</span>
-                  </button>
-                  <button type="button" role="menuitem"
-                    className={`profile-menu__item ${activePage === 'security' ? 'active' : ''}`}
-                    onClick={() => navigate('security')}>
-                    <Icon d={ICONS.security} className="profile-menu__ico" />
-                    <span>Security &amp; Privacy</span>
-                  </button>
-                  {/* Appearance: the ChatGPT color-mode picker — System
-                      follows the OS, Light and Dark pin the rail. The picker
-                      stays folded until the row is clicked. */}
-                  <div className="profile-menu__section">
-                    <button type="button" className="profile-menu__section-toggle"
-                      onClick={() => setAppearanceOpen((v) => !v)}
-                      aria-expanded={appearanceOpen}
-                      aria-controls="profile-appearance">
-                      <Icon d={railDark ? ICONS.moon : ICONS.sun} className="profile-menu__ico" />
-                      <span>Appearance</span>
-                      <svg className={`profile-menu__chevron ${appearanceOpen ? 'open' : ''}`} viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
-                    </button>
-                    <div id="profile-appearance" className={`profile-menu__section-body ${appearanceOpen ? 'open' : ''}`}>
-                      <p className="profile-menu__section-hint">Light, dark, or follow your system setting</p>
-                      {([
-                        ['Color mode', colorMode, onColorModeChange],
-                        ['Navbar', navMode, onNavModeChange],
-                      ] as const).map(([label, value, onChange]) => (
-                        <div key={label} className="profile-menu__mode-row">
-                          <div className="profile-menu__mode-label">{label}</div>
-                          <div className="profile-menu__modes">
-                            {(['system', 'light', 'dark'] as const).map((mode) => (
-                              <button key={mode} type="button"
-                                className={`mode-swatch ${value === mode ? 'mode-swatch--selected' : ''}`}
-                                onClick={() => onChange?.(mode)}
-                                aria-pressed={value === mode}
-                                title={mode === 'system' ? 'Follow your system setting' : mode === 'light' ? 'Light' : 'Dark'}>
-                                <span className={`mode-swatch__preview mode-swatch__preview--${mode}`} aria-hidden="true">
-                                  <i /><i /><i />
-                                </span>
-                                <span className="mode-swatch__label">{mode === 'system' ? 'System' : mode === 'light' ? 'Light' : 'Dark'}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="profile-menu__sep" role="separator" />
-                  <button type="button" role="menuitem" className="profile-menu__item profile-menu__item--danger" onClick={onLogout}>
-                    <Icon d={LOGOUT_ICON} className="profile-menu__ico" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            {profileMenuEl}
           </div>
         </div>
       </aside>
