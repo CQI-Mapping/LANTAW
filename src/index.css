@@ -6876,10 +6876,11 @@ button.reports-panel__more:hover {
 
 .clo-code-input__prefix {
   flex-shrink: 0;
-  margin-left: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #94a3b8;
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--primary);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -6892,7 +6893,8 @@ button.reports-panel__more:hover {
 .clo-code-input__field {
   flex: 1;
   min-width: 0;
-  padding-left: 6px;
+  padding-left: 10px;
+  font-weight: 600;
 }
 
 .clo-layout__ref-group {
