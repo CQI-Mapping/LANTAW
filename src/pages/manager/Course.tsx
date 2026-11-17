@@ -12,7 +12,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
 import Icon from '../../components/icons'
-import CurriculumPdfImport from '../../components/CurriculumPdfImport'
 import { normalizeCode } from '../../utils/courseCodes'
 import {
   fetchPrograms,
@@ -205,7 +204,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // The curriculum-PDF import modal.
-  const [pdfImportOpen, setPdfImportOpen] = useState(false)
   // The term selects only render when the database actually carries the
   // courses.year_level / courses.semester columns — the same probe the
   // Curriculum Mapping Summary uses before it shows its edit controls. A
@@ -868,29 +866,6 @@ export default function ManagerCourse({ profile }: CourseProps) {
                   Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
                 </button>
               </div>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPdfImportOpen(true)}
-                title="Import subjects from a curriculum checklist PDF">
-                <Icon name="download" size={13} /> Import PDF
-              </button>
-              {pdfImportOpen && (
-                <CurriculumPdfImport
-                  programId={programId}
-                  programCode={programs.find((p) => p.id === programId)?.code}
-                  curriculumId={form.curriculum}
-                  curriculumLabel={curriculumLabel(form.curriculum)}
-                  courses={courses}
-                  onClose={() => setPdfImportOpen(false)}
-                  onImported={(created, skipped) => {
-                    setPdfImportOpen(false)
-                    setMessage(
-                      created > 0
-                        ? `Imported ${created} subject${created === 1 ? '' : 's'} from the PDF${skipped ? ` · ${skipped} already in this program` : ''}.`
-                        : 'Nothing imported — every parsed subject already exists in this program.',
-                    )
-                    load()
-                  }}
-                />
-              )}
             </div>
             {visible.length === 0 ? (
               <div className="clo26-empty" style={{ marginTop: 14 }}>
