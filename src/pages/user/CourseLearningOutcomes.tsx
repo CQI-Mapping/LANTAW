@@ -44,6 +44,8 @@ import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
 import { reportFileName } from '../../utils/download'
 
 const EMPTY = { code: '', course: '', description: '', programOutcomes: '' }
+// Entries previewed before "Show all" unfolds the rest of the trail.
+const HISTORY_PREVIEW = 5
 
 // Semester tab labels for the category row — the same terms the create
 // form's Semester filter offers (1st, 2nd, Summer).
@@ -91,6 +93,8 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
   // The subject whose Modification history is expanded (null = collapsed).
   const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null)
+  // Whether an expanded trail shows everything or just the newest preview.
+  const [historyShowAll, setHistoryShowAll] = useState(false)
   // Year and semester category filters ('' = all). The dropdowns trail the
   // Active/Archive pair; picking one leaves the archived view and filters
   // the active list, and the status buttons reset both.
@@ -1142,7 +1146,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               Showing {shownRowCount} CLO record{shownRowCount === 1 ? '' : 's'} across{' '}
               {shownGroups.length} of {myCourses.length} assigned subject{myCourses.length === 1 ? '' : 's'}
             </p>
-            <button type="button" className="clo26-textbtn" onClick={() => { setExpandedCourse(null); setHistoryOpenFor(null) }}>
+            <button type="button" className="clo26-textbtn" onClick={() => { setExpandedCourse(null); setHistoryOpenFor(null); setHistoryShowAll(false) }}>
               Collapse all
             </button>
           </div>
@@ -1162,7 +1166,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                 const trail = historyFor(course.code)
                 return (
                   <article key={course.id} className={`clo26-course ${open ? 'open' : ''}`}>
-                    <button type="button" className="clo26-course-head" onClick={() => { setExpandedCourse(open ? null : course.id); setHistoryOpenFor(null) }}
+                    <button type="button" className="clo26-course-head" onClick={() => { setExpandedCourse(open ? null : course.id); setHistoryOpenFor(null); setHistoryShowAll(false) }}
                       aria-expanded={open}>
                       <div className="clo26-code">{course.code}</div>
                       <div className="clo26-info">
@@ -1237,7 +1241,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                               subject's trail — or the "nothing yet" note
                               when the subject has no changes recorded. */}
                           <button type="button" className="clo26-histbtn" aria-expanded={historyOpenFor === course.id}
-                            onClick={() => setHistoryOpenFor(historyOpenFor === course.id ? null : course.id)}>
+                            onClick={() => { setHistoryShowAll(false); setHistoryOpenFor(historyOpenFor === course.id ? null : course.id) }}>
                             <Icon name="clock" size={13} />
                             <span>Modification history</span>
                             {trail.length > 0 ? (
@@ -1251,7 +1255,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             <>
                               <p className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</p>
                               <ul>
-                                {trail.map((h) => (
+                                {(historyShowAll ? trail : trail.slice(0, HISTORY_PREVIEW)).map((h) => (
                                   <li key={h.id}>
                                     <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
                                     <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
@@ -1269,6 +1273,12 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                   </li>
                                 ))}
                               </ul>
+                              {trail.length > HISTORY_PREVIEW && (
+                                <button type="button" className="clo26-textbtn" style={{ marginTop: 2 }}
+                                  onClick={() => setHistoryShowAll((v) => !v)}>
+                                  {historyShowAll ? 'Show less' : `Show all ${trail.length} changes`}
+                                </button>
+                              )}
                             </>
                           ) : (
                             <p className="clo26-history-note">No changes recorded for this subject yet.</p>
