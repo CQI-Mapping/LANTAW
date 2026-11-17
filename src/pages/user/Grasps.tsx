@@ -903,12 +903,12 @@ export default function Grasps() {
                         <td>
                           <input
                             className="g26-rubric__input g26-rubric__input--pts"
-                            type="number"
-                            min={0}
+                            type="text"
+                            inputMode="numeric"
                             value={r.points ?? ''}
                             placeholder="20"
                             disabled={!ready}
-                            onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value) })}
+                            onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value.replace(/D/g, '')) })}
                           />
                         </td>
                         <td>
