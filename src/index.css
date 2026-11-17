@@ -9881,29 +9881,49 @@ html.lantaw-dark .clo26-code {
   padding: 12px 10px 2px;
 }
 
-.clo26-history-head {
+.clo26-histbtn {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-
-.clo26-history-head h4 {
-  margin: 0;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+  color: var(--text-muted);
   font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--text-muted);
+  text-align: left;
+  font-family: inherit;
 }
 
-.clo26-history-head .clo26-tag {
+.clo26-histbtn:hover:not(:disabled) {
+  color: var(--primary);
+}
+
+.clo26-histbtn .clo26-tag {
   font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.clo26-histbtn__chevron {
+  margin-left: auto;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.clo26-history.open .clo26-histbtn__chevron {
+  transform: rotate(90deg);
 }
 
 .clo26-history-note {
   font-size: 10px;
   color: var(--text-muted);
+  margin: 2px 0 6px;
 }
 
 .clo26-history ul {

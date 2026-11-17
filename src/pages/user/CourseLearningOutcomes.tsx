@@ -89,6 +89,8 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [listTab, setListTab] = useState<'Active' | 'All' | 'Archived'>('Active')
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
+  // The subject whose Modification history is expanded (null = collapsed).
+  const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null)
   // Year and semester category filters ('' = all). The dropdowns trail the
   // Active/Archive pair; picking one leaves the archived view and filters
   // the active list, and the status buttons reset both.
@@ -1120,7 +1122,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               Showing {shownRowCount} CLO record{shownRowCount === 1 ? '' : 's'} across{' '}
               {shownGroups.length} of {myCourses.length} assigned subject{myCourses.length === 1 ? '' : 's'}
             </p>
-            <button type="button" className="clo26-textbtn" onClick={() => setExpandedCourse(null)}>
+            <button type="button" className="clo26-textbtn" onClick={() => { setExpandedCourse(null); setHistoryOpenFor(null) }}>
               Collapse all
             </button>
           </div>
@@ -1140,7 +1142,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                 const trail = historyFor(course.code)
                 return (
                   <article key={course.id} className={`clo26-course ${open ? 'open' : ''}`}>
-                    <button type="button" className="clo26-course-head" onClick={() => setExpandedCourse(open ? null : course.id)}
+                    <button type="button" className="clo26-course-head" onClick={() => { setExpandedCourse(open ? null : course.id); setHistoryOpenFor(null) }}
                       aria-expanded={open}>
                       <div className="clo26-code">{course.code}</div>
                       <div className="clo26-info">
@@ -1210,23 +1212,32 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                           </div>
                         )}
                         {trail.length > 0 && (
-                          <div className="clo26-history">
-                            <div className="clo26-history-head">
-                              <h4>Modification history</h4>
+                          <div className={`clo26-history${historyOpenFor === course.id ? ' open' : ''}`}>
+                            {/* Collapsed by default: one clock-icon row;
+                                pressing it unfolds the subject's trail. */}
+                            <button type="button" className="clo26-histbtn" aria-expanded={historyOpenFor === course.id}
+                              onClick={() => setHistoryOpenFor(historyOpenFor === course.id ? null : course.id)}>
+                              <Icon name="clock" size={13} />
+                              <span>Modification history</span>
                               <span className="clo26-tag">{trail.length} change{trail.length === 1 ? '' : 's'}</span>
-                              <span className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</span>
-                            </div>
-                            <ul>
-                              {trail.map((h) => (
-                                <li key={h.id}>
-                                  <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
-                                  <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
-                                  {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
-                                  <span className="clo26-what">{historyLabelText(h)}</span>
-                                  <span className="clo26-who">by {h.user_email}</span>
-                                </li>
-                              ))}
-                            </ul>
+                              <span className="clo26-histbtn__chevron" aria-hidden="true">&rsaquo;</span>
+                            </button>
+                            {historyOpenFor === course.id && (
+                              <>
+                                <p className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</p>
+                                <ul>
+                                  {trail.map((h) => (
+                                    <li key={h.id}>
+                                      <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                      <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
+                                      {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
+                                      <span className="clo26-what">{historyLabelText(h)}</span>
+                                      <span className="clo26-who">by {h.user_email}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
