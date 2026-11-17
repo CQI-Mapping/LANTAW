@@ -813,7 +813,12 @@ export default function Grasps() {
           <div>
             <span className="g26-kicker">The six components</span>
             <h3>Build your performance task</h3>
-            <p>Complete each section to create a meaningful real-world learning experience.</p>
+            <p>
+              Complete each section to create a meaningful real-world learning experience.
+              For list items, start a line with{' '}
+              <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>-&nbsp;</code>{' '}
+              and the Word download renders it as a bullet point.
+            </p>
           </div>
           <div className="g26-progress">
             <strong>{pct}%</strong>
