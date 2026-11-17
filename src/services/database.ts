@@ -667,6 +667,17 @@ export async function removeCourseInstructor(courseId: string, facultyId: string
   if (error) throw error
 }
 
+/** Faculty edit of the subject's catalog DESCRIPTION (030): the SECURITY
+ *  DEFINER helper verifies the assignment server-side and updates only
+ *  the description column. */
+export async function updateAssignedCourseDescription(courseId: string, description: string): Promise<void> {
+  const { error } = await supabase.rpc('update_assigned_course_description', {
+    p_course_id: courseId,
+    p_description: description,
+  })
+  if (error) throw error
+}
+
 /**
  * Hand many subjects to one faculty member in a single UPDATE (`id in (...)`),
  * returning the updated rows so the caller can name each in the audit trail.

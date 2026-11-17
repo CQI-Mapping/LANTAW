@@ -31,6 +31,7 @@ import type {
   ActivityLogEntry,
 } from '../../services/database'
 import { labelAction } from '../admin/ActivityLabels'
+import { updateAssignedCourseDescription } from '../../services/database'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
@@ -72,7 +73,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     deleteFn: deleteCourseLearningOutcomeStandalone,
     scope: 'Course Learning Outcome',
   })
-  const { items, loading, error, message, busy, handleCreate, handleUpdate, handleToggleStatus, handleDelete } = crud
+  const { items, loading, error, message, busy, setError, setMessage, load, handleCreate, handleUpdate, handleToggleStatus, handleDelete } = crud
 
   const [poSuggestions, setPoSuggestions] = useState<SuggestionOption[]>([])
   const [poTexts, setPoTexts] = useState<PoText[]>([])
@@ -157,6 +158,32 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     let n = 1
     while (taken.has(n)) n += 1
     return String(n)
+  }
+
+  // The description draft for the picked subject and its save state — the
+  // faculty member edits the subject's catalog description here; 030
+  // scopes the write to assigned subjects, description column only.
+  const [descDraft, setDescDraft] = useState('')
+  const [descSaving, setDescSaving] = useState(false)
+  useEffect(() => {
+    setDescDraft(courseDescOf(form.course))
+  }, [form.course, courses])
+  const saveCourseDesc = async () => {
+    if (!form.course) return
+    setError('')
+    setDescSaving(true)
+    try {
+      await updateAssignedCourseDescription(
+        courses.find((c) => c.code === form.course)?.id ?? '',
+        descDraft.trim(),
+      )
+      setCourses((prev) => prev.map((c) => (c.code === form.course ? { ...c, description: descDraft.trim() } : c)))
+      setMessage(`Course description saved for ${form.course}.`)
+    } catch (err) {
+      setError('Failed to save the course description: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setDescSaving(false)
+    }
   }
 
   // The manager's assignment is the gate: the faculty member writes CLOs
@@ -612,6 +639,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // display the bare code.
   const courseTitleByCode = (code: string) => courses.find((c) => c.code === code)?.title || ''
   const courseDescOf = (code: string) => courses.find((c) => c.code === code)?.description || ''
+  // The description draft for the picked subject, plus its save state —
+  // the faculty member can edit the subject's catalog description here
+  // (030 scopes the write to assigned subjects, description column only).
 
   // Course list filters for the create form: Year and Semester sit on top of
   // the Course (Subject Code) picker and narrow its dropdown to the term the
@@ -824,12 +854,23 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             </select>
           )}
         </label>
-        {form.course && courseDescOf(form.course) && (
+        {form.course && (
           <div className="field" style={{ marginTop: -10 }}>
             <span>Course description</span>
-            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-muted)', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
-              {courseDescOf(form.course)}
-            </p>
+            <textarea
+              className="input input--sm"
+              rows={2}
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value)}
+              placeholder="No description yet — write one for this subject"
+              aria-label="Course description"
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <button type="button" className="btn btn--primary btn--sm" onClick={saveCourseDesc}
+                disabled={busy || descSaving || descDraft === courseDescOf(form.course)}>
+                {descSaving ? 'Saving…' : (<><Icon name="check" size={13} /> Save description</>)}
+              </button>
+            </div>
           </div>
         )}
         <label className="field">
