@@ -604,7 +604,7 @@ export default function Grasps() {
   // keystroke runs. Keyed on the draft's id so loading a card re-fits them
   // too, and plain text restores are covered by the mount pass.
   useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('.g26-part textarea').forEach(autoResize)
+    document.querySelectorAll<HTMLTextAreaElement>('.g26-part textarea, .g26-rubric textarea').forEach(autoResize)
   }, [draft.id, autoResize])
 
   // The Quick Reference guide opens from the hero and closes on Escape or
@@ -836,52 +836,73 @@ export default function Grasps() {
                 {draft.rubric.map((r, i) => (
                   <tr key={i}>
                     <td>
-                      <input
+                      <textarea
                         className="g26-rubric__input g26-rubric__input--name"
+                        rows={1}
+                        ref={autoResize}
                         value={r.criteria}
                         placeholder="e.g. Sketch Wireframes"
                         disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { criteria: e.target.value })}
+                        onChange={(e) => {
+                          patchRubricRow(i, { criteria: e.target.value })
+                          autoResize(e.currentTarget)
+                        }}
                       />
                     </td>
                     <td>
                       <textarea
                         className="g26-rubric__input"
-                        rows={2}
+                        rows={1}
+                        ref={autoResize}
                         value={r.excellent}
                         placeholder="Descriptor…"
                         disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { excellent: e.target.value })}
+                        onChange={(e) => {
+                          patchRubricRow(i, { excellent: e.target.value })
+                          autoResize(e.currentTarget)
+                        }}
                       />
                     </td>
                     <td>
                       <textarea
                         className="g26-rubric__input"
-                        rows={2}
+                        rows={1}
+                        ref={autoResize}
                         value={r.proficient}
                         placeholder="Descriptor…"
                         disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { proficient: e.target.value })}
+                        onChange={(e) => {
+                          patchRubricRow(i, { proficient: e.target.value })
+                          autoResize(e.currentTarget)
+                        }}
                       />
                     </td>
                     <td>
                       <textarea
                         className="g26-rubric__input"
-                        rows={2}
+                        rows={1}
+                        ref={autoResize}
                         value={r.developing}
                         placeholder="Descriptor…"
                         disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { developing: e.target.value })}
+                        onChange={(e) => {
+                          patchRubricRow(i, { developing: e.target.value })
+                          autoResize(e.currentTarget)
+                        }}
                       />
                     </td>
                     <td>
                       <textarea
                         className="g26-rubric__input"
-                        rows={2}
+                        rows={1}
+                        ref={autoResize}
                         value={r.beginning}
                         placeholder="Descriptor…"
                         disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { beginning: e.target.value })}
+                        onChange={(e) => {
+                          patchRubricRow(i, { beginning: e.target.value })
+                          autoResize(e.currentTarget)
+                        }}
                       />
                     </td>
                     <td>

@@ -10384,7 +10384,11 @@ html.lantaw-dark .clo26-hact--deleted {
   font-size: 11px;
   color: var(--text);
   padding: 4px 5px;
-  resize: vertical;
+  /* The box grows to fit its text (auto-resize on every keystroke), so
+     the manual resize handle — and any inner scroll — is disabled. */
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
   font-family: inherit;
 }
 
