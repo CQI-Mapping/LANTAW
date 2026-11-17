@@ -15,7 +15,6 @@
 // nothing is ever hard-deleted from here.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import PageBanner from '../../components/PageBanner'
 import Icon from '../../components/icons'
 import {
   addActivityLog,
@@ -57,49 +56,72 @@ const GRASPS_PARTS: Array<{
   key: 'goal' | 'role' | 'audience' | 'situation' | 'product' | 'standards'
   letter: string
   label: string
+  /** The card's question line, as the reference design words them. */
+  question: string
   hint: string
+  tip: string
+  /** The Quick Reference modal's one-liner for this component. */
+  guide: string
   placeholder: string
 }> = [
   {
     key: 'goal',
     letter: 'G',
     label: 'Goal',
-    hint: 'The real-world problem or challenge the task works on.',
+    question: 'What should the learner accomplish?',
+    hint: 'Define the real-world problem, challenge, or purpose of the task.',
+    tip: 'Be specific about the intended outcome.',
+    guide: 'The challenge or outcome to accomplish.',
     placeholder: 'e.g. Design a working inventory system for a local store…',
   },
   {
     key: 'role',
     letter: 'R',
     label: 'Role',
-    hint: 'Who the learner becomes while doing the work.',
+    question: 'Who will the learner become?',
+    hint: 'Describe the role or professional identity the learner will take on.',
+    tip: 'Use a role that fits the discipline.',
+    guide: 'The perspective or responsibility of the learner.',
     placeholder: 'e.g. You are a junior systems analyst…',
   },
   {
     key: 'audience',
     letter: 'A',
     label: 'Audience',
-    hint: 'Who the learner performs the work for.',
+    question: 'Who will receive the work?',
+    hint: 'Identify the target users, clients, reviewers, or beneficiaries.',
+    tip: 'Name the people who will use or assess it.',
+    guide: 'The intended users, clients, or evaluators.',
     placeholder: 'e.g. The store owner and the class as client…',
   },
   {
     key: 'situation',
     letter: 'S',
     label: 'Situation',
-    hint: 'The setting or context the work happens in.',
+    question: 'What is the context or challenge?',
+    hint: 'Set the scenario, constraints, and context for the performance.',
+    tip: 'Give the task a realistic context.',
+    guide: 'The real-world context or scenario.',
     placeholder: 'e.g. During the store’s peak-sale week…',
   },
   {
     key: 'product',
     letter: 'P',
     label: 'Product / Performance',
-    hint: 'What the learner creates or demonstrates by the end.',
+    question: 'What will the learner create or present?',
+    hint: 'Specify the tangible output, demonstration, or performance.',
+    tip: 'Describe the expected deliverables.',
+    guide: 'The output or demonstration to be completed.',
     placeholder: 'e.g. A demo of the system with a short walkthrough…',
   },
   {
     key: 'standards',
     letter: 'S',
     label: 'Standards',
-    hint: 'The criteria the work is judged against.',
+    question: 'How will success be evaluated?',
+    hint: 'List the criteria, quality indicators, or rubric expectations.',
+    tip: 'Align criteria with the learning outcomes.',
+    guide: 'The criteria used to judge quality and success.',
     placeholder: 'e.g. Judged on functionality, completeness and accuracy…',
   },
 ]
@@ -544,73 +566,106 @@ export default function Grasps() {
   // keystroke runs. Keyed on the draft's id so loading a card re-fits them
   // too, and plain text restores are covered by the mount pass.
   useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('.grasps-part textarea').forEach(autoResize)
+    document.querySelectorAll<HTMLTextAreaElement>('.g26-part textarea').forEach(autoResize)
   }, [draft.id, autoResize])
 
-  return (
-    <div className="syllabus-doc">
-      <PageBanner
-        title="Generate GRASPS"
-        sub="Design the performance task — Goal, Role, Audience, Situation, Product, Standards."
-      />
+  // The Quick Reference guide opens from the hero and closes on Escape or
+  // an outside click, like the syllabus reader's dialog.
+  const [guideOpen, setGuideOpen] = useState(false)
+  useEffect(() => {
+    if (!guideOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setGuideOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [guideOpen])
 
-      {/* ---- task header ---- */}
-      <div className="panel tos-panel no-print">
-        <div className="tos-field-grid">
-          <label className="field">
-            <span>Program</span>
-            <select
-              className="input input--sm"
-              value={draft.code}
-              disabled={!ready || programs.length === 0}
-              onChange={(e) => patchDraft({ code: e.target.value })}
-            >
-              <option value="">
-                {programs.length === 0 ? 'No programs available' : '- select program -'}
-              </option>
-              {programOptions.map((o) => (
-                <option key={o.id} value={o.value}>
-                  {o.value}
+  // The completion meter: how many of the six components the draft fills.
+  const draftFilled = PART_KEYS.filter((k) => draft[k].trim() !== '').length
+  const pct = Math.round((draftFilled / PART_KEYS.length) * 100)
+  const activeCount = rows.filter((r) => r.status !== 'archived').length
+
+  return (
+    <div className="programs-page curriculum-view grasps26-page">
+      {/* ---- hero ---- */}
+      <div className="program-hero g26-hero">
+        <div className="program-hero__left">
+          <div className="program-hero__icon">G</div>
+          <div className="program-hero__titles">
+            <span className="g26-kicker">Performance task builder</span>
+            <h2>Generate GRASPS</h2>
+            <p>Build a clear, outcomes-aligned performance task using the six GRASPS components.</p>
+          </div>
+        </div>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setGuideOpen(true)}>
+          <Icon name="book" size={13} /> GRASPS Guide
+        </button>
+      </div>
+
+      {/* ---- task setup ---- */}
+      <section className="panel g26-setup no-print">
+        <div className="g26-setup__head">
+          <h3>Task setup</h3>
+          <p>Start by identifying the course and assessment period.</p>
+        </div>
+        <div className="g26-setup__card">
+          <span className="g26-setup__tag">Draft workspace</span>
+          <div className="g26-setup__grid">
+            <label className="field">
+              <span>Program *</span>
+              <select
+                className="input input--sm"
+                value={draft.code}
+                disabled={!ready || programs.length === 0}
+                onChange={(e) => patchDraft({ code: e.target.value })}
+              >
+                <option value="">
+                  {programs.length === 0 ? 'No programs available' : '- select program -'}
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Course title</span>
-            <select
-              className="input input--sm"
-              value={draft.title}
-              disabled={!ready || courses.length === 0}
-              onChange={(e) => patchDraft({ title: e.target.value })}
-            >
-              <option value="">
-                {courses.length === 0 ? 'No courses available' : '- select course -'}
-              </option>
-              {courseOptions.map((o) => (
-                <option key={o.id} value={o.value}>
-                  {o.value}
+                {programOptions.map((o) => (
+                  <option key={o.id} value={o.value}>
+                    {o.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Course title *</span>
+              <select
+                className="input input--sm"
+                value={draft.title}
+                disabled={!ready || courses.length === 0}
+                onChange={(e) => patchDraft({ title: e.target.value })}
+              >
+                <option value="">
+                  {courses.length === 0 ? 'No courses available' : '- select course -'}
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Performance task for</span>
-            <select
-              className="input input--sm"
-              value={draft.taskType}
-              disabled={!ready}
-              onChange={(e) => patchDraft({ taskType: e.target.value })}
-            >
-              <option value="">- select grading period -</option>
-              {taskTypeOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-          {/* Semester and School Year sit side by side so the header stays compact. */}
-          <div className="field-row">
+                {courseOptions.map((o) => (
+                  <option key={o.id} value={o.value}>
+                    {o.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="g26-setup__grid" style={{ gridTemplateColumns: '1.4fr 1fr 1fr' }}>
+            <div className="field">
+              <span>Performance task for</span>
+              <div className="clo26-viewtabs" role="tablist" aria-label="Grading period">
+                {taskTypeOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    className={`clo26-tab${draft.taskType === opt ? ' active' : ''}`}
+                    onClick={() => patchDraft({ taskType: opt })}
+                    disabled={!ready}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="field">
               <span>Semester</span>
               <select
@@ -628,7 +683,7 @@ export default function Grasps() {
               </select>
             </label>
             <label className="field">
-              <span>School Year</span>
+              <span>School year</span>
               <select
                 className="input input--sm"
                 value={draft.schoolYear}
@@ -644,65 +699,75 @@ export default function Grasps() {
               </select>
             </label>
           </div>
+          <div className="tos-savestate" role="status">
+            {error ? (
+              <span className="tos-savestate__error">{error}</span>
+            ) : loading ? (
+              <span>Loading…</span>
+            ) : saving ? (
+              <span>Saving…</span>
+            ) : dirty ? (
+              draft.id ? (
+                <span>Editing saved task — not saved yet</span>
+              ) : (
+                <span>Draft — not saved yet</span>
+              )
+            ) : draft.id ? (
+              <span>Editing saved task</span>
+            ) : savedAt ? (
+              <span>Saved {savedAt}</span>
+            ) : null}
+          </div>
         </div>
-
-        <div className="tos-savestate" role="status">
-          {error ? (
-            <span className="tos-savestate__error">{error}</span>
-          ) : loading ? (
-            <span>Loading…</span>
-          ) : saving ? (
-            <span>Saving…</span>
-          ) : dirty ? (
-            /* The draft's own state, distinct from the last save's timestamp:
-               this says there is work on screen the library does not hold. */
-            draft.id ? (
-              <span>Editing saved task — not saved yet</span>
-            ) : (
-              <span>Draft — not saved yet</span>
-            )
-          ) : draft.id ? (
-            <span>Editing saved task</span>
-          ) : savedAt ? (
-            <span>Saved {savedAt}</span>
-          ) : null}
-        </div>
-      </div>
+      </section>
 
       {/* ---- the six components ---- */}
-      <div className="panel tos-panel no-print">
-        <div className="grasps-parts">
-          {GRASPS_PARTS.map((p) => (
-            <div key={p.key} className="grasps-part">
-              <div className="grasps-part__head">
-                <span className="grasps-part__letter" aria-hidden="true">
-                  {p.letter}
-                </span>
-                <div className="grasps-part__text">
-                  <span className="grasps-part__label">{p.label}</span>
-                  <span className="grasps-part__hint">{p.hint}</span>
-                </div>
-              </div>
-              <textarea
-                className="input input--sm"
-                ref={autoResize}
-                value={draft[p.key]}
-                placeholder={p.placeholder}
-                rows={3}
-                disabled={!ready}
-                onChange={(e) => {
-                  patchPart(p.key, e.target.value)
-                  autoResize(e.currentTarget)
-                }}
-              />
-            </div>
-          ))}
+      <section className="panel g26-partspanel no-print">
+        <div className="g26-sectionhead">
+          <div>
+            <span className="g26-kicker">The six components</span>
+            <h3>Build your performance task</h3>
+            <p>Complete each section to create a meaningful real-world learning experience.</p>
+          </div>
+          <div className="g26-progress">
+            <strong>{pct}%</strong>
+            <span>{draftFilled} of {GRASPS_PARTS.length} components completed</span>
+          </div>
         </div>
-
-        <div className="tos-addrow no-print">
-          {/* Only offered when there is something to throw away, so it cannot
-              be clicked to "reset" a task that was never edited — the same
-              rule the TOS grid's Discard keeps. */}
+        <div className="g26-parts">
+          {GRASPS_PARTS.map((p) => {
+            const done = draft[p.key].trim() !== ''
+            return (
+              <div key={p.key} className={`g26-part${done ? ' g26-part--done' : ''}`}>
+                <div className="g26-part__head">
+                  <span className="g26-part__badge" aria-hidden="true">{p.letter}</span>
+                  <div className="g26-part__titles">
+                    <h4>{p.label}</h4>
+                    <span className="g26-part__q">{p.question}</span>
+                  </div>
+                  <span className="g26-part__dot" aria-hidden="true">{done ? '●' : '○'}</span>
+                </div>
+                <p className="g26-part__hint">{p.hint}</p>
+                <p className="g26-part__tip">{p.tip}</p>
+                <textarea
+                  className="input input--sm"
+                  ref={autoResize}
+                  value={draft[p.key]}
+                  placeholder={p.placeholder}
+                  rows={3}
+                  disabled={!ready}
+                  onChange={(e) => {
+                    patchPart(p.key, e.target.value)
+                    autoResize(e.currentTarget)
+                  }}
+                />
+                <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
+              </div>
+            )
+          })}
+        </div>
+        <p className="g26-draftnote">Your work is saved as a local draft while you type.</p>
+        <div className="g26-actions">
           {dirty && (
             <button
               type="button"
@@ -715,7 +780,7 @@ export default function Grasps() {
                   : 'Throw away this draft — nothing in it has been saved yet'
               }
             >
-              {draft.id ? 'Close edit' : 'Discard'}
+              {draft.id ? 'Close edit' : 'Clear draft'}
             </button>
           )}
           <button
@@ -729,10 +794,10 @@ export default function Grasps() {
                 : 'Save this task into the library and start a blank draft'
             }
           >
-            {saving ? 'Saving…' : draft.id ? 'Save changes' : 'Save'}
+            {saving ? 'Saving…' : draft.id ? 'Save changes →' : 'Save GRASPS task →'}
           </button>
         </div>
-      </div>
+      </section>
 
       {/* ---- saved tasks ----
           The panel is the visible proof that a save landed. It re-reads itself
@@ -741,19 +806,24 @@ export default function Grasps() {
           new task appends at the bottom. Last on the page, below the editor it
           describes: the editor is the thing you came here to use, and the list
           is a record of what you have used. */}
-      <div className="panel table-wrap tos-library no-print">
-        <div className="clo26-toolbar">
+      <section className="panel g26-library no-print">
+        <div className="g26-sectionhead">
+          <div>
+            <span className="g26-kicker">Your workspace</span>
+            <h3>Saved GRASPS tasks</h3>
+            <p>Review and continue working on your previously created performance tasks.</p>
+          </div>
           <div className="clo26-viewtabs" role="tablist" aria-label="Status view">
             <button
               type="button"
-              className={`clo26-tab ${!archived ? 'active' : ''}`}
+              className={`clo26-tab${!archived ? ' active' : ''}`}
               onClick={() => setArchived(false)}
             >
-              Active
+              Active{activeCount > 0 ? ` (${activeCount})` : ''}
             </button>
             <button
               type="button"
-              className={`clo26-tab ${archived ? 'active' : ''}`}
+              className={`clo26-tab${archived ? ' active' : ''}`}
               onClick={() => setArchived(true)}
             >
               Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
@@ -812,7 +882,45 @@ export default function Grasps() {
             </article>
           ))}
         </div>
-      </div>
+      </section>
+
+      {/* ---- quick reference ---- */}
+      {guideOpen && (
+        <div
+          className="g26-guide"
+          role="dialog"
+          aria-modal="true"
+          aria-label="GRASPS quick reference"
+          onClick={() => setGuideOpen(false)}
+        >
+          <div className="g26-guide__panel" onClick={(e) => e.stopPropagation()}>
+            <div className="g26-guide__bar">
+              <div>
+                <span className="g26-kicker">Quick reference</span>
+                <h3>Understanding GRASPS</h3>
+              </div>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setGuideOpen(false)}>
+                <Icon name="x" size={13} /> Close
+              </button>
+            </div>
+            <p className="g26-guide__intro">
+              Use the six components to frame an authentic performance task with a clear
+              purpose and measurable expectations.
+            </p>
+            <ul className="g26-guide__list">
+              {GRASPS_PARTS.map((p) => (
+                <li key={p.key}>
+                  <span className="g26-part__badge g26-part__badge--sm" aria-hidden="true">{p.letter}</span>
+                  <div>
+                    <strong>{p.letter} · {p.label}</strong>
+                    <span>{p.guide}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
