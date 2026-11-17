@@ -906,8 +906,11 @@ export default function Grasps() {
                             type="text"
                             inputMode="numeric"
                             value={r.points ?? 0}
-                                                        disabled={!ready}
-                            onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value.replace(/D/g, '')) })}
+                            disabled={!ready}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/[^0-9]/g, '')
+                              patchRubricRow(i, { points: digits === '' ? null : Number(digits) })
+                            }}
                           />
                         </td>
                         <td>
