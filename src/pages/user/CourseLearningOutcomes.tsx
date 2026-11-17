@@ -456,6 +456,36 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return () => { cancelled = true }
   }, [myCourses])
 
+  // Per-subject trail: the page-level history narrowed to one subject —
+  // each accordion shows its own changes under the CLO rows, so
+  // co-instructors and whoever inherits the subject read every change in
+  // place. Normalized matching keeps "IT 21" and "IT21" on one trail.
+  const historyFor = (courseCode: string) =>
+    (history ?? []).filter((h) => normalizeCode(h.details?.course || '') === normalizeCode(courseCode))
+
+  // The audit label is the record's identity at write time ("3 — Design…").
+  // The CLO chip already carries the number, so the leading "n — " is
+  // stripped for the detail line.
+  const historyLabelText = (h: ActivityLogEntry) => {
+    const label = h.details?.label || ''
+    const code = h.details?.code || ''
+    return code && label.startsWith(`${code} — `) ? label.slice(code.length + 3) : label
+  }
+
+  // One-word verb per audit action, classed per kind for the badge color.
+  const historyVerb = (action: string) => {
+    const kind = action.split('.')[1] || ''
+    const verbs: Record<string, string> = {
+      created: 'Created', updated: 'Updated', archived: 'Archived',
+      restored: 'Restored', deleted: 'Deleted',
+    }
+    return verbs[kind] ?? labelAction(action)
+  }
+  const historyActClass = (action: string) => {
+    const kind = action.split('.')[1] || ''
+    return `clo26-hact clo26-hact--${kind}`
+  }
+
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
   // lettered codes ("Clo1", "CLO-1") from being re-saved.
@@ -1071,6 +1101,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               {shownGroups.map(({ course, rows }) => {
                 const open = expandedCourse === course.id
                 const courseActive = !course.status || course.status === 'active'
+                const trail = historyFor(course.code)
                 return (
                   <article key={course.id} className={`clo26-course ${open ? 'open' : ''}`}>
                     <button type="button" className="clo26-course-head" onClick={() => setExpandedCourse(open ? null : course.id)}
@@ -1142,6 +1173,26 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             </button>
                           </div>
                         )}
+                        {trail.length > 0 && (
+                          <div className="clo26-history">
+                            <div className="clo26-history-head">
+                              <h4>Modification history</h4>
+                              <span className="clo26-tag">{trail.length} change{trail.length === 1 ? '' : 's'}</span>
+                              <span className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</span>
+                            </div>
+                            <ul>
+                              {trail.map((h) => (
+                                <li key={h.id}>
+                                  <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                  <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
+                                  {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
+                                  <span className="clo26-what">{historyLabelText(h)}</span>
+                                  <span className="clo26-who">by {h.user_email}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </article>
@@ -1154,48 +1205,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       </div>
       </div>
 
-      {/* Modification history: the clo.* audit entries for the assigned
-          subjects — the faculty member's own edits and, when the manager
-          hands over a subject, the trail of whoever handled it before. */}
-      {myCourses.length > 0 && (
-        <section className="panel" style={{ marginTop: 14 }} aria-label="Modification history">
-          <div className="panel-head" style={{ marginBottom: 10 }}>
-            <div>
-              <h3>Modification history</h3>
-              <p>Changes to your assigned subjects&rsquo; outcomes — yours and the ones before you.</p>
-            </div>
-          </div>
-          {history === null ? (
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>Loading history…</p>
-          ) : history.length === 0 ? (
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>
-              No changes recorded yet for your assigned subjects.
-            </p>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-              {history.map((h) => (
-                <li key={h.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, fontSize: 12.5 }}>
-                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                    {new Date(h.created_at).toLocaleString()}
-                  </span>
-                  <span style={{ fontWeight: 700, color: 'var(--g700)', flexShrink: 0 }}>
-                    {labelAction(h.action)}
-                  </span>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {h.details?.label || (h.details?.code ? `CLO ${h.details.code}` : '')}
-                    {h.details?.course ? (
-                      <span style={{ color: 'var(--text-muted)' }}> · {h.details.course}</span>
-                    ) : null}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-                    {h.user_email}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+
 
       {viewClo && (
         <div

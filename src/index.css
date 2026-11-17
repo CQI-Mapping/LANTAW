@@ -9872,6 +9872,128 @@ html.lantaw-dark .clo26-code {
   color: #7cc08e;
 }
 
+/* Per-subject modification history: the clo.* audit trail scoped to one
+   subject, rendered inside its accordion so co-instructors and whoever
+   inherits the subject read every change in place. */
+.clo26-history {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding: 12px 10px 2px;
+}
+
+.clo26-history-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.clo26-history-head h4 {
+  margin: 0;
+  font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.clo26-history-head .clo26-tag {
+  font-weight: 700;
+}
+
+.clo26-history-note {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.clo26-history ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clo26-history li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.clo26-history li:first-child {
+  border-top: 0;
+}
+
+.clo26-when {
+  color: var(--text-muted);
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.clo26-hact {
+  font: 700 9.5px 'DM Sans', 'Inter', sans-serif;
+  padding: 3px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+}
+
+.clo26-hact--created {
+  color: #2f6b46;
+  background: var(--g100);
+}
+
+.clo26-hact--updated {
+  color: var(--primary-dark);
+  background: var(--g100);
+}
+
+.clo26-hact--archived,
+.clo26-hact--restored {
+  color: var(--text-muted);
+}
+
+.clo26-hact--deleted {
+  color: var(--danger);
+  background: rgba(220, 53, 69, 0.08);
+}
+
+.clo26-what {
+  color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.clo26-who {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+html.lantaw-dark .clo26-hact--created {
+  color: #9fd0ae;
+  background: rgba(124, 192, 142, 0.12);
+}
+
+html.lantaw-dark .clo26-hact--updated {
+  color: #7cc08e;
+  background: rgba(124, 192, 142, 0.1);
+}
+
+html.lantaw-dark .clo26-hact--archived,
+html.lantaw-dark .clo26-hact--restored {
+  color: var(--text-muted);
+}
+
+html.lantaw-dark .clo26-hact--deleted {
+  color: #e08a8a;
+  background: rgba(224, 138, 138, 0.1);
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */
