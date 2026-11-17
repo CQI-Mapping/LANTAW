@@ -25,7 +25,7 @@ import {
 
 const FONT = 'Arial'
 const NAVY = '002060'
-const SZ = 20 // half-points -> 10pt
+const SZ = 22 // half-points -> 11pt (the GRASPS model format)
 
 export interface GraspsDocxData {
   program: string
@@ -44,17 +44,24 @@ export interface GraspsDocxData {
   preparedBy: string
 }
 
-/** "grasps-IT20-2026-11-11.docx" — the syllabus name pattern, GRASPS-prefixed. */
-function graspsFileName(course: string): string {
-  const d = new Date()
-  const stamp = [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-')
-  const safe = course.trim().replace(/[^\w-]+/g, '-').replace(/-+/g, '-')
-  return `grasps-${safe || 'task'}-${stamp}.docx`
+/** The export's file name: the GRASPS model form code, the course's short
+ *  name (initials of the title's words, e.g. HCI) and the grading period —
+ *  "FM-NBSC-CID-030 GRASPS Model - HCI - Prelim.docx". */
+const GRASPS_STOP_WORDS = new Set(['and', 'of', 'the', 'for', 'in', 'a', 'an', 'to'])
+
+function courseShortName(course: string): string {
+  const title = course.split(/\s*[-–:]\s*/).slice(1).join(' ').trim()
+  if (!title) return course.trim() || 'task'
+  const words = title.split(/[\s-]+/).filter((w) => !GRASPS_STOP_WORDS.has(w.toLowerCase()))
+  const initials = words.map((w) => (w[0] ?? '').toUpperCase()).join('')
+  return initials.slice(0, 4) || course.trim() || 'task'
 }
+
+function graspsFileName(course: string, taskType: string): string {
+  const period = taskType.trim() || 'GRASPS'
+  return `FM-NBSC-CID-030 GRASPS Model - ${courseShortName(course)} - ${period}.docx`
+}
+
 
 async function fetchLetterhead(): Promise<Uint8Array | null> {
   try {
@@ -101,63 +108,72 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     })
 
   const CENTER = AlignmentType.CENTER
+  const JUSTIFIED = AlignmentType.JUSTIFIED
   const inch = (v: number) => convertInchesToTwip(v)
 
   const children: (DocxParagraph | DocxTable)[] = []
 
-  // ---- Title block ------------------------------------------------------
+  // ---- Header block ------------------------------------------------------
+  // The house GRASPS format: the institute line under the letterhead band,
+  // the course, the term, the grading period, then the assessment title —
+  // and the six components as labeled paragraphs rather than a table.
+  const courseLine = (() => {
+    const m = data.course.match(/^([A-Za-z0-9 .+()]+?)\s*[-–]\s*(.+)$/)
+    return m ? `${m[1].trim()}: ${m[2].trim()}` : data.course
+  })()
+  const termLine = data.term.includes(',')
+    ? data.term.replace(/,/, ', S.Y.: ')
+    : data.term
+
   children.push(
-    para('GRASPS', { bold: true, color: NAVY, align: CENTER }),
-    para(
-      `Performance Task${data.taskType.trim() ? ` for ${data.taskType.trim()}` : ''}`,
-      { bold: true, align: CENTER },
-    ),
-    para(data.course || 'No course yet', { bold: true, italics: true, align: CENTER }),
-    para([data.program, data.term].filter(Boolean).join(' · '), { bold: true, align: CENTER }),
+    para('Institute for Computer Studies', { align: CENTER }),
+    para(courseLine || 'No course yet', { bold: true, align: CENTER }),
+    ...(termLine.trim() ? [para(termLine, { align: CENTER })] : []),
+    para(data.taskType || 'GRASPS', { bold: true, align: CENTER }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
+    para('Performance/Product-based Assessment through GRASPS Model', { bold: true, align: JUSTIFIED }),
     new Paragraph({ spacing: { after: 120 }, children: [] }),
   )
 
-  // ---- The GRASPS table --------------------------------------------------
-  // One row per component, in the order the acronym spells. An empty
-  // component still prints its row with a blank description, so the document
-  // shows the task's own gaps instead of silently dropping them.
-  const components: Array<{ key: string; label: string; value: string }> = [
-    { key: 'G', label: 'Goal', value: data.goal },
-    { key: 'R', label: 'Role', value: data.role },
-    { key: 'A', label: 'Audience', value: data.audience },
-    { key: 'S', label: 'Situation', value: data.situation },
-    { key: 'P', label: 'Product / Performance', value: data.product },
-    { key: 'S', label: 'Standards for Success', value: data.standards },
+  // ---- The components as labeled paragraphs ------------------------------
+  // A single-line component runs on after its bold label ("Goal: Your goal
+  // is to …"). When the first line is itself a heading ("Your audience
+  // includes:"), the label stands alone and every line follows as its own
+  // paragraph — the way the model document lays the six parts out.
+  const parts: Array<{ label: string; value: string }> = [
+    { label: 'Goal', value: data.goal },
+    { label: 'Role', value: data.role },
+    { label: 'Audience', value: data.audience },
+    { label: 'Situation', value: data.situation },
+    { label: 'Product/Performance', value: data.product },
+    { label: 'Standards for Success', value: data.standards },
   ]
 
-  children.push(
-    new Table({
-      width: pct(100),
-      rows: [
-        new TableRow({
-          tableHeader: true,
-          children: [
-            cell([para('GRASPS', { bold: true, color: NAVY, align: CENTER })], 10),
-            cell([para('COMPONENT', { bold: true, color: NAVY, align: CENTER })], 22),
-            cell([para('DESCRIPTION', { bold: true, color: NAVY, align: CENTER })], 68),
-          ],
-        }),
-        ...components.map((c) =>
-          new TableRow({
-            children: [
-              cell([para(c.key, { bold: true, align: CENTER })], 10),
-              cell([para(c.label, { bold: true })], 22),
-              cell(
-                [para(c.value.trim() || '—', { italics: c.value.trim() === '' })],
-                68,
-              ),
-            ],
-          }),
-        ),
-      ],
-    }),
-    new Paragraph({ spacing: { after: 200 }, children: [] }),
-  )
+  parts.forEach((c) => {
+    const lines = c.value.split('\n').map((l) => l.trim()).filter((l) => l !== '')
+    const labelPara = (firstInline: boolean) =>
+      new Paragraph({
+        alignment: JUSTIFIED,
+        children: [
+          run(`${c.label}:`, { bold: true }),
+          ...(firstInline ? [run(` ${lines[0]}`)] : []),
+        ],
+      })
+    if (lines.length === 0) {
+      children.push(labelPara(false))
+    } else if (lines[0].endsWith(':')) {
+      children.push(labelPara(false))
+      lines.forEach((l) =>
+        children.push(new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })),
+      )
+    } else {
+      children.push(labelPara(true))
+      lines.slice(1).forEach((l) =>
+        children.push(new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })),
+      )
+    }
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }))
+  })
 
   // ---- Analytic rubric ---------------------------------------------------
   // Criteria scored across the four performance levels, the companion of
@@ -174,7 +190,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     const allNumeric = scored.every((r) => Number.isFinite(Number(String(r.points).trim())))
     const total = scored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
     children.push(
-      para(allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric', { bold: true, color: NAVY }),
+      para(allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'),
       new Paragraph({ spacing: { after: 80 }, children: [] }),
       new Table({
         width: pct(100),
@@ -266,5 +282,5 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     ],
   })
 
-  saveBlob(await Packer.toBlob(doc), graspsFileName(data.course))
+  saveBlob(await Packer.toBlob(doc), graspsFileName(data.course, data.taskType))
 }
