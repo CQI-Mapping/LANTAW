@@ -695,7 +695,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </select>
         )}
         <div className="clo-code-input">
-          <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">Course Learning Outcome</span>
+          <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
           <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
         </div>
       </div>
@@ -874,9 +874,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         )}
         <label className="field">
-          <span>CLO Code</span>
+          <span>Course Learning Outcome Code</span>
           <div className="clo-code-input">
-            <span className={`clo-code-input__prefix${form.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">Course Learning Outcome</span>
+            <span className={`clo-code-input__prefix${form.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
             <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="1" value={form.code}
               onChange={(e) => setForm({ ...form, code: digitsOnly(e.target.value) })} required />
           </div>
