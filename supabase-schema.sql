@@ -776,8 +776,17 @@ CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin
 CREATE POLICY "Managers can read every course learning outcome" ON public.admin_course_learning_outcomes FOR SELECT
     USING (public.current_user_role() = 'manager');
 
-CREATE POLICY "Faculty see only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR SELECT
-    USING (public.current_user_role() = 'user' AND owner_id = auth.uid());
+-- Faculty read the outcomes of their shared subjects (032): their own
+-- rows plus the co-instructors' sets on any subject they instruct.
+-- Editing stays ownership-bound (026) — the others' rows are read-only.
+CREATE POLICY "Faculty read their shared subjects' outcomes" ON public.admin_course_learning_outcomes FOR SELECT
+    USING (
+        public.current_user_role() = 'user'
+        AND (
+            owner_id = auth.uid()
+            OR public.faculty_teaches_course(auth.uid(), course)
+        )
+    );
 
 CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_course_learning_outcomes FOR INSERT
     WITH CHECK (

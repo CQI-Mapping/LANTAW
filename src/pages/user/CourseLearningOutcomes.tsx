@@ -32,6 +32,7 @@ import type {
 } from '../../services/database'
 import { labelAction } from '../admin/ActivityLabels'
 import { addActivityLog, updateAssignedCourseDescription } from '../../services/database'
+import { supabase } from '../../utils/supabaseClient'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
@@ -232,6 +233,24 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       ),
     [courses, userEmail],
   )
+
+  // The viewer's auth id: on a SHARED subject (032) the list carries the
+  // co-instructors' rows too, and ownership compares by uuid — the row's
+  // owner_id is the auth uid, not the email this page knows.
+  const [myUid, setMyUid] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    supabase!.auth.getUser()
+      .then(({ data }) => { if (!cancelled) setMyUid(data.user?.id ?? null) })
+      .catch(() => { if (!cancelled) setMyUid(null) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Whose row: unowned legacy rows and the viewer's own are editable; a
+  // co-instructor's row on the shared subject is read-only — 032 widens
+  // the reads, 026 keeps the writes owner-bound.
+  const isOwnRow = (row: CourseLearningOutcomeStandalone) =>
+    !row.owner_id || row.owner_id === myUid
 
   // The prototype's course-grouped list: one accordion per assigned
   // subject, holding the CLO rows that survive the filters (status tab,
@@ -573,7 +592,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // Bulk align: fused top-1 for the visible filtered CLOs with empty PO.
   const flatRows = groups.flatMap((g) => g.rows)
-  const bulkTargets = flatRows.filter((i) => !(i.title ?? '').trim() && (i.description ?? '').trim())
+  const bulkTargets = flatRows.filter((i) => isOwnRow(i) && !(i.title ?? '').trim() && (i.description ?? '').trim())
     .map((i) => {
       const raw = i.description ?? ''
       // Same real-word floor as the interactive chips — bulk never applies a
@@ -1209,7 +1228,15 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                 <div key={row.id} className="clo26-editrow">{renderEdit()}</div>
                               ) : (
                                 <div key={row.id} className="clo26-row">
-                                  <div className="clo26-id">{cloLabel(row.code) || '—'}</div>
+                                  <div className="clo26-id">
+                                    {cloLabel(row.code) || '—'}
+                                    {!isOwnRow(row) && (
+                                      <span className="clo26-tag clo26-tag--muted" style={{ display: 'block', width: 'fit-content', marginTop: 4 }}
+                                        title="Inputted by a co-instructor on this shared subject — read-only for you">
+                                        Shared
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="clo26-desc">{row.description || 'No description.'}</div>
                                   <div className="clo26-pos">
                                     {(row.title || '').split(',').map((p) => p.trim()).filter(Boolean).map((p) => (
@@ -1221,14 +1248,18 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                   </div>
                                   <div className="clo26-actions">
                                     <button type="button" onClick={() => openReader(row)} disabled={busy || !!editingId}>View</button>
-                                    <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
-                                    <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
-                                      {isActive(row) ? 'Archive' : 'Restore'}
-                                    </button>
-                                    {!isActive(row) && (
-                                      <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
-                                        Delete
-                                      </button>
+                                    {isOwnRow(row) && (
+                                      <>
+                                        <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
+                                        <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
+                                          {isActive(row) ? 'Archive' : 'Restore'}
+                                        </button>
+                                        {!isActive(row) && (
+                                          <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
+                                            Delete
+                                          </button>
+                                        )}
+                                      </>
                                     )}
                                   </div>
                                 </div>
