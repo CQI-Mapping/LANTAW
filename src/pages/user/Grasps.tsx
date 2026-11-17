@@ -802,152 +802,153 @@ export default function Grasps() {
                   }}
                 />
                 <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
+                {p.key === 'standards' && (
+                  <div className="g26-rubric">
+                    {/* The Standards component's companion: criteria scored across
+                        the four performance levels, saved with the task (034) and
+                        printed on the Word export — inside the card, directly
+                        under its textarea. */}
+              <div className="g26-rubric__head">
+                <h4>Analytic Rubric ({rubricTotal} points)</h4>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
+                  <Icon name="plus" size={13} /> Add criterion
+                </button>
+              </div>
+              <div className="g26-rubric__scroll">
+                <table className="g26-rubric__table">
+                  <thead>
+                    <tr>
+                      <th>Criteria</th>
+                      <th>Excellent (4)</th>
+                      <th>Proficient (3)</th>
+                      <th>Developing (2)</th>
+                      <th>Beginning (1)</th>
+                      <th>Points</th>
+                      <th aria-label="Remove criterion" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.rubric.map((r, i) => (
+                      <tr key={i}>
+                        <td>
+                          <textarea
+                            className="g26-rubric__input g26-rubric__input--name"
+                            rows={1}
+                            ref={autoResize}
+                            value={r.criteria}
+                            placeholder="e.g. Sketch Wireframes"
+                            disabled={!ready}
+                            onChange={(e) => {
+                              patchRubricRow(i, { criteria: e.target.value })
+                              autoResize(e.currentTarget)
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="g26-rubric__input"
+                            rows={1}
+                            ref={autoResize}
+                            value={r.excellent}
+                            placeholder="Descriptor…"
+                            disabled={!ready}
+                            onChange={(e) => {
+                              patchRubricRow(i, { excellent: e.target.value })
+                              autoResize(e.currentTarget)
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="g26-rubric__input"
+                            rows={1}
+                            ref={autoResize}
+                            value={r.proficient}
+                            placeholder="Descriptor…"
+                            disabled={!ready}
+                            onChange={(e) => {
+                              patchRubricRow(i, { proficient: e.target.value })
+                              autoResize(e.currentTarget)
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="g26-rubric__input"
+                            rows={1}
+                            ref={autoResize}
+                            value={r.developing}
+                            placeholder="Descriptor…"
+                            disabled={!ready}
+                            onChange={(e) => {
+                              patchRubricRow(i, { developing: e.target.value })
+                              autoResize(e.currentTarget)
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            className="g26-rubric__input"
+                            rows={1}
+                            ref={autoResize}
+                            value={r.beginning}
+                            placeholder="Descriptor…"
+                            disabled={!ready}
+                            onChange={(e) => {
+                              patchRubricRow(i, { beginning: e.target.value })
+                              autoResize(e.currentTarget)
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="g26-rubric__input g26-rubric__input--pts"
+                            type="number"
+                            min={0}
+                            value={r.points ?? ''}
+                            placeholder="20"
+                            disabled={!ready}
+                            onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value) })}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="g26-rubric__remove"
+                            aria-label={`Remove criterion ${i + 1}`}
+                            title="Remove this criterion"
+                            onClick={() => removeRubricRow(i)}
+                            disabled={!ready}
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {draft.rubric.length > 0 && (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={5}>Total</td>
+                        <td className="g26-rubric__total">/{rubricTotal}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+              {draft.rubric.length === 0 && (
+                <p className="g26-rubric__empty">
+                  No criteria yet — add a criterion to build the rubric the task is scored against.
+                </p>
+              )}
+            </div>
+                )}
               </div>
             )
           })}
         </div>
 
-        {/* ---- analytic rubric ----
-            The Standards component's companion: criteria scored across the
-            four performance levels, saved with the task (034) and printed
-            on the Word export. Lives below the Standards card, where the
-            reference design puts the scoring instrument. */}
-        <div className="g26-rubric">
-          <div className="g26-rubric__head">
-            <h4>Analytic Rubric ({rubricTotal} points)</h4>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
-              <Icon name="plus" size={13} /> Add criterion
-            </button>
-          </div>
-          <div className="g26-rubric__scroll">
-            <table className="g26-rubric__table">
-              <thead>
-                <tr>
-                  <th>Criteria</th>
-                  <th>Excellent (4)</th>
-                  <th>Proficient (3)</th>
-                  <th>Developing (2)</th>
-                  <th>Beginning (1)</th>
-                  <th>Points</th>
-                  <th aria-label="Remove criterion" />
-                </tr>
-              </thead>
-              <tbody>
-                {draft.rubric.map((r, i) => (
-                  <tr key={i}>
-                    <td>
-                      <textarea
-                        className="g26-rubric__input g26-rubric__input--name"
-                        rows={1}
-                        ref={autoResize}
-                        value={r.criteria}
-                        placeholder="e.g. Sketch Wireframes"
-                        disabled={!ready}
-                        onChange={(e) => {
-                          patchRubricRow(i, { criteria: e.target.value })
-                          autoResize(e.currentTarget)
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="g26-rubric__input"
-                        rows={1}
-                        ref={autoResize}
-                        value={r.excellent}
-                        placeholder="Descriptor…"
-                        disabled={!ready}
-                        onChange={(e) => {
-                          patchRubricRow(i, { excellent: e.target.value })
-                          autoResize(e.currentTarget)
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="g26-rubric__input"
-                        rows={1}
-                        ref={autoResize}
-                        value={r.proficient}
-                        placeholder="Descriptor…"
-                        disabled={!ready}
-                        onChange={(e) => {
-                          patchRubricRow(i, { proficient: e.target.value })
-                          autoResize(e.currentTarget)
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="g26-rubric__input"
-                        rows={1}
-                        ref={autoResize}
-                        value={r.developing}
-                        placeholder="Descriptor…"
-                        disabled={!ready}
-                        onChange={(e) => {
-                          patchRubricRow(i, { developing: e.target.value })
-                          autoResize(e.currentTarget)
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className="g26-rubric__input"
-                        rows={1}
-                        ref={autoResize}
-                        value={r.beginning}
-                        placeholder="Descriptor…"
-                        disabled={!ready}
-                        onChange={(e) => {
-                          patchRubricRow(i, { beginning: e.target.value })
-                          autoResize(e.currentTarget)
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="g26-rubric__input g26-rubric__input--pts"
-                        type="number"
-                        min={0}
-                        value={r.points ?? ''}
-                        placeholder="20"
-                        disabled={!ready}
-                        onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value) })}
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="g26-rubric__remove"
-                        aria-label={`Remove criterion ${i + 1}`}
-                        title="Remove this criterion"
-                        onClick={() => removeRubricRow(i)}
-                        disabled={!ready}
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {draft.rubric.length > 0 && (
-                <tfoot>
-                  <tr>
-                    <td colSpan={5}>Total</td>
-                    <td className="g26-rubric__total">/{rubricTotal}</td>
-                    <td />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-          {draft.rubric.length === 0 && (
-            <p className="g26-rubric__empty">
-              No criteria yet — add a criterion to build the rubric the task is scored against.
-            </p>
-          )}
-        </div>
         <p className="g26-draftnote">Your work is saved as a local draft while you type.</p>
         <div className="g26-actions">
           {dirty && (
