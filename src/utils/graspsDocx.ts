@@ -127,7 +127,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     { key: 'A', label: 'Audience', value: data.audience },
     { key: 'S', label: 'Situation', value: data.situation },
     { key: 'P', label: 'Product / Performance', value: data.product },
-    { key: 'S', label: 'Standards', value: data.standards },
+    { key: 'S', label: 'Standards for Success', value: data.standards },
   ]
 
   children.push(

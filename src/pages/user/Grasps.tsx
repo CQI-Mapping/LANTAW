@@ -118,7 +118,7 @@ const GRASPS_PARTS: Array<{
   {
     key: 'standards',
     letter: 'S',
-    label: 'Standards',
+    label: 'Standards for Success',
     question: 'How will success be evaluated?',
     hint: 'List the criteria, quality indicators, or rubric expectations.',
     tip: 'Align criteria with the learning outcomes.',
