@@ -12,7 +12,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
 import Icon from '../../components/icons'
-import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import CurriculumPdfImport from '../../components/CurriculumPdfImport'
 import { normalizeCode } from '../../utils/courseCodes'
 import {
@@ -28,8 +27,7 @@ import type { Program, Resource, Course } from '../../services/database'
 
 const instructorLabelOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.full_name || v.email : ''
-/** The assigned faculty account's id, '' when none — how the course card
-    reads the assignment the Assign Faculty module wrote. */
+/** The assigned faculty account's id, '' when none. */
 const instructorIdOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.id : (v || '')
 
@@ -302,9 +300,12 @@ export default function ManagerCourse({ profile }: CourseProps) {
       ? `A course with code ${code} already exists in this program.`
       : `${code} exists but is archived — toggle "Archived" on this page and press Restore on that card instead of creating a new one.`
 
-  // The faculty assignment lives in the Assign Faculty module — this page
-  // stays a pure course catalog. (The stats row still shows how many
-  // subjects have no instructor yet, so the gap stays visible here.)
+  // ---- Faculty assignment navbar ----
+  // Subjects without an instructor — the stats row's Unassigned figure. The
+  // assignment itself lives in the Assign Faculty module.
+  // subjects directly: the pick filters the cards, the assign bar hands out
+  // more, and each card can drop the assignment. Counts stay on the current
+  // program's active subjects so a pill always answers "how many here".
   const unassignedCount = courses.filter(
     (c) => sameProgram(c) && isActive(c) && !instructorIdOf(c.instructor_id),
   ).length
@@ -335,8 +336,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
     units: totalCredits(f),
     description: f.description.trim() || null,
     // instructor_id is deliberately absent: course create/edit never touches
-    // the assignment — that is the faculty navbar's and the Assign Faculty
-    // module's job, and a form save here must never wipe a standing one.
+    // the assignment — that is the Assign Faculty module's job, and a form
+    // save here must never wipe a standing one.
   })
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -412,7 +413,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
         label: `${editForm.code.trim().toUpperCase()} — ${editForm.title.trim()}`,
       })
       // Instructor changes are not logged here: the form no longer carries
-      // the field, and the faculty navbar / Assign Faculty module write the
+      // the field, and the Assign Faculty module writes the
       // course.instructor_assigned entry when the assignment moves.
       setMessage('Course updated.')
       clearEdit()
@@ -522,6 +523,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
         onWheel={(e) => (e.target as HTMLInputElement).blur()} />
     </label>
   )
+
+
 
   // Inline edit form for a single course card — the same card-expanding editor
   // the CLO page uses: fields stack inside the card and Save/Cancel sit at the
