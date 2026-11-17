@@ -1211,35 +1211,41 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             </button>
                           </div>
                         )}
-                        {trail.length > 0 && (
-                          <div className={`clo26-history${historyOpenFor === course.id ? ' open' : ''}`}>
-                            {/* Collapsed by default: one clock-icon row;
-                                pressing it unfolds the subject's trail. */}
-                            <button type="button" className="clo26-histbtn" aria-expanded={historyOpenFor === course.id}
-                              onClick={() => setHistoryOpenFor(historyOpenFor === course.id ? null : course.id)}>
-                              <Icon name="clock" size={13} />
-                              <span>Modification history</span>
+                        <div className={`clo26-history${historyOpenFor === course.id ? ' open' : ''}`}>
+                          {/* On every subject, collapsed by default: one
+                              clock-icon row; pressing it unfolds the
+                              subject's trail — or the "nothing yet" note
+                              when the subject has no changes recorded. */}
+                          <button type="button" className="clo26-histbtn" aria-expanded={historyOpenFor === course.id}
+                            onClick={() => setHistoryOpenFor(historyOpenFor === course.id ? null : course.id)}>
+                            <Icon name="clock" size={13} />
+                            <span>Modification history</span>
+                            {trail.length > 0 ? (
                               <span className="clo26-tag">{trail.length} change{trail.length === 1 ? '' : 's'}</span>
-                              <span className="clo26-histbtn__chevron" aria-hidden="true">&rsaquo;</span>
-                            </button>
-                            {historyOpenFor === course.id && (
-                              <>
-                                <p className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</p>
-                                <ul>
-                                  {trail.map((h) => (
-                                    <li key={h.id}>
-                                      <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
-                                      <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
-                                      {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
-                                      <span className="clo26-what">{historyLabelText(h)}</span>
-                                      <span className="clo26-who">by {h.user_email}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </>
+                            ) : (
+                              <span className="clo26-tag clo26-tag--muted">No changes yet</span>
                             )}
-                          </div>
-                        )}
+                            <span className="clo26-histbtn__chevron" aria-hidden="true">&rsaquo;</span>
+                          </button>
+                          {historyOpenFor === course.id && (trail.length > 0 ? (
+                            <>
+                              <p className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</p>
+                              <ul>
+                                {trail.map((h) => (
+                                  <li key={h.id}>
+                                    <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                    <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
+                                    {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
+                                    <span className="clo26-what">{historyLabelText(h)}</span>
+                                    <span className="clo26-who">by {h.user_email}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </>
+                          ) : (
+                            <p className="clo26-history-note">No changes recorded for this subject yet.</p>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </article>
