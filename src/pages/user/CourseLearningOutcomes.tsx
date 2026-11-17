@@ -882,7 +882,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         </label>
         <label className="field">
-          <span>Description</span>
+          <span>Course Learning Outcome description</span>
           <textarea className="input input--sm" rows={2} placeholder="e.g. Compare and contrast..." ref={autoResize}
             value={form.description}
             onChange={(e) => { setForm({ ...form, description: e.target.value }); autoResize(e.target) }} />
