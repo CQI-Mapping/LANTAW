@@ -246,9 +246,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return () => { cancelled = true }
   }, [])
 
-  // Whose row: unowned legacy rows and the viewer's own are editable; a
-  // co-instructor's row on the shared subject is read-only — 032 widens
-  // the reads, 026 keeps the writes owner-bound.
+  // Whose row: 033 lets the subject's instructors UPDATE any row on it,
+  // so Edit/Archive show for co-instructors' rows too — isOwnRow now
+  // gates only DELETION, which stays the owner's alone (026). Unowned
+  // legacy rows read as the viewer's own.
   const isOwnRow = (row: CourseLearningOutcomeStandalone) =>
     !row.owner_id || row.owner_id === myUid
 
@@ -592,7 +593,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // Bulk align: fused top-1 for the visible filtered CLOs with empty PO.
   const flatRows = groups.flatMap((g) => g.rows)
-  const bulkTargets = flatRows.filter((i) => isOwnRow(i) && !(i.title ?? '').trim() && (i.description ?? '').trim())
+  const bulkTargets = flatRows.filter((i) => !(i.title ?? '').trim() && (i.description ?? '').trim())
     .map((i) => {
       const raw = i.description ?? ''
       // Same real-word floor as the interactive chips — bulk never applies a
@@ -1232,7 +1233,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                     {cloLabel(row.code) || '—'}
                                     {!isOwnRow(row) && (
                                       <span className="clo26-tag clo26-tag--muted" style={{ display: 'block', width: 'fit-content', marginTop: 4 }}
-                                        title="Inputted by a co-instructor on this shared subject — read-only for you">
+                                        title="Inputted by a co-instructor on this shared subject — editable by the subject's instructors">
                                         Shared
                                       </span>
                                     )}
@@ -1248,18 +1249,17 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                   </div>
                                   <div className="clo26-actions">
                                     <button type="button" onClick={() => openReader(row)} disabled={busy || !!editingId}>View</button>
-                                    {isOwnRow(row) && (
-                                      <>
-                                        <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
-                                        <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
-                                          {isActive(row) ? 'Archive' : 'Restore'}
-                                        </button>
-                                        {!isActive(row) && (
-                                          <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
-                                            Delete
-                                          </button>
-                                        )}
-                                      </>
+                                    {/* 033: the subject's instructors update any
+                                        row on it — own or co-instructor's.
+                                        Deletion stays the owner's (026). */}
+                                    <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
+                                    <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
+                                      {isActive(row) ? 'Archive' : 'Restore'}
+                                    </button>
+                                    {isOwnRow(row) && !isActive(row) && (
+                                      <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
+                                        Delete
+                                      </button>
                                     )}
                                   </div>
                                 </div>

@@ -800,26 +800,21 @@ CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_
         )
     );
 
-CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_course_learning_outcomes FOR UPDATE
+-- Faculty edit the outcomes of their shared subjects (033): own rows and
+-- the co-instructors' on any subject they instruct. The proposed row must
+-- sit on a subject the writer teaches (WITH CHECK) — moves outside the
+-- assignment stay refused. Deletion stays ownership-bound (026).
+CREATE POLICY "Faculty edit their shared subjects' outcomes" ON public.admin_course_learning_outcomes FOR UPDATE
     USING (
-        owner_id = auth.uid()
+        public.current_user_role() = 'user'
         AND (
-            public.current_user_role() = 'admin'
-            OR (
-                public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), course)
-            )
+            owner_id = auth.uid()
+            OR public.faculty_teaches_course(auth.uid(), course)
         )
     )
     WITH CHECK (
-        owner_id = auth.uid()
-        AND (
-            public.current_user_role() = 'admin'
-            OR (
-                public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), course)
-            )
-        )
+        public.current_user_role() = 'user'
+        AND public.faculty_teaches_course(auth.uid(), course)
     );
 
 CREATE POLICY "Faculty delete their own course learning outcomes" ON public.admin_course_learning_outcomes FOR DELETE
