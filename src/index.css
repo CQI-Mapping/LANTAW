@@ -10002,6 +10002,11 @@ html.lantaw-dark .clo26-changed__chip {
   color: var(--text-muted);
 }
 
+.clo26-hact--description_updated {
+  color: var(--primary-dark);
+  background: var(--g100);
+}
+
 .clo26-hact--deleted {
   color: var(--danger);
   background: rgba(220, 53, 69, 0.08);
@@ -10025,7 +10030,8 @@ html.lantaw-dark .clo26-hact--created {
   background: rgba(124, 192, 142, 0.12);
 }
 
-html.lantaw-dark .clo26-hact--updated {
+html.lantaw-dark .clo26-hact--updated,
+html.lantaw-dark .clo26-hact--description_updated {
   color: #7cc08e;
   background: rgba(124, 192, 142, 0.1);
 }

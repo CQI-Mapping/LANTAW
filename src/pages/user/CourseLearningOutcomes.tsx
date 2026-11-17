@@ -31,7 +31,7 @@ import type {
   ActivityLogEntry,
 } from '../../services/database'
 import { labelAction } from '../admin/ActivityLabels'
-import { updateAssignedCourseDescription } from '../../services/database'
+import { addActivityLog, updateAssignedCourseDescription } from '../../services/database'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
@@ -182,10 +182,18 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     setError('')
     setDescSaving(true)
     try {
-      await updateAssignedCourseDescription(
-        courses.find((c) => c.code === courseCode)?.id ?? '',
-        draft.trim(),
-      )
+      const courseRow = courses.find((c) => c.code === courseCode)
+      await updateAssignedCourseDescription(courseRow?.id ?? '', draft.trim())
+      // The save IS a modification of the subject — it lands in that
+      // subject's Modification history like every other edit (031 lets
+      // the faculty RLS read course.description_updated entries).
+      await addActivityLog('course.description_updated', {
+        entity: 'course',
+        entity_id: courseRow?.id,
+        label: [courseCode, courseRow?.title ?? ''].filter(Boolean).join(' — '),
+        course: courseCode,
+        changes: ['description'],
+      })
       setCourses((prev) => prev.map((c) => (c.code === courseCode ? { ...c, description: draft.trim() } : c)))
       setMessage(`Course description saved for ${courseCode}.`)
     } catch (err) {
@@ -472,7 +480,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         setHistory(
           rows.filter(
             (r) =>
-              r.action?.startsWith('clo.')
+              (r.action?.startsWith('clo.') || r.action === 'course.description_updated')
               && assignedCodes.has(normalizeCode(r.details?.course || '')),
           ),
         )
@@ -503,6 +511,8 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     const verbs: Record<string, string> = {
       created: 'Created', updated: 'Updated', archived: 'Archived',
       restored: 'Restored', deleted: 'Deleted',
+      // The subject's Course description save (030) rides the same trail.
+      description_updated: 'Updated',
     }
     return verbs[kind] ?? labelAction(action)
   }
@@ -519,8 +529,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     title: 'Program Outcomes',
     description: 'Description',
   }
+  // The Subject Code move is organizational, not a content change —
+  // the trail skips it per the CLO page's rule.
   const historyChanges = (h: ActivityLogEntry) =>
-    (h.details?.changes ?? []).map((k) => CLO_FIELD_LABELS[k] ?? k)
+    (h.details?.changes ?? []).filter((k) => k !== 'course').map((k) => CLO_FIELD_LABELS[k] ?? k)
 
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
@@ -1268,7 +1280,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                         ))}
                                       </span>
                                     )}
-                                    <span className="clo26-what">{historyLabelText(h)}</span>
+                                    <span className="clo26-what">
+                                      {h.action === 'course.description_updated' ? 'Course description' : historyLabelText(h)}
+                                    </span>
                                     <span className="clo26-who">by {h.user_email}</span>
                                   </li>
                                 ))}
