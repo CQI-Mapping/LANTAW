@@ -319,6 +319,24 @@ export default function Grasps() {
     }
   }, [])
 
+  // The signed-in faculty's email — the identity the assignment gate below
+  // compares against, the same rule the CLO page applies.
+  const [myEmail, setMyEmail] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    supabase!
+      .auth.getUser()
+      .then(({ data }) => {
+        if (!cancelled) setMyEmail(data.user?.email ?? '')
+      })
+      .catch(() => {
+        // An unreadable session degrades to an empty picker, not a lock.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   /**
    * The gate holds the selects and the component editors still while the
    * library's first read runs and after a failure, so an error sits visibly
@@ -381,9 +399,28 @@ export default function Grasps() {
     [programs, draft.code],
   )
 
+  // The assignment gate: the Course picker lists only the subjects the
+  // manager handed to this faculty member — the primary instructor (the
+  // denormalized column) or any course_instructors junction row (028).
+  // Strict null checks: typeof null === 'object' would count every
+  // unassigned subject as their own.
+  const assignedCourses = useMemo(
+    () =>
+      courses.filter(
+        (c) =>
+          (c.instructor_id !== null &&
+            typeof c.instructor_id === 'object' &&
+            c.instructor_id.email === myEmail) ||
+          (c.course_instructors ?? []).some(
+            (ci) => ci.faculty_id !== null && ci.faculty_id.email === myEmail,
+          ),
+      ),
+    [courses, myEmail],
+  )
+
   const courseOptions = useMemo(
-    () => buildCourseOptions(courses, selectedProgramId, draft.title),
-    [courses, selectedProgramId, draft.title],
+    () => buildCourseOptions(assignedCourses, selectedProgramId, draft.title),
+    [assignedCourses, selectedProgramId, draft.title],
   )
 
   const semesterOptions = useMemo(() => buildSemesterOptions(draft.semester), [draft.semester])
@@ -680,11 +717,15 @@ export default function Grasps() {
               <select
                 className="input input--sm"
                 value={draft.title}
-                disabled={!ready || courses.length === 0}
+                disabled={!ready || assignedCourses.length === 0}
                 onChange={(e) => patchDraft({ title: e.target.value })}
               >
                 <option value="">
-                  {courses.length === 0 ? 'No courses available' : '- select course -'}
+                  {assignedCourses.length === 0
+                    ? courses.length === 0
+                      ? 'No courses available'
+                      : 'No subjects assigned to you yet — the program head assigns them in Assign Faculty'
+                    : '- select course -'}
                 </option>
                 {courseOptions.map((o) => (
                   <option key={o.id} value={o.value}>
