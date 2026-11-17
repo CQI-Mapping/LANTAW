@@ -127,9 +127,11 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
   const selected = faculty.find((f) => f.id === facultyId) ?? null
   const held = activeCourses.filter((c) => heldBy(c, facultyId))
   // Subjects the picked member could take over: every active subject here they
-  // do not already hold. A subject someone else teaches says so in its option
+  // do not already hold AND that has not reached the co-teaching cap of 3
+  // instructors. A subject someone else teaches says so in its option
   // label — a hand-over should never be a silent one.
-  const assignable = activeCourses.filter((c) => !heldBy(c, facultyId))
+  const MAX_INSTRUCTORS = 3
+  const assignable = activeCourses.filter((c) => !heldBy(c, facultyId) && instructorsOf(c).length < MAX_INSTRUCTORS)
 
   const nameOf = (fid: string) => {
     const f = faculty.find((x) => x.id === fid)
@@ -349,7 +351,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                     onClear={() => setPicks([])}
                     onAssign={handleAssign}
                     busy={busy}
-                    emptyHint={`Every active subject in this program is already ${displayName(selected)}'s.`}
+                    emptyHint={'Every assignable subject is taken — a subject can have at most 3 instructors.'}
                   />
                 </>
               )}

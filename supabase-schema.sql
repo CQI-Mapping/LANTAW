@@ -712,6 +712,33 @@ CREATE POLICY "Authenticated users can read course_instructors" ON public.course
 CREATE POLICY "Managers and admins manage course_instructors" ON public.course_instructors FOR ALL
     USING (public.current_user_role() IN ('admin', 'manager'))
     WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+
+-- The co-teaching cap: at most 3 instructors per subject. A trigger, not a
+-- check constraint — a plain CHECK cannot count sibling rows. See
+-- 029-course-instructor-limit.sql.
+CREATE OR REPLACE FUNCTION public.guard_course_instructor_count()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+DECLARE
+  n integer;
+BEGIN
+  SELECT count(*) INTO n
+  FROM public.course_instructors
+  WHERE course_id = NEW.course_id;
+  IF n >= 3 THEN
+    RAISE EXCEPTION 'A subject can have at most 3 instructors.'
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS course_instructors_max3 ON public.course_instructors;
+
+CREATE TRIGGER course_instructors_max3
+    BEFORE INSERT ON public.course_instructors
+    FOR EACH ROW EXECUTE FUNCTION public.guard_course_instructor_count();
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
