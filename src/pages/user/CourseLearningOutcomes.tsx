@@ -611,6 +611,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // ("IT10 — Web Systems and Technologies"). Unresolved (deleted) codes
   // display the bare code.
   const courseTitleByCode = (code: string) => courses.find((c) => c.code === code)?.title || ''
+  const courseDescOf = (code: string) => courses.find((c) => c.code === code)?.description || ''
 
   // Course list filters for the create form: Year and Semester sit on top of
   // the Course (Subject Code) picker and narrow its dropdown to the term the
@@ -637,13 +638,20 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     <div className="resource-card__edit">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {editForm.course ? (
-          <div className="input input--sm subject-picker__chosen">
-            <span className="subject-picker__text">
-              {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
-            </span>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
-              Change
-            </button>
+          <div className="input input--sm subject-picker__chosen" style={{ display: 'block' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span className="subject-picker__text">
+                {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
+              </span>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
+                Change
+              </button>
+            </div>
+            {courseDescOf(editForm.course) && (
+              <span style={{ display: 'block', fontSize: 11, lineHeight: 1.5, color: 'var(--text-muted)', marginTop: 4 }}>
+                {courseDescOf(editForm.course)}
+              </span>
+            )}
           </div>
         ) : (
           <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
@@ -816,6 +824,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             </select>
           )}
         </label>
+        {form.course && courseDescOf(form.course) && (
+          <div className="field" style={{ marginTop: -10 }}>
+            <span>Course description</span>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-muted)', background: 'var(--bg-soft)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
+              {courseDescOf(form.course)}
+            </p>
+          </div>
+        )}
         <label className="field">
           <span>CLO Code</span>
           <div className="clo-code-input">
