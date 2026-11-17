@@ -9926,6 +9926,32 @@ html.lantaw-dark .clo26-code {
   margin: 2px 0 6px;
 }
 
+.clo26-changed {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.clo26-changed__lead {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.clo26-changed__chip {
+  font: 600 9px 'DM Sans', 'Inter', sans-serif;
+  color: var(--primary-dark);
+  background: var(--g100);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+html.lantaw-dark .clo26-changed__chip {
+  color: #7cc08e;
+  background: rgba(124, 192, 142, 0.1);
+}
+
 .clo26-history ul {
   margin: 0;
   padding: 0;

@@ -80,6 +80,10 @@ export interface ActivityDetails {
   // rides along on created entries.
   course?: string
   code?: string
+  // Field names an update touched — the payload diffed against the
+  // pre-update row, recorded so the modification history can say WHICH
+  // fields moved, not just that something did.
+  changes?: string[]
 }
 
 export interface ActivityLogEntry {

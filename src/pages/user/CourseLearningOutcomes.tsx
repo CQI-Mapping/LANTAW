@@ -450,6 +450,15 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // The trail loads against the assigned pool (RLS scopes it on the
   // server too), so it refires once the assignments are known.
+  // Refetch after every crud reload — items identity changes on
+  // create/update/archive/delete — so a fresh entry shows without a page
+  // refresh. The first run is skipped; the myCourses effect owns it.
+  const [historyTick, setHistoryTick] = useState(0)
+  const firstItems = useRef(true)
+  useEffect(() => {
+    if (firstItems.current) { firstItems.current = false; return }
+    setHistoryTick((n) => n + 1)
+  }, [items])
   useEffect(() => {
     let cancelled = false
     fetchActivityLogs({ limit: 200 })
@@ -466,7 +475,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       })
       .catch(() => { if (!cancelled) setHistory([]) })
     return () => { cancelled = true }
-  }, [myCourses])
+  }, [myCourses, historyTick])
 
   // Per-subject trail: the page-level history narrowed to one subject —
   // each accordion shows its own changes under the CLO rows, so
@@ -497,6 +506,17 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     const kind = action.split('.')[1] || ''
     return `clo26-hact clo26-hact--${kind}`
   }
+
+  // The recorded 'changes' are raw column keys; this page knows them by
+  // their UI names. Unknown keys render as-is.
+  const CLO_FIELD_LABELS: Record<string, string> = {
+    code: 'CLO No.',
+    course: 'Subject',
+    title: 'Program Outcomes',
+    description: 'Description',
+  }
+  const historyChanges = (h: ActivityLogEntry) =>
+    (h.details?.changes ?? []).map((k) => CLO_FIELD_LABELS[k] ?? k)
 
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
@@ -1236,6 +1256,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                     <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
                                     <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
                                     {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
+                                    {h.details?.changes && h.details.changes.length > 0 && (
+                                      <span className="clo26-changed">
+                                        <span className="clo26-changed__lead">Changed:</span>
+                                        {historyChanges(h).map((f) => (
+                                          <span key={f} className="clo26-changed__chip">{f}</span>
+                                        ))}
+                                      </span>
+                                    )}
                                     <span className="clo26-what">{historyLabelText(h)}</span>
                                     <span className="clo26-who">by {h.user_email}</span>
                                   </li>

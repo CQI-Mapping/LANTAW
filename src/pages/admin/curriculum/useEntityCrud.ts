@@ -125,6 +125,19 @@ export function useEntityCrud<T extends { id: string }>({
     }
   }
 
+  // What the update touched: the payload diffed against the pre-update
+  // row, key by key (string-normalized, null equal to ''). Recorded as
+  // details.changes so the modification history can say WHICH fields moved,
+  // not just that something did. Status moves ride the archived/restored
+  // verbs instead, so that key is skipped.
+  const changedKeys = (existing: unknown, payload: Record<string, unknown>) => {
+    if (!existing || typeof existing !== 'object') return []
+    const row = existing as Record<string, unknown>
+    const norm = (v: unknown) => (v == null ? '' : String(v)).trim()
+    return Object.keys(payload)
+      .filter((k) => k !== 'status' && norm(row[k]) !== norm(payload[k]))
+  }
+
   const handleUpdate = async (id: string | null, payload: Partial<T>, action?: string, existing?: unknown) => {
     setError('')
     setMessage('')
@@ -138,7 +151,13 @@ export function useEntityCrud<T extends { id: string }>({
         return false
       }
       await updateFn(id, payload)
-      if (action) await addActivityLog(action, detailsFor(existing ?? { id }, action.split('.')[0]))
+      if (action) {
+        const changes = changedKeys(existing, payload as Record<string, unknown>)
+        await addActivityLog(action, {
+          ...detailsFor(existing ?? { id }, action.split('.')[0]),
+          ...(changes.length ? { changes } : {}),
+        })
+      }
       setMessage(`${scope} updated.`)
       load()
       return true
