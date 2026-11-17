@@ -10426,17 +10426,6 @@ html.lantaw-dark .clo26-hact--deleted {
   cursor: not-allowed;
 }
 
-.g26-rubric__table tfoot td {
-  font-weight: 700;
-  color: var(--g700);
-  background: var(--bg-soft);
-  padding: 6px;
-}
-
-.g26-rubric__total {
-  text-align: right;
-}
-
 .g26-rubric__empty {
   margin: 8px 0 0;
   font-size: 11px;

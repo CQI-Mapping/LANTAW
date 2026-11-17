@@ -203,16 +203,6 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
               ],
             }),
           ),
-          new TableRow({
-            children: [
-              cell([para('Total', { bold: true, align: CENTER })], 18),
-              cell([para('')], 19),
-              cell([para('')], 19),
-              cell([para('')], 19),
-              cell([para('')], 19),
-              cell([para(`/${total}`, { bold: true, align: CENTER })], 6),
-            ],
-          }),
         ],
       }),
       new Paragraph({ spacing: { after: 200 }, children: [] }),

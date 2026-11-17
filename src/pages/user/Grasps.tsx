@@ -926,15 +926,6 @@ export default function Grasps() {
                       </tr>
                     ))}
                   </tbody>
-                  {draft.rubric.length > 0 && (
-                    <tfoot>
-                      <tr>
-                        <td colSpan={5}>Total</td>
-                        <td className="g26-rubric__total">/{rubricTotal}</td>
-                        <td />
-                      </tr>
-                    </tfoot>
-                  )}
                 </table>
               </div>
               {draft.rubric.length === 0 && (
