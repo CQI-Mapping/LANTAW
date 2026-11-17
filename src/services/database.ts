@@ -1584,6 +1584,17 @@ export async function replaceTosTopics(
 // caller, so these functions never filter by user themselves and the page
 // never shows a colleague's task.
 
+/** One analytic-rubric criterion row: the criterion, its point value, and
+ *  the four performance-level descriptors (grasps_tasks.rubric, 034). */
+export interface GraspsRubricRow {
+  criteria: string
+  points: number | null
+  excellent: string
+  proficient: string
+  developing: string
+  beginning: string
+}
+
 export interface GraspsTaskRow {
   id: string
   user_id: string
@@ -1600,6 +1611,8 @@ export interface GraspsTaskRow {
   situation: string | null
   product: string | null
   standards: string | null
+  /** The analytic rubric (034); absent on rows saved before it. */
+  rubric?: GraspsRubricRow[] | null
   status: 'active' | 'archived'
   created_at: string
   updated_at: string

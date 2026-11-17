@@ -1283,6 +1283,10 @@ CREATE TABLE IF NOT EXISTS public.grasps_tasks (
     situation TEXT,
     product TEXT,
     standards TEXT,
+    -- The analytic rubric (034): criteria rows scored across the four
+    -- performance levels, each with its point value. Optional — a task
+    -- may be filed without one.
+    rubric JSONB,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

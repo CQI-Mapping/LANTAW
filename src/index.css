@@ -10325,6 +10325,120 @@ html.lantaw-dark .clo26-hact--deleted {
   color: var(--text-muted);
 }
 
+/* ---- GRASPS analytic rubric: a bordered, spreadsheet-like editor under
+   the Standards card — green header row, borderless in-cell inputs, a
+   live total footer, and a remove control per row. ---- */
+.g26-rubric {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  padding: 12px 14px;
+}
+
+.g26-rubric__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.g26-rubric__head h4 {
+  margin: 0;
+  font: 700 13px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
+.g26-rubric__scroll {
+  overflow-x: auto;
+}
+
+.g26-rubric__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.g26-rubric__table th {
+  background: var(--g100);
+  color: var(--primary-dark);
+  font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
+  padding: 6px;
+  border: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.g26-rubric__table td {
+  border: 1px solid var(--border);
+  padding: 3px;
+  vertical-align: top;
+}
+
+.g26-rubric__input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  padding: 4px 5px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.g26-rubric__input:focus {
+  outline: none;
+  background: var(--bg-soft);
+}
+
+.g26-rubric__input--name {
+  font-weight: 700;
+}
+
+.g26-rubric__input--pts {
+  width: 56px;
+  min-width: 52px;
+  text-align: right;
+}
+
+.g26-rubric__remove {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.g26-rubric__remove:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.g26-rubric__remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.g26-rubric__table tfoot td {
+  font-weight: 700;
+  color: var(--g700);
+  background: var(--bg-soft);
+  padding: 6px;
+}
+
+.g26-rubric__total {
+  text-align: right;
+}
+
+.g26-rubric__empty {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

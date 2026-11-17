@@ -24,6 +24,7 @@ import {
   fetchPrograms,
   updateGraspsTask,
   type Course,
+  type GraspsRubricRow,
   type GraspsTaskRow,
   type Program,
 } from '../../services/database'
@@ -145,6 +146,8 @@ interface GraspsDraft {
   situation: string
   product: string
   standards: string
+  /** The analytic rubric rows (034), edited below the Standards card. */
+  rubric: GraspsRubricRow[]
 }
 
 const blankDraft = (): GraspsDraft => ({
@@ -160,6 +163,7 @@ const blankDraft = (): GraspsDraft => ({
   situation: '',
   product: '',
   standards: '',
+  rubric: [],
 })
 
 /** A saved task, loaded back into the editor as its own editable copy. */
@@ -176,6 +180,7 @@ const draftFromRow = (row: GraspsTaskRow): GraspsDraft => ({
   situation: row.situation ?? '',
   product: row.product ?? '',
   standards: row.standards ?? '',
+  rubric: row.rubric ?? [],
 })
 
 /**
@@ -337,6 +342,29 @@ export default function Grasps() {
     [],
   )
 
+  // The analytic rubric's rows: add, edit a cell, remove. The remove
+  // button never reorders surviving rows — index-spliced, like a table.
+  const addRubricRow = useCallback(() => {
+    setDraft((prev) => ({
+      ...prev,
+      rubric: [...prev.rubric, { criteria: '', points: null, excellent: '', proficient: '', developing: '', beginning: '' }],
+    }))
+    setDirty(true)
+  }, [])
+
+  const removeRubricRow = useCallback((idx: number) => {
+    setDraft((prev) => ({ ...prev, rubric: prev.rubric.filter((_, i) => i !== idx) }))
+    setDirty(true)
+  }, [])
+
+  const patchRubricRow = useCallback((idx: number, patch: Partial<GraspsRubricRow>) => {
+    setDraft((prev) => ({
+      ...prev,
+      rubric: prev.rubric.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
+    }))
+    setDirty(true)
+  }, [])
+
   // ---- picker options ---------------------------------------------------
   // Built by the shared helpers so the lists match the TOS page's behaviour
   // exactly: a saved value that matches nothing listed stays as its own
@@ -409,6 +437,14 @@ export default function Grasps() {
       return
     }
 
+    // Blank rubric rows are dropped, not saved — an empty row in the
+    // document reads as unfinished work rather than an honest gap.
+    const cleanRubric = draft.rubric.filter(
+      (r) =>
+        r.criteria.trim() || r.excellent.trim() || r.proficient.trim()
+        || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
+    )
+
     try {
       const payload = {
         code: draft.code,
@@ -427,6 +463,7 @@ export default function Grasps() {
         situation: draft.situation.trim() || null,
         product: draft.product.trim() || null,
         standards: draft.standards.trim() || null,
+        rubric: cleanRubric,
       }
 
       let id: string
@@ -534,6 +571,7 @@ export default function Grasps() {
           situation: row.situation ?? '',
           product: row.product ?? '',
           standards: row.standards ?? '',
+          rubric: row.rubric ?? [],
           preparedBy: '',
         })
         await addActivityLog('grasps_task.exported', {
@@ -585,6 +623,8 @@ export default function Grasps() {
   const draftFilled = PART_KEYS.filter((k) => draft[k].trim() !== '').length
   const pct = Math.round((draftFilled / PART_KEYS.length) * 100)
   const activeCount = rows.filter((r) => r.status !== 'archived').length
+  // The rubric's live point total — the section head reads it while typing.
+  const rubricTotal = draft.rubric.reduce((s, r) => s + (r.points ?? 0), 0)
 
   return (
     <div className="programs-page curriculum-view grasps26-page">
@@ -765,6 +805,127 @@ export default function Grasps() {
               </div>
             )
           })}
+        </div>
+
+        {/* ---- analytic rubric ----
+            The Standards component's companion: criteria scored across the
+            four performance levels, saved with the task (034) and printed
+            on the Word export. Lives below the Standards card, where the
+            reference design puts the scoring instrument. */}
+        <div className="g26-rubric">
+          <div className="g26-rubric__head">
+            <h4>Analytic Rubric ({rubricTotal} points)</h4>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
+              <Icon name="plus" size={13} /> Add criterion
+            </button>
+          </div>
+          <div className="g26-rubric__scroll">
+            <table className="g26-rubric__table">
+              <thead>
+                <tr>
+                  <th>Criteria</th>
+                  <th>Excellent (4)</th>
+                  <th>Proficient (3)</th>
+                  <th>Developing (2)</th>
+                  <th>Beginning (1)</th>
+                  <th>Points</th>
+                  <th aria-label="Remove criterion" />
+                </tr>
+              </thead>
+              <tbody>
+                {draft.rubric.map((r, i) => (
+                  <tr key={i}>
+                    <td>
+                      <input
+                        className="g26-rubric__input g26-rubric__input--name"
+                        value={r.criteria}
+                        placeholder="e.g. Sketch Wireframes"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { criteria: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="g26-rubric__input"
+                        rows={2}
+                        value={r.excellent}
+                        placeholder="Descriptor…"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { excellent: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="g26-rubric__input"
+                        rows={2}
+                        value={r.proficient}
+                        placeholder="Descriptor…"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { proficient: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="g26-rubric__input"
+                        rows={2}
+                        value={r.developing}
+                        placeholder="Descriptor…"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { developing: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        className="g26-rubric__input"
+                        rows={2}
+                        value={r.beginning}
+                        placeholder="Descriptor…"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { beginning: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="g26-rubric__input g26-rubric__input--pts"
+                        type="number"
+                        min={0}
+                        value={r.points ?? ''}
+                        placeholder="20"
+                        disabled={!ready}
+                        onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value) })}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="g26-rubric__remove"
+                        aria-label={`Remove criterion ${i + 1}`}
+                        title="Remove this criterion"
+                        onClick={() => removeRubricRow(i)}
+                        disabled={!ready}
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {draft.rubric.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={5}>Total</td>
+                    <td className="g26-rubric__total">/{rubricTotal}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+          {draft.rubric.length === 0 && (
+            <p className="g26-rubric__empty">
+              No criteria yet — add a criterion to build the rubric the task is scored against.
+            </p>
+          )}
         </div>
         <p className="g26-draftnote">Your work is saved as a local draft while you type.</p>
         <div className="g26-actions">

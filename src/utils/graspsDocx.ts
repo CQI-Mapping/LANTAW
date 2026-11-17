@@ -13,6 +13,7 @@
 // in syllabusDocx.ts for why it must never ride the main bundle.
 
 import type { Paragraph as DocxParagraph, Table as DocxTable } from 'docx'
+import type { GraspsRubricRow } from '../services/database'
 import { saveBlob } from './download'
 import {
   LETTERHEAD_URL,
@@ -38,6 +39,8 @@ export interface GraspsDocxData {
   situation: string
   product: string
   standards: string
+  /** The analytic rubric, printed after the components table. */
+  rubric?: GraspsRubricRow[]
   preparedBy: string
 }
 
@@ -155,6 +158,66 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     }),
     new Paragraph({ spacing: { after: 200 }, children: [] }),
   )
+
+  // ---- Analytic rubric ---------------------------------------------------
+  // Criteria scored across the four performance levels, the companion of
+  // the Standards component. Blank rows are dropped, and the section only
+  // prints when at least one criterion carries content — a task filed
+  // without a rubric keeps its document rubric-free.
+  const rubricRows = (data.rubric ?? []).filter(
+    (r) =>
+      r.criteria.trim() || r.excellent.trim() || r.proficient.trim()
+      || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
+  )
+  if (rubricRows.length) {
+    const total = rubricRows.reduce((s, r) => s + (r.points ?? 0), 0)
+    children.push(
+      para(`Analytic Rubric (${total} points)`, { bold: true, color: NAVY }),
+      new Paragraph({ spacing: { after: 80 }, children: [] }),
+      new Table({
+        width: pct(100),
+        rows: [
+          new TableRow({
+            tableHeader: true,
+            children: [
+              cell([para('Criteria', { bold: true, color: NAVY, align: CENTER })], 18),
+              cell([para('Excellent (4)', { bold: true, color: NAVY, align: CENTER })], 19),
+              cell([para('Proficient (3)', { bold: true, color: NAVY, align: CENTER })], 19),
+              cell([para('Developing (2)', { bold: true, color: NAVY, align: CENTER })], 19),
+              cell([para('Beginning (1)', { bold: true, color: NAVY, align: CENTER })], 19),
+              cell([para('Points', { bold: true, color: NAVY, align: CENTER })], 6),
+            ],
+          }),
+          ...rubricRows.map((r) =>
+            new TableRow({
+              children: [
+                cell(
+                  [para(`${r.criteria.trim()}${r.points != null ? ` (${r.points} points)` : ''}`, { bold: true })],
+                  18,
+                ),
+                cell([para(r.excellent.trim() || '—')], 19),
+                cell([para(r.proficient.trim() || '—')], 19),
+                cell([para(r.developing.trim() || '—')], 19),
+                cell([para(r.beginning.trim() || '—')], 19),
+                cell([para(r.points != null ? `/${r.points}` : '—', { align: CENTER })], 6),
+              ],
+            }),
+          ),
+          new TableRow({
+            children: [
+              cell([para('Total', { bold: true, align: CENTER })], 18),
+              cell([para('')], 19),
+              cell([para('')], 19),
+              cell([para('')], 19),
+              cell([para('')], 19),
+              cell([para(`/${total}`, { bold: true, align: CENTER })], 6),
+            ],
+          }),
+        ],
+      }),
+      new Paragraph({ spacing: { after: 200 }, children: [] }),
+    )
+  }
 
   // ---- Prepared by -------------------------------------------------------
   if (data.preparedBy.trim()) {
