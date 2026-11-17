@@ -321,10 +321,15 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                       </div>
                     ) : (
                       held.map((c) => (
-                        <div key={c.id} className="assign-subject">
+                        <div key={c.id} className="assign-subject" style={{ flexWrap: 'wrap' }}>
                           <span className="assign-subject__code">{c.code}</span>
                           <span className="assign-subject__title" title={c.title}>{c.title}</span>
                           {termLabelOf(c) && <span className="assign-subject__term">{termLabelOf(c)}</span>}
+                          {instructorsOf(c).length > 1 && (
+                            <span style={{ fontSize: 10, color: 'var(--primary)', background: 'var(--g100)', padding: '3px 8px', borderRadius: 999, fontWeight: 700 }}>
+                              Shared · {instructorsOf(c).map((f) => f.full_name || f.email).join(', ')}
+                            </span>
+                          )}
                           <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
                             aria-label={`Remove ${c.code} from ${displayName(selected)}`}
                             title={`Remove from ${displayName(selected)}`}>

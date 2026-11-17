@@ -26,6 +26,14 @@ import type { Program, Resource, Course } from '../../services/database'
 
 const instructorLabelOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.full_name || v.email : ''
+
+/** Every instructor handling a course, from the course_instructors
+ *  junction (028) — the co-taught truth, not just the primary. */
+const courseInstructorNames = (c: Course) =>
+  (c.course_instructors ?? [])
+    .map((ci) => ci.faculty_id)
+    .filter((f): f is { id: string; full_name: string | null; email: string } => Boolean(f))
+    .map((f) => f.full_name || f.email)
 /** The assigned faculty account's id, '' when none. */
 const instructorIdOf = (v: Course['instructor_id']) =>
   v && typeof v === 'object' ? v.id : (v || '')
@@ -912,9 +920,14 @@ export default function ManagerCourse({ profile }: CourseProps) {
                               <div className="clo26-details">
                                 <div>
                                   <strong>Instructor:</strong>
-                                  <span style={instructorLabelOf(c.instructor_id) ? undefined : { color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                    {instructorLabelOf(c.instructor_id) || 'Unassigned'}
+                                  <span style={courseInstructorNames(c).length > 0 ? undefined : { color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                    {courseInstructorNames(c).length > 0 ? courseInstructorNames(c).join(', ') : 'Unassigned'}
                                   </span>
+                                  {courseInstructorNames(c).length > 1 && (
+                                    <span style={{ fontSize: 10, color: 'var(--primary)', background: 'var(--g100)', padding: '3px 8px', borderRadius: 999, fontWeight: 700 }}>
+                                      Shared · {courseInstructorNames(c).length} faculty
+                                    </span>
+                                  )}
                                 </div>
                                 <div>
                                   <strong>Pre-req:</strong>
