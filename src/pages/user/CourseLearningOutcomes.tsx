@@ -211,18 +211,24 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   }, [editForm.course, courses])
 
   // The manager's assignment is the gate: the faculty member writes CLOs
-  // only for subjects handed to them (courses.instructor_id). The embedded
-  // join resolves the instructor's email — the identity this page knows.
-  // Strict null check: instructor_id is null on unassigned subjects, and
+  // only for subjects handed to them — the denormalized primary instructor
+  // OR any course_instructors junction row (028), so the second and third
+  // faculty on a SHARED subject see it in their list too. The embeds
+  // resolve each instructor's email — the identity this page knows.
+  // Strict null checks: instructor_id is null on unassigned subjects, and
   // typeof null === 'object' would otherwise count every unassigned
-  // subject as the faculty member's own.
+  // subject (and every absent junction profile) as the faculty member's
+  // own.
   const myCourses = useMemo(
     () =>
       courses.filter(
         (c) =>
-          c.instructor_id !== null &&
-          typeof c.instructor_id === 'object' &&
-          c.instructor_id.email === userEmail,
+          (c.instructor_id !== null &&
+            typeof c.instructor_id === 'object' &&
+            c.instructor_id.email === userEmail) ||
+          (c.course_instructors ?? []).some(
+            (ci) => ci.faculty_id !== null && ci.faculty_id.email === userEmail,
+          ),
       ),
     [courses, userEmail],
   )
