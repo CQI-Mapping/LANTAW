@@ -6383,7 +6383,7 @@ button.reports-panel__more:hover {
 
 .assign-subject {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -6398,10 +6398,18 @@ button.reports-panel__more:hover {
   flex-shrink: 0;
 }
 
-.assign-subject__title {
+.assign-subject__main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.assign-subject__title {
+  min-width: 0;
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -6411,7 +6419,39 @@ button.reports-panel__more:hover {
 .assign-subject__term {
   font-size: 12px;
   color: var(--text-muted);
-  flex-shrink: 0;
+}
+
+/* The co-instructor chips: one per person handling the subject, the
+   viewed member highlighted. */
+.assign-subject__crew {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.assign-subject__person {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.assign-subject__person--picked {
+  background: var(--g100);
+  color: var(--primary);
+}
+
+.assign-subject__shared {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--g100);
+  color: var(--primary);
 }
 
 @media (max-width: 900px) {
@@ -9721,6 +9761,12 @@ html.lantaw-dark .position-pill.selected {
 .clo26-tag--muted {
   color: var(--text-muted);
   background: var(--bg-soft);
+}
+
+.clo26-tag--shared {
+  color: var(--primary);
+  background: var(--g100);
+  font-weight: 700;
 }
 
 .clo26-actions {

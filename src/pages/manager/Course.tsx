@@ -920,14 +920,18 @@ export default function ManagerCourse({ profile }: CourseProps) {
                               <div className="clo26-details">
                                 <div>
                                   <strong>Instructor:</strong>
-                                  <span style={courseInstructorNames(c).length > 0 ? undefined : { color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                    {courseInstructorNames(c).length > 0 ? courseInstructorNames(c).join(', ') : 'Unassigned'}
+                                  <span className="clo26-pos">
+                                    {courseInstructorNames(c).length > 0
+                                      ? courseInstructorNames(c).map((name) => (
+                                        <span key={name} className="clo26-tag">{name}</span>
+                                      ))
+                                      : <span style={{ fontStyle: 'italic' }}>Unassigned</span>}
+                                    {courseInstructorNames(c).length > 1 && (
+                                      <span className="clo26-tag clo26-tag--shared">
+                                        Shared · {courseInstructorNames(c).length} faculty
+                                      </span>
+                                    )}
                                   </span>
-                                  {courseInstructorNames(c).length > 1 && (
-                                    <span style={{ fontSize: 10, color: 'var(--primary)', background: 'var(--g100)', padding: '3px 8px', borderRadius: 999, fontWeight: 700 }}>
-                                      Shared · {courseInstructorNames(c).length} faculty
-                                    </span>
-                                  )}
                                 </div>
                                 <div>
                                   <strong>Pre-req:</strong>

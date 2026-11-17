@@ -320,23 +320,32 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                         <span>Pick a subject below and press Assign.</span>
                       </div>
                     ) : (
-                      held.map((c) => (
-                        <div key={c.id} className="assign-subject" style={{ flexWrap: 'wrap' }}>
-                          <span className="assign-subject__code">{c.code}</span>
-                          <span className="assign-subject__title" title={c.title}>{c.title}</span>
-                          {termLabelOf(c) && <span className="assign-subject__term">{termLabelOf(c)}</span>}
-                          {instructorsOf(c).length > 1 && (
-                            <span style={{ fontSize: 10, color: 'var(--primary)', background: 'var(--g100)', padding: '3px 8px', borderRadius: 999, fontWeight: 700 }}>
-                              Shared · {instructorsOf(c).map((f) => f.full_name || f.email).join(', ')}
-                            </span>
-                          )}
-                          <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
-                            aria-label={`Remove ${c.code} from ${displayName(selected)}`}
-                            title={`Remove from ${displayName(selected)}`}>
-                            <Icon name="x" size={13} />
-                          </button>
-                        </div>
-                      ))
+                      held.map((c) => {
+                        const instructors = instructorsOf(c)
+                        const shared = instructors.length > 1
+                        return (
+                          <div key={c.id} className="assign-subject">
+                            <span className="assign-subject__code">{c.code}</span>
+                            <div className="assign-subject__main">
+                              <span className="assign-subject__title" title={c.title}>{c.title}</span>
+                              {termLabelOf(c) && <span className="assign-subject__term">{termLabelOf(c)}</span>}
+                              <div className="assign-subject__crew">
+                                {instructors.map((f) => (
+                                  <span key={f.id} className={`assign-subject__person${f.id === selected?.id ? ' assign-subject__person--picked' : ''}`}>
+                                    {f.full_name || f.email}
+                                  </span>
+                                ))}
+                                {shared && <span className="assign-subject__shared">Shared · {instructors.length} faculty</span>}
+                              </div>
+                            </div>
+                            <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
+                              aria-label={`Remove ${c.code} from ${displayName(selected)}`}
+                              title={`Remove from ${displayName(selected)}`}>
+                              <Icon name="x" size={13} />
+                            </button>
+                          </div>
+                        )
+                      })
                     )}
                   </div>
                   <SubjectMultiAssign
