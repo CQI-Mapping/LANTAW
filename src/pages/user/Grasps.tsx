@@ -347,7 +347,7 @@ export default function Grasps() {
   const addRubricRow = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
-      rubric: [...prev.rubric, { criteria: '', points: null, excellent: '', proficient: '', developing: '', beginning: '' }],
+      rubric: [...prev.rubric, { criteria: '', points: 0, excellent: '', proficient: '', developing: '', beginning: '' }],
     }))
     setDirty(true)
   }, [])
@@ -905,9 +905,8 @@ export default function Grasps() {
                             className="g26-rubric__input g26-rubric__input--pts"
                             type="text"
                             inputMode="numeric"
-                            value={r.points ?? ''}
-                            placeholder="20"
-                            disabled={!ready}
+                            value={r.points ?? 0}
+                                                        disabled={!ready}
                             onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : Number(e.target.value.replace(/D/g, '')) })}
                           />
                         </td>
