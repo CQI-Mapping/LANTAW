@@ -674,18 +674,44 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- that is a trigger concept; a bare column reads the existing row in
 -- USING and the proposed row in WITH CHECK).
 
+-- The CLO gate reads the course_instructors junction (028): a faculty
+-- member writes CLOs for a subject when they are one of its instructors —
+-- co-teachers on the same subject can each write their own CLO set (the
+-- table's UNIQUE(code, course, owner_id) keeps the sets side by side).
 CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.courses c
-    WHERE c.instructor_id = p_uid
+    SELECT 1
+    FROM public.course_instructors ci
+    JOIN public.courses c ON c.id = ci.course_id
+    WHERE ci.faculty_id = p_uid
       AND upper(regexp_replace(c.code, '\s', '', 'g'))
         = upper(regexp_replace(COALESCE(p_course, ''), '\s', '', 'g'))
   );
 $$;
+
+-- COURSE INSTRUCTORS (028): the junction behind co-teaching — a subject
+-- can be handled by several faculty members. courses.instructor_id stays
+-- as the denormalized primary instructor for existing readers.
+CREATE TABLE IF NOT EXISTS public.course_instructors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    faculty_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (course_id, faculty_id)
+);
+
+ALTER TABLE public.course_instructors ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read course_instructors" ON public.course_instructors FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Managers and admins manage course_instructors" ON public.course_instructors FOR ALL
+    USING (public.current_user_role() IN ('admin', 'manager'))
+    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');

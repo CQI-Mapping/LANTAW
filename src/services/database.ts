@@ -110,6 +110,10 @@ export interface Course {
     program_id: string | { id: string; code: string; name: string }
     curriculum_id: string | { id: string; code: string } | null
     instructor_id: string | { id: string; full_name: string | null; email: string } | null
+    /** Co-instructors through the course_instructors junction (028) — the
+     *  embed resolves each row's faculty profile; absent on databases
+     *  predating the co-teaching migration. */
+    course_instructors?: { id: string; faculty_id: { id: string; full_name: string | null; email: string } | null }[] | null
     prerequisite: string
     corequisite: string
     /**
@@ -537,7 +541,7 @@ export async function fetchCourses(): Promise<Course[]> {
   // than making the whole query fail.
   const { data, error } = await supabase
 .from('courses')
-      .select('*, program_id ( id, code, name ), curriculum_id ( id, code ), instructor_id ( id, full_name, email )')
+      .select('*, program_id ( id, code, name ), curriculum_id ( id, code ), instructor_id ( id, full_name, email ), course_instructors ( id, faculty_id ( id, full_name, email ) )')
       .order('code', { ascending: true })
   if (error) throw error
   return data
@@ -636,8 +640,31 @@ export async function assignCourseInstructor(courseId: string, instructorId: str
   // Assign (or unassign with null) the faculty user teaching a course.
   // RLS: managers and admins can update courses; the instructor profile
   // join resolves only where profiles RLS allows (own row, or all rows
-  // for manager/admin).
+  // for manager/admin). Sets the denormalized primary instructor.
   return updateCourse(courseId, { instructor_id: instructorId })
+}
+
+/** Add a faculty member as an instructor of a subject (co-teaching) —
+ *  one junction row; re-adding the same pair is a no-op. RLS lets
+ *  managers and admins write the junction. */
+export async function addCourseInstructor(courseId: string, facultyId: string): Promise<void> {
+  const { error } = await supabase
+    .from('course_instructors')
+    .insert({ course_id: courseId, faculty_id: facultyId })
+  if (error) {
+    if ((error as { code?: string }).code === '23505') return // already an instructor
+    throw error
+  }
+}
+
+/** Remove a faculty member from a subject's instructors. */
+export async function removeCourseInstructor(courseId: string, facultyId: string): Promise<void> {
+  const { error } = await supabase
+    .from('course_instructors')
+    .delete()
+    .eq('course_id', courseId)
+    .eq('faculty_id', facultyId)
+  if (error) throw error
 }
 
 /**
