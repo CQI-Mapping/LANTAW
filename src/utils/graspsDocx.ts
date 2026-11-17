@@ -140,6 +140,16 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // is to …"). When the first line is itself a heading ("Your audience
   // includes:"), the label stands alone and every line follows as its own
   // paragraph — the way the model document lays the six parts out.
+  // A line that opens with "- ", "* " or "• " becomes a real Word bullet —
+  // the model document's list style. The marker is stripped; the text runs
+  // at the bullet's own indent, so the faculty composes lists by typing a
+  // dash before each item.
+  const linePara = (l: string) => {
+    const m = l.match(/^[-*•]\s+(.+)$/)
+    if (m) return new Paragraph({ bullet: { level: 0 }, children: [run(m[1])] })
+    return new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })
+  }
+
   const parts: Array<{ label: string; value: string }> = [
     { label: 'Goal', value: data.goal },
     { label: 'Role', value: data.role },
@@ -163,14 +173,10 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       children.push(labelPara(false))
     } else if (lines[0].endsWith(':')) {
       children.push(labelPara(false))
-      lines.forEach((l) =>
-        children.push(new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })),
-      )
+      lines.forEach((l) => children.push(linePara(l)))
     } else {
       children.push(labelPara(true))
-      lines.slice(1).forEach((l) =>
-        children.push(new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })),
-      )
+      lines.slice(1).forEach((l) => children.push(linePara(l)))
     }
     children.push(new Paragraph({ spacing: { after: 100 }, children: [] }))
   })
