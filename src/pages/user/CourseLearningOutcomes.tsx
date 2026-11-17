@@ -168,23 +168,33 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   useEffect(() => {
     setDescDraft(courseDescOf(form.course))
   }, [form.course, courses])
-  const saveCourseDesc = async () => {
-    if (!form.course) return
+  // One handler serves both forms: the create panel saves the description
+  // of the subject it picked, the inline edit card of its own. Saving
+  // state is shared — only one strip saves at a time.
+  const saveCourseDesc = async (courseCode: string, draft: string) => {
+    if (!courseCode) return
     setError('')
     setDescSaving(true)
     try {
       await updateAssignedCourseDescription(
-        courses.find((c) => c.code === form.course)?.id ?? '',
-        descDraft.trim(),
+        courses.find((c) => c.code === courseCode)?.id ?? '',
+        draft.trim(),
       )
-      setCourses((prev) => prev.map((c) => (c.code === form.course ? { ...c, description: descDraft.trim() } : c)))
-      setMessage(`Course description saved for ${form.course}.`)
+      setCourses((prev) => prev.map((c) => (c.code === courseCode ? { ...c, description: draft.trim() } : c)))
+      setMessage(`Course description saved for ${courseCode}.`)
     } catch (err) {
       setError('Failed to save the course description: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setDescSaving(false)
     }
   }
+
+  // The edit card carries its own draft, synced to the subject its picker
+  // holds — and re-synced once a save lands back in courses.
+  const [editDescDraft, setEditDescDraft] = useState('')
+  useEffect(() => {
+    setEditDescDraft(courseDescOf(editForm.course))
+  }, [editForm.course, courses])
 
   // The manager's assignment is the gate: the faculty member writes CLOs
   // only for subjects handed to them (courses.instructor_id). The embedded
@@ -697,40 +707,66 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const renderEdit = () => (
     <div className="resource-card__edit">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {editForm.course ? (
-          <div className="input input--sm subject-picker__chosen" style={{ display: 'block' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span className="subject-picker__text">
-                {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
-              </span>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
-                Change
-              </button>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Course (Subject Code)</span>
+          {editForm.course ? (
+            <div className="input input--sm subject-picker__chosen" style={{ display: 'block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="subject-picker__text">
+                  {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
+                </span>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
+                  Change
+                </button>
+              </div>
             </div>
-            {courseDescOf(editForm.course) && (
-              <span style={{ display: 'block', fontSize: 11, lineHeight: 1.5, color: 'var(--text-muted)', marginTop: 4 }}>
-                {courseDescOf(editForm.course)}
-              </span>
-            )}
+          ) : (
+            <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
+              <option value="">Select course</option>
+              {myCourses.map((c) => (
+                <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
+              ))}
+              {myCourses.length === 0 && (
+                <option value="" disabled>No subjects assigned to you yet</option>
+              )}
+            </select>
+          )}
+        </label>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Course Learning Outcome Code</span>
+          <div className="clo-code-input">
+            <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
+            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
           </div>
-        ) : (
-          <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
-            <option value="">Select course</option>
-            {myCourses.map((c) => (
-              <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
-            ))}
-            {myCourses.length === 0 && (
-              <option value="" disabled>No subjects assigned to you yet</option>
-            )}
-          </select>
-        )}
-        <div className="clo-code-input">
-          <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
-          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
-        </div>
+        </label>
       </div>
-      <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
-      <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
+      {editForm.course && (
+        <div className="field" style={{ marginBottom: 0 }}>
+          <span>Course description</span>
+          <textarea
+            className="input input--sm"
+            rows={2}
+            value={editDescDraft}
+            onChange={(e) => setEditDescDraft(e.target.value)}
+            placeholder="No description yet — write one for this subject"
+            aria-label="Course description"
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCourseDesc(editForm.course, editDescDraft)}
+              disabled={busy || descSaving || editDescDraft === courseDescOf(editForm.course)}>
+              {descSaving ? 'Saving…' : (<><Icon name="check" size={13} /> Save description</>)}
+            </button>
+          </div>
+        </div>
+      )}
+      <label className="field" style={{ marginBottom: 0 }}>
+        <span>Course Learning Outcome description</span>
+        <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="e.g. Compare and contrast..." />
+      </label>
+      <label className="field" style={{ marginBottom: 0 }}>
+        <span>Program Outcomes</span>
+        <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
+      </label>
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)', width: '100%' }}>
@@ -896,7 +932,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               aria-label="Course description"
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button type="button" className="btn btn--primary btn--sm" onClick={saveCourseDesc}
+              <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCourseDesc(form.course, descDraft)}
                 disabled={busy || descSaving || descDraft === courseDescOf(form.course)}>
                 {descSaving ? 'Saving…' : (<><Icon name="check" size={13} /> Save description</>)}
               </button>
