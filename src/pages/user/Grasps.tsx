@@ -623,8 +623,13 @@ export default function Grasps() {
   const draftFilled = PART_KEYS.filter((k) => draft[k].trim() !== '').length
   const pct = Math.round((draftFilled / PART_KEYS.length) * 100)
   const activeCount = rows.filter((r) => r.status !== 'archived').length
-  // The rubric's live point total — the section head reads it while typing.
-  const rubricTotal = draft.rubric.reduce((s, r) => s + (r.points ?? 0), 0)
+  // The rubric's live total: rows holding a number sum toward the title;
+  // a text value (a range like "18-20") is printed as written, and the
+  // heading drops its total rather than pretending to a number it
+  // cannot honor.
+  const rubricScored = draft.rubric.filter((r) => r.points !== null && String(r.points).trim() !== '')
+  const rubricAllNumeric = rubricScored.every((r) => Number.isFinite(Number(String(r.points).trim())))
+  const rubricTotal = rubricScored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
 
   return (
     <div className="programs-page curriculum-view grasps26-page">
@@ -809,7 +814,7 @@ export default function Grasps() {
                         printed on the Word export — inside the card, directly
                         under its textarea. */}
               <div className="g26-rubric__head">
-                <h4>Analytic Rubric ({rubricTotal} points)</h4>
+                <h4>{rubricAllNumeric ? `Analytic Rubric (${rubricTotal} points)` : 'Analytic Rubric'}</h4>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
                   <Icon name="plus" size={13} /> Add criterion
                 </button>
@@ -907,10 +912,7 @@ export default function Grasps() {
                             inputMode="numeric"
                             value={r.points ?? 0}
                             disabled={!ready}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/[^0-9]/g, '')
-                              patchRubricRow(i, { points: digits === '' ? null : Number(digits) })
-                            }}
+                            onChange={(e) => patchRubricRow(i, { points: e.target.value === '' ? null : e.target.value })}
                           />
                         </td>
                         <td>

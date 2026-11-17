@@ -1588,7 +1588,9 @@ export async function replaceTosTopics(
  *  the four performance-level descriptors (grasps_tasks.rubric, 034). */
 export interface GraspsRubricRow {
   criteria: string
-  points: number | null
+  /** A number, or text such as a range ("18-20") — the heading sums it
+ *  only while every scored row is numeric. */
+  points: number | string | null
   excellent: string
   proficient: string
   developing: string

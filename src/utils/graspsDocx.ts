@@ -170,9 +170,11 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
   )
   if (rubricRows.length) {
-    const total = rubricRows.reduce((s, r) => s + (r.points ?? 0), 0)
+    const scored = rubricRows.filter((r) => r.points !== null && String(r.points).trim() !== '')
+    const allNumeric = scored.every((r) => Number.isFinite(Number(String(r.points).trim())))
+    const total = scored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
     children.push(
-      para(`Analytic Rubric (${total} points)`, { bold: true, color: NAVY }),
+      para(allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric', { bold: true, color: NAVY }),
       new Paragraph({ spacing: { after: 80 }, children: [] }),
       new Table({
         width: pct(100),
