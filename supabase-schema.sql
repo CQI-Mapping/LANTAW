@@ -597,14 +597,18 @@ CREATE POLICY "Scoped activity log visibility" ON public.activity_logs FOR SELEC
         )
     );
 
--- Faculty read the CLO history of their assigned subjects: clo.* actions
+-- Faculty read the modification history of their assigned subjects:
+-- clo.* actions and the subject's course.description_updated saves,
 -- whose details name a subject they instruct, whoever wrote them — the
 -- trail a newly assigned faculty member picks up. See
--- 027-faculty-clo-history.sql.
+-- 027-faculty-clo-history.sql and 031-course-description-history.sql.
 CREATE POLICY "Faculty read CLO history for their assigned subjects" ON public.activity_logs FOR SELECT
     USING (
         public.current_user_role() = 'user'
-        AND action LIKE 'clo.%'
+        AND (
+            action LIKE 'clo.%'
+            OR action = 'course.description_updated'
+        )
         AND public.faculty_teaches_course(auth.uid(), COALESCE(details ->> 'course', ''))
     );
 
@@ -674,18 +678,97 @@ CREATE POLICY "Admins can manage program_educational_objectives" ON public.progr
 -- that is a trigger concept; a bare column reads the existing row in
 -- USING and the proposed row in WITH CHECK).
 
+-- The CLO gate reads the course_instructors junction (028): a faculty
+-- member writes CLOs for a subject when they are one of its instructors —
+-- co-teachers on the same subject can each write their own CLO set (the
+-- table's UNIQUE(code, course, owner_id) keeps the sets side by side).
 CREATE OR REPLACE FUNCTION public.faculty_teaches_course(p_uid uuid, p_course text)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.courses c
-    WHERE c.instructor_id = p_uid
+    SELECT 1
+    FROM public.course_instructors ci
+    JOIN public.courses c ON c.id = ci.course_id
+    WHERE ci.faculty_id = p_uid
       AND upper(regexp_replace(c.code, '\s', '', 'g'))
         = upper(regexp_replace(COALESCE(p_course, ''), '\s', '', 'g'))
   );
-$$;
+$;
+
+-- The faculty member handling a subject can edit that subject's catalog
+-- DESCRIPTION only (030) — the helper updates the description column and
+-- nothing else, and only when the caller is faculty assigned to the
+-- subject. The manager keeps the full course edit.
+CREATE OR REPLACE FUNCTION public.update_assigned_course_description(p_course_id uuid, p_description text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $
+BEGIN
+  IF public.current_user_role() <> 'user' THEN
+    RAISE EXCEPTION 'Only faculty use this helper.';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.course_instructors ci
+    WHERE ci.course_id = p_course_id AND ci.faculty_id = auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'This subject is not assigned to you.';
+  END IF;
+  UPDATE public.courses
+  SET description = COALESCE(p_description, ''),
+      updated_at = now()
+  WHERE id = p_course_id;
+END;
+$;
+
+-- COURSE INSTRUCTORS (028): the junction behind co-teaching — a subject
+-- can be handled by several faculty members. courses.instructor_id stays
+-- as the denormalized primary instructor for existing readers.
+CREATE TABLE IF NOT EXISTS public.course_instructors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    faculty_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (course_id, faculty_id)
+);
+
+ALTER TABLE public.course_instructors ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read course_instructors" ON public.course_instructors FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Managers and admins manage course_instructors" ON public.course_instructors FOR ALL
+    USING (public.current_user_role() IN ('admin', 'manager'))
+    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+
+-- The co-teaching cap: at most 3 instructors per subject. A trigger, not a
+-- check constraint — a plain CHECK cannot count sibling rows. See
+-- 029-course-instructor-limit.sql.
+CREATE OR REPLACE FUNCTION public.guard_course_instructor_count()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+DECLARE
+  n integer;
+BEGIN
+  SELECT count(*) INTO n
+  FROM public.course_instructors
+  WHERE course_id = NEW.course_id;
+  IF n >= 3 THEN
+    RAISE EXCEPTION 'A subject can have at most 3 instructors.'
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS course_instructors_max3 ON public.course_instructors;
+
+CREATE TRIGGER course_instructors_max3
+    BEFORE INSERT ON public.course_instructors
+    FOR EACH ROW EXECUTE FUNCTION public.guard_course_instructor_count();
 CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin_course_learning_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
@@ -693,8 +776,17 @@ CREATE POLICY "Admins can manage admin_course_learning_outcomes" ON public.admin
 CREATE POLICY "Managers can read every course learning outcome" ON public.admin_course_learning_outcomes FOR SELECT
     USING (public.current_user_role() = 'manager');
 
-CREATE POLICY "Faculty see only their own course learning outcomes" ON public.admin_course_learning_outcomes FOR SELECT
-    USING (public.current_user_role() = 'user' AND owner_id = auth.uid());
+-- Faculty read the outcomes of their shared subjects (032): their own
+-- rows plus the co-instructors' sets on any subject they instruct.
+-- Editing stays ownership-bound (026) — the others' rows are read-only.
+CREATE POLICY "Faculty read their shared subjects' outcomes" ON public.admin_course_learning_outcomes FOR SELECT
+    USING (
+        public.current_user_role() = 'user'
+        AND (
+            owner_id = auth.uid()
+            OR public.faculty_teaches_course(auth.uid(), course)
+        )
+    );
 
 CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_course_learning_outcomes FOR INSERT
     WITH CHECK (
@@ -708,26 +800,21 @@ CREATE POLICY "Faculty create CLOs for their assigned subjects" ON public.admin_
         )
     );
 
-CREATE POLICY "Faculty edit own CLOs on assigned subjects" ON public.admin_course_learning_outcomes FOR UPDATE
+-- Faculty edit the outcomes of their shared subjects (033): own rows and
+-- the co-instructors' on any subject they instruct. The proposed row must
+-- sit on a subject the writer teaches (WITH CHECK) — moves outside the
+-- assignment stay refused. Deletion stays ownership-bound (026).
+CREATE POLICY "Faculty edit their shared subjects' outcomes" ON public.admin_course_learning_outcomes FOR UPDATE
     USING (
-        owner_id = auth.uid()
+        public.current_user_role() = 'user'
         AND (
-            public.current_user_role() = 'admin'
-            OR (
-                public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), course)
-            )
+            owner_id = auth.uid()
+            OR public.faculty_teaches_course(auth.uid(), course)
         )
     )
     WITH CHECK (
-        owner_id = auth.uid()
-        AND (
-            public.current_user_role() = 'admin'
-            OR (
-                public.current_user_role() = 'user'
-                AND public.faculty_teaches_course(auth.uid(), course)
-            )
-        )
+        public.current_user_role() = 'user'
+        AND public.faculty_teaches_course(auth.uid(), course)
     );
 
 CREATE POLICY "Faculty delete their own course learning outcomes" ON public.admin_course_learning_outcomes FOR DELETE
@@ -1196,6 +1283,10 @@ CREATE TABLE IF NOT EXISTS public.grasps_tasks (
     situation TEXT,
     product TEXT,
     standards TEXT,
+    -- The analytic rubric (034): criteria rows scored across the four
+    -- performance levels, each with its point value. Optional — a task
+    -- may be filed without one.
+    rubric JSONB,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

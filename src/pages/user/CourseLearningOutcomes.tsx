@@ -31,6 +31,8 @@ import type {
   ActivityLogEntry,
 } from '../../services/database'
 import { labelAction } from '../admin/ActivityLabels'
+import { addActivityLog, updateAssignedCourseDescription } from '../../services/database'
+import { supabase } from '../../utils/supabaseClient'
 import SuggestionInput, { type SuggestionOption } from '../../components/SuggestionInput'
 import { rankClosestPos, realContentTokens, type PoText, type RankedPo } from '../../utils/poMatch'
 import { rankSemantic, preloadSemantic } from '../../utils/poSemantic'
@@ -43,6 +45,8 @@ import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
 import { reportFileName } from '../../utils/download'
 
 const EMPTY = { code: '', course: '', description: '', programOutcomes: '' }
+// Entries previewed before "Show all" unfolds the rest of the trail.
+const HISTORY_PREVIEW = 5
 
 // Semester tab labels for the category row — the same terms the create
 // form's Semester filter offers (1st, 2nd, Summer).
@@ -72,7 +76,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     deleteFn: deleteCourseLearningOutcomeStandalone,
     scope: 'Course Learning Outcome',
   })
-  const { items, loading, error, message, busy, handleCreate, handleUpdate, handleToggleStatus, handleDelete } = crud
+  const { items, loading, error, message, busy, setError, setMessage, load, handleCreate, handleUpdate, handleToggleStatus, handleDelete } = crud
 
   const [poSuggestions, setPoSuggestions] = useState<SuggestionOption[]>([])
   const [poTexts, setPoTexts] = useState<PoText[]>([])
@@ -88,6 +92,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const [listTab, setListTab] = useState<'Active' | 'All' | 'Archived'>('Active')
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
+  // The subject whose Modification history is expanded (null = collapsed).
+  const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null)
+  // Whether an expanded trail shows everything or just the newest preview.
+  const [historyShowAll, setHistoryShowAll] = useState(false)
   // Year and semester category filters ('' = all). The dropdowns trail the
   // Active/Archive pair; picking one leaves the archived view and filters
   // the active list, and the status buttons reset both.
@@ -159,22 +167,91 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
     return String(n)
   }
 
+  // The description draft for the picked subject and its save state — the
+  // faculty member edits the subject's catalog description here; 030
+  // scopes the write to assigned subjects, description column only.
+  const [descDraft, setDescDraft] = useState('')
+  const [descSaving, setDescSaving] = useState(false)
+  useEffect(() => {
+    setDescDraft(courseDescOf(form.course))
+  }, [form.course, courses])
+  // One handler serves both forms: the create panel saves the description
+  // of the subject it picked, the inline edit card of its own. Saving
+  // state is shared — only one strip saves at a time.
+  const saveCourseDesc = async (courseCode: string, draft: string) => {
+    if (!courseCode) return
+    setError('')
+    setDescSaving(true)
+    try {
+      const courseRow = courses.find((c) => c.code === courseCode)
+      await updateAssignedCourseDescription(courseRow?.id ?? '', draft.trim())
+      // The save IS a modification of the subject — it lands in that
+      // subject's Modification history like every other edit (031 lets
+      // the faculty RLS read course.description_updated entries).
+      await addActivityLog('course.description_updated', {
+        entity: 'course',
+        entity_id: courseRow?.id,
+        label: [courseCode, courseRow?.title ?? ''].filter(Boolean).join(' — '),
+        course: courseCode,
+        changes: ['description'],
+      })
+      setCourses((prev) => prev.map((c) => (c.code === courseCode ? { ...c, description: draft.trim() } : c)))
+      setMessage(`Course description saved for ${courseCode}.`)
+    } catch (err) {
+      setError('Failed to save the course description: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setDescSaving(false)
+    }
+  }
+
+  // The edit card carries its own draft, synced to the subject its picker
+  // holds — and re-synced once a save lands back in courses.
+  const [editDescDraft, setEditDescDraft] = useState('')
+  useEffect(() => {
+    setEditDescDraft(courseDescOf(editForm.course))
+  }, [editForm.course, courses])
+
   // The manager's assignment is the gate: the faculty member writes CLOs
-  // only for subjects handed to them (courses.instructor_id). The embedded
-  // join resolves the instructor's email — the identity this page knows.
-  // Strict null check: instructor_id is null on unassigned subjects, and
+  // only for subjects handed to them — the denormalized primary instructor
+  // OR any course_instructors junction row (028), so the second and third
+  // faculty on a SHARED subject see it in their list too. The embeds
+  // resolve each instructor's email — the identity this page knows.
+  // Strict null checks: instructor_id is null on unassigned subjects, and
   // typeof null === 'object' would otherwise count every unassigned
-  // subject as the faculty member's own.
+  // subject (and every absent junction profile) as the faculty member's
+  // own.
   const myCourses = useMemo(
     () =>
       courses.filter(
         (c) =>
-          c.instructor_id !== null &&
-          typeof c.instructor_id === 'object' &&
-          c.instructor_id.email === userEmail,
+          (c.instructor_id !== null &&
+            typeof c.instructor_id === 'object' &&
+            c.instructor_id.email === userEmail) ||
+          (c.course_instructors ?? []).some(
+            (ci) => ci.faculty_id !== null && ci.faculty_id.email === userEmail,
+          ),
       ),
     [courses, userEmail],
   )
+
+  // The viewer's auth id: on a SHARED subject (032) the list carries the
+  // co-instructors' rows too, and ownership compares by uuid — the row's
+  // owner_id is the auth uid, not the email this page knows.
+  const [myUid, setMyUid] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    supabase!.auth.getUser()
+      .then(({ data }) => { if (!cancelled) setMyUid(data.user?.id ?? null) })
+      .catch(() => { if (!cancelled) setMyUid(null) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Whose row: 033 lets the subject's instructors UPDATE any row on it,
+  // so Edit/Archive show for co-instructors' rows too — isOwnRow now
+  // gates only DELETION, which stays the owner's alone (026). Unowned
+  // legacy rows read as the viewer's own.
+  const isOwnRow = (row: CourseLearningOutcomeStandalone) =>
+    !row.owner_id || row.owner_id === myUid
 
   // The prototype's course-grouped list: one accordion per assigned
   // subject, holding the CLO rows that survive the filters (status tab,
@@ -411,6 +488,15 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
 
   // The trail loads against the assigned pool (RLS scopes it on the
   // server too), so it refires once the assignments are known.
+  // Refetch after every crud reload — items identity changes on
+  // create/update/archive/delete — so a fresh entry shows without a page
+  // refresh. The first run is skipped; the myCourses effect owns it.
+  const [historyTick, setHistoryTick] = useState(0)
+  const firstItems = useRef(true)
+  useEffect(() => {
+    if (firstItems.current) { firstItems.current = false; return }
+    setHistoryTick((n) => n + 1)
+  }, [items])
   useEffect(() => {
     let cancelled = false
     fetchActivityLogs({ limit: 200 })
@@ -420,14 +506,59 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
         setHistory(
           rows.filter(
             (r) =>
-              r.action?.startsWith('clo.')
+              (r.action?.startsWith('clo.') || r.action === 'course.description_updated')
               && assignedCodes.has(normalizeCode(r.details?.course || '')),
           ),
         )
       })
       .catch(() => { if (!cancelled) setHistory([]) })
     return () => { cancelled = true }
-  }, [myCourses])
+  }, [myCourses, historyTick])
+
+  // Per-subject trail: the page-level history narrowed to one subject —
+  // each accordion shows its own changes under the CLO rows, so
+  // co-instructors and whoever inherits the subject read every change in
+  // place. Normalized matching keeps "IT 21" and "IT21" on one trail.
+  const historyFor = (courseCode: string) =>
+    (history ?? []).filter((h) => normalizeCode(h.details?.course || '') === normalizeCode(courseCode))
+
+  // The audit label is the record's identity at write time ("3 — Design…").
+  // The CLO chip already carries the number, so the leading "n — " is
+  // stripped for the detail line.
+  const historyLabelText = (h: ActivityLogEntry) => {
+    const label = h.details?.label || ''
+    const code = h.details?.code || ''
+    return code && label.startsWith(`${code} — `) ? label.slice(code.length + 3) : label
+  }
+
+  // One-word verb per audit action, classed per kind for the badge color.
+  const historyVerb = (action: string) => {
+    const kind = action.split('.')[1] || ''
+    const verbs: Record<string, string> = {
+      created: 'Created', updated: 'Updated', archived: 'Archived',
+      restored: 'Restored', deleted: 'Deleted',
+      // The subject's Course description save (030) rides the same trail.
+      description_updated: 'Updated',
+    }
+    return verbs[kind] ?? labelAction(action)
+  }
+  const historyActClass = (action: string) => {
+    const kind = action.split('.')[1] || ''
+    return `clo26-hact clo26-hact--${kind}`
+  }
+
+  // The recorded 'changes' are raw column keys; this page knows them by
+  // their UI names. Unknown keys render as-is.
+  const CLO_FIELD_LABELS: Record<string, string> = {
+    code: 'CLO No.',
+    course: 'Subject',
+    title: 'Program Outcomes',
+    description: 'Description',
+  }
+  // The Subject Code move is organizational, not a content change —
+  // the trail skips it per the CLO page's rule.
+  const historyChanges = (h: ActivityLogEntry) =>
+    (h.details?.changes ?? []).filter((k) => k !== 'course').map((k) => CLO_FIELD_LABELS[k] ?? k)
 
   // CLO codes are numbers only — the stored code is the bare digit run.
   // Stripping non-digits at every input and at payload time keeps legacy
@@ -611,6 +742,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   // ("IT10 — Web Systems and Technologies"). Unresolved (deleted) codes
   // display the bare code.
   const courseTitleByCode = (code: string) => courses.find((c) => c.code === code)?.title || ''
+  const courseDescOf = (code: string) => courses.find((c) => c.code === code)?.description || ''
+  // The description draft for the picked subject, plus its save state —
+  // the faculty member can edit the subject's catalog description here
+  // (030 scopes the write to assigned subjects, description column only).
 
   // Course list filters for the create form: Year and Semester sit on top of
   // the Course (Subject Code) picker and narrow its dropdown to the term the
@@ -636,33 +771,66 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
   const renderEdit = () => (
     <div className="resource-card__edit">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {editForm.course ? (
-          <div className="input input--sm subject-picker__chosen">
-            <span className="subject-picker__text">
-              {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
-            </span>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
-              Change
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Course (Subject Code)</span>
+          {editForm.course ? (
+            <div className="input input--sm subject-picker__chosen" style={{ display: 'block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="subject-picker__text">
+                  {editForm.course}{courseTitleByCode(editForm.course) ? ` — ${courseTitleByCode(editForm.course)}` : ''}
+                </span>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditForm((f) => ({ ...f, course: '' }))}>
+                  Change
+                </button>
+              </div>
+            </div>
+          ) : (
+            <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
+              <option value="">Select course</option>
+              {myCourses.map((c) => (
+                <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
+              ))}
+              {myCourses.length === 0 && (
+                <option value="" disabled>No subjects assigned to you yet</option>
+              )}
+            </select>
+          )}
+        </label>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span>Course Learning Outcome Code</span>
+          <div className="clo-code-input">
+            <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
+            <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
+          </div>
+        </label>
+      </div>
+      {editForm.course && (
+        <div className="field" style={{ marginBottom: 0 }}>
+          <span>Course description</span>
+          <textarea
+            className="input input--sm"
+            rows={2}
+            value={editDescDraft}
+            onChange={(e) => setEditDescDraft(e.target.value)}
+            placeholder="No description yet — write one for this subject"
+            aria-label="Course description"
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCourseDesc(editForm.course, editDescDraft)}
+              disabled={busy || descSaving || editDescDraft === courseDescOf(editForm.course)}>
+              {descSaving ? 'Saving…' : (<><Icon name="check" size={13} /> Save description</>)}
             </button>
           </div>
-        ) : (
-          <select className="input input--sm" value={editForm.course} onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}>
-            <option value="">Select course</option>
-            {myCourses.map((c) => (
-              <option key={c.id} value={c.code}>{c.code} — {c.title}</option>
-            ))}
-            {myCourses.length === 0 && (
-              <option value="" disabled>No subjects assigned to you yet</option>
-            )}
-          </select>
-        )}
-        <div className="clo-code-input">
-          <span className={`clo-code-input__prefix${editForm.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
-          <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" value={editForm.code} onChange={(e) => setEditForm({ ...editForm, code: digitsOnly(e.target.value) })} placeholder="1" />
         </div>
-      </div>
-      <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="Description" />
-      <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
+      )}
+      <label className="field" style={{ marginBottom: 0 }}>
+        <span>Course Learning Outcome description</span>
+        <textarea className="input input--sm" rows={2} ref={autoResize} value={editForm.description} onChange={(e) => { setEditForm({ ...editForm, description: e.target.value }); autoResize(e.target) }} placeholder="e.g. Compare and contrast..." />
+      </label>
+      <label className="field" style={{ marginBottom: 0 }}>
+        <span>Program Outcomes</span>
+        <SuggestionInput value={editForm.programOutcomes} onChange={(v) => setEditForm({ ...editForm, programOutcomes: v })} options={poSuggestions} placeholder="Type to search POs" />
+      </label>
       {editDisplay.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '6px 0' }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)', width: '100%' }}>
@@ -816,8 +984,27 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
             </select>
           )}
         </label>
+        {form.course && (
+          <div className="field" style={{ marginTop: -10 }}>
+            <span>Course description</span>
+            <textarea
+              className="input input--sm"
+              rows={2}
+              value={descDraft}
+              onChange={(e) => setDescDraft(e.target.value)}
+              placeholder="No description yet — write one for this subject"
+              aria-label="Course description"
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCourseDesc(form.course, descDraft)}
+                disabled={busy || descSaving || descDraft === courseDescOf(form.course)}>
+                {descSaving ? 'Saving…' : (<><Icon name="check" size={13} /> Save description</>)}
+              </button>
+            </div>
+          </div>
+        )}
         <label className="field">
-          <span>CLO Code</span>
+          <span>Course Learning Outcome Code</span>
           <div className="clo-code-input">
             <span className={`clo-code-input__prefix${form.code !== '' ? '' : ' clo-code-input__prefix--hidden'}`} aria-hidden="true">CLO</span>
             <input className="input input--sm clo-code-input__field" type="text" inputMode="numeric" placeholder="1" value={form.code}
@@ -825,7 +1012,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
           </div>
         </label>
         <label className="field">
-          <span>Description</span>
+          <span>Course Learning Outcome description</span>
           <textarea className="input input--sm" rows={2} placeholder="e.g. Compare and contrast..." ref={autoResize}
             value={form.description}
             onChange={(e) => { setForm({ ...form, description: e.target.value }); autoResize(e.target) }} />
@@ -997,7 +1184,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               Showing {shownRowCount} CLO record{shownRowCount === 1 ? '' : 's'} across{' '}
               {shownGroups.length} of {myCourses.length} assigned subject{myCourses.length === 1 ? '' : 's'}
             </p>
-            <button type="button" className="clo26-textbtn" onClick={() => setExpandedCourse(null)}>
+            <button type="button" className="clo26-textbtn" onClick={() => { setExpandedCourse(null); setHistoryOpenFor(null); setHistoryShowAll(false) }}>
               Collapse all
             </button>
           </div>
@@ -1014,9 +1201,10 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
               {shownGroups.map(({ course, rows }) => {
                 const open = expandedCourse === course.id
                 const courseActive = !course.status || course.status === 'active'
+                const trail = historyFor(course.code)
                 return (
                   <article key={course.id} className={`clo26-course ${open ? 'open' : ''}`}>
-                    <button type="button" className="clo26-course-head" onClick={() => setExpandedCourse(open ? null : course.id)}
+                    <button type="button" className="clo26-course-head" onClick={() => { setExpandedCourse(open ? null : course.id); setHistoryOpenFor(null); setHistoryShowAll(false) }}
                       aria-expanded={open}>
                       <div className="clo26-code">{course.code}</div>
                       <div className="clo26-info">
@@ -1041,7 +1229,15 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                 <div key={row.id} className="clo26-editrow">{renderEdit()}</div>
                               ) : (
                                 <div key={row.id} className="clo26-row">
-                                  <div className="clo26-id">{cloLabel(row.code) || '—'}</div>
+                                  <div className="clo26-id">
+                                    {cloLabel(row.code) || '—'}
+                                    {!isOwnRow(row) && (
+                                      <span className="clo26-tag clo26-tag--muted" style={{ display: 'block', width: 'fit-content', marginTop: 4 }}
+                                        title="Inputted by a co-instructor on this shared subject — editable by the subject's instructors">
+                                        Shared
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="clo26-desc">{row.description || 'No description.'}</div>
                                   <div className="clo26-pos">
                                     {(row.title || '').split(',').map((p) => p.trim()).filter(Boolean).map((p) => (
@@ -1053,11 +1249,14 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                   </div>
                                   <div className="clo26-actions">
                                     <button type="button" onClick={() => openReader(row)} disabled={busy || !!editingId}>View</button>
+                                    {/* 033: the subject's instructors update any
+                                        row on it — own or co-instructor's.
+                                        Deletion stays the owner's (026). */}
                                     <button type="button" onClick={() => startEdit(row)} disabled={busy || !!editingId}>Edit</button>
                                     <button type="button" onClick={() => handleToggleStatus(row, `clo.${isActive(row) ? 'archived' : 'restored'}`)} disabled={busy || !!editingId}>
                                       {isActive(row) ? 'Archive' : 'Restore'}
                                     </button>
-                                    {!isActive(row) && (
+                                    {isOwnRow(row) && !isActive(row) && (
                                       <button type="button" className="clo26-danger" onClick={() => handleDelete(row.id, 'clo.deleted', row)} disabled={busy || !!editingId}>
                                         Delete
                                       </button>
@@ -1085,6 +1284,57 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                             </button>
                           </div>
                         )}
+                        <div className={`clo26-history${historyOpenFor === course.id ? ' open' : ''}`}>
+                          {/* On every subject, collapsed by default: one
+                              clock-icon row; pressing it unfolds the
+                              subject's trail — or the "nothing yet" note
+                              when the subject has no changes recorded. */}
+                          <button type="button" className="clo26-histbtn" aria-expanded={historyOpenFor === course.id}
+                            onClick={() => { setHistoryShowAll(false); setHistoryOpenFor(historyOpenFor === course.id ? null : course.id) }}>
+                            <Icon name="clock" size={13} />
+                            <span>Modification history</span>
+                            {trail.length > 0 ? (
+                              <span className="clo26-tag">{trail.length} change{trail.length === 1 ? '' : 's'}</span>
+                            ) : (
+                              <span className="clo26-tag clo26-tag--muted">No changes yet</span>
+                            )}
+                            <span className="clo26-histbtn__chevron" aria-hidden="true">&rsaquo;</span>
+                          </button>
+                          {historyOpenFor === course.id && (trail.length > 0 ? (
+                            <>
+                              <p className="clo26-history-note">yours and previous handlers&rsquo; — inherited by the next one</p>
+                              <ul>
+                                {(historyShowAll ? trail : trail.slice(0, HISTORY_PREVIEW)).map((h) => (
+                                  <li key={h.id}>
+                                    <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                    <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
+                                    {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
+                                    {h.details?.changes && h.details.changes.length > 0 && (
+                                      <span className="clo26-changed">
+                                        <span className="clo26-changed__lead">Changed:</span>
+                                        {historyChanges(h).map((f) => (
+                                          <span key={f} className="clo26-changed__chip">{f}</span>
+                                        ))}
+                                      </span>
+                                    )}
+                                    <span className="clo26-what">
+                                      {h.action === 'course.description_updated' ? 'Course description' : historyLabelText(h)}
+                                    </span>
+                                    <span className="clo26-who">by {h.user_email}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              {trail.length > HISTORY_PREVIEW && (
+                                <button type="button" className="clo26-textbtn" style={{ marginTop: 2 }}
+                                  onClick={() => setHistoryShowAll((v) => !v)}>
+                                  {historyShowAll ? 'Show less' : `Show all ${trail.length} changes`}
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <p className="clo26-history-note">No changes recorded for this subject yet.</p>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </article>
@@ -1097,48 +1347,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
       </div>
       </div>
 
-      {/* Modification history: the clo.* audit entries for the assigned
-          subjects — the faculty member's own edits and, when the manager
-          hands over a subject, the trail of whoever handled it before. */}
-      {myCourses.length > 0 && (
-        <section className="panel" style={{ marginTop: 14 }} aria-label="Modification history">
-          <div className="panel-head" style={{ marginBottom: 10 }}>
-            <div>
-              <h3>Modification history</h3>
-              <p>Changes to your assigned subjects&rsquo; outcomes — yours and the ones before you.</p>
-            </div>
-          </div>
-          {history === null ? (
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>Loading history…</p>
-          ) : history.length === 0 ? (
-            <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>
-              No changes recorded yet for your assigned subjects.
-            </p>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-              {history.map((h) => (
-                <li key={h.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, fontSize: 12.5 }}>
-                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                    {new Date(h.created_at).toLocaleString()}
-                  </span>
-                  <span style={{ fontWeight: 700, color: 'var(--g700)', flexShrink: 0 }}>
-                    {labelAction(h.action)}
-                  </span>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {h.details?.label || (h.details?.code ? `CLO ${h.details.code}` : '')}
-                    {h.details?.course ? (
-                      <span style={{ color: 'var(--text-muted)' }}> · {h.details.course}</span>
-                    ) : null}
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-                    {h.user_email}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+
 
       {viewClo && (
         <div

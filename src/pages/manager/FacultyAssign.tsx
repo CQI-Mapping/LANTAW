@@ -15,8 +15,8 @@ import {
   fetchPrograms,
   fetchCourses,
   fetchAllProfiles,
-  assignCourseInstructor,
-  assignCourseInstructorsBulk,
+  addCourseInstructor,
+  removeCourseInstructor,
   addActivityLog,
 } from '../../services/database'
 import type { Program, Course, Profile } from '../../services/database'
@@ -111,15 +111,27 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
     (c) => (typeof c.program_id === 'object' ? c.program_id.id : c.program_id) === programId,
   )
   const activeCourses = programCourses.filter(isActive).sort(curriculumOrder)
-  const assignedCount = activeCourses.filter((c) => instructorIdOf(c.instructor_id)).length
+  // Co-teaching (028): a subject is "held" by a faculty member when they
+  // are one of its course_instructors — the junction, not the single
+  // denormalized column.
+  const instructorsOf = (c: Course) =>
+    (c.course_instructors ?? [])
+      .map((ci) => ci.faculty_id)
+      .filter((f): f is { id: string; full_name: string | null; email: string } => Boolean(f))
+  const heldBy = (c: Course, fid: string) =>
+    instructorsOf(c).some((f) => f.id === fid)
+
+  const assignedCount = activeCourses.filter((c) => instructorsOf(c).length > 0).length
   const unassignedCount = activeCourses.length - assignedCount
 
   const selected = faculty.find((f) => f.id === facultyId) ?? null
-  const held = activeCourses.filter((c) => instructorIdOf(c.instructor_id) === facultyId)
+  const held = activeCourses.filter((c) => heldBy(c, facultyId))
   // Subjects the picked member could take over: every active subject here they
-  // do not already hold. A subject someone else teaches says so in its option
+  // do not already hold AND that has not reached the co-teaching cap of 3
+  // instructors. A subject someone else teaches says so in its option
   // label — a hand-over should never be a silent one.
-  const assignable = activeCourses.filter((c) => instructorIdOf(c.instructor_id) !== facultyId)
+  const MAX_INSTRUCTORS = 3
+  const assignable = activeCourses.filter((c) => !heldBy(c, facultyId) && instructorsOf(c).length < MAX_INSTRUCTORS)
 
   const nameOf = (fid: string) => {
     const f = faculty.find((x) => x.id === fid)
@@ -136,17 +148,17 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
     setMessage('')
     setBusy(true)
     try {
-      // One write for the whole pick; the returned rows carry the codes the
-      // audit trail names, one entry per subject.
-      const updated = await assignCourseInstructorsBulk(picks, facultyId)
-      for (const c of updated) {
+      // One junction row per picked subject — co-teaching: a subject can
+      // hold several faculty, so assigning adds rather than overwrites.
+      for (const id of picks) {
+        await addCourseInstructor(id, facultyId)
         await addActivityLog('course.instructor_assigned', {
           entity: 'course',
-          entity_id: c.id,
-          label: `${c.code} → ${nameOf(facultyId) || 'faculty'}`,
+          entity_id: id,
+          label: `${courses.find((c) => c.id === id)?.code || 'Subject'} → ${nameOf(facultyId) || 'faculty'}`,
         })
       }
-      setMessage(`Assigned ${updated.length} subject${updated.length === 1 ? '' : 's'} to ${nameOf(facultyId)}.`)
+      setMessage(`Assigned ${picks.length} subject${picks.length === 1 ? '' : 's'} to ${nameOf(facultyId)}.`)
       setPicks([])
       load()
     } catch (err) {
@@ -161,11 +173,11 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
     setMessage('')
     setBusy(true)
     try {
-      await assignCourseInstructor(course.id, null)
+      await removeCourseInstructor(course.id, facultyId)
       await addActivityLog('course.instructor_assigned', {
         entity: 'course',
         entity_id: course.id,
-        label: `${course.code} → unassigned`,
+        label: `${course.code} → unassigned from ${nameOf(facultyId) || 'faculty'}`,
       })
       setMessage(`Removed ${course.code} from ${nameOf(facultyId)}.`)
       load()
@@ -251,7 +263,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                   </div>
                 ) : (
                   faculty.map((f) => {
-                    const count = activeCourses.filter((c) => instructorIdOf(c.instructor_id) === f.id).length
+                    const count = activeCourses.filter((c) => heldBy(c, f.id)).length
                     return (
                       <button key={f.id} type="button"
                         className={`assign-fac ${facultyId === f.id ? 'assign-fac--active' : ''}`}
@@ -308,35 +320,52 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
                         <span>Pick a subject below and press Assign.</span>
                       </div>
                     ) : (
-                      held.map((c) => (
-                        <div key={c.id} className="assign-subject">
-                          <span className="assign-subject__code">{c.code}</span>
-                          <span className="assign-subject__title" title={c.title}>{c.title}</span>
-                          {termLabelOf(c) && <span className="assign-subject__term">{termLabelOf(c)}</span>}
-                          <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
-                            aria-label={`Remove ${c.code} from ${displayName(selected)}`}
-                            title={`Remove from ${displayName(selected)}`}>
-                            <Icon name="x" size={13} />
-                          </button>
-                        </div>
-                      ))
+                      held.map((c) => {
+                        const instructors = instructorsOf(c)
+                        const shared = instructors.length > 1
+                        return (
+                          <div key={c.id} className="assign-subject">
+                            <span className="assign-subject__code">{c.code}</span>
+                            <div className="assign-subject__main">
+                              <span className="assign-subject__title" title={c.title}>{c.title}</span>
+                              {termLabelOf(c) && <span className="assign-subject__term">{termLabelOf(c)}</span>}
+                              <div className="assign-subject__crew">
+                                {instructors.map((f) => (
+                                  <span key={f.id} className={`assign-subject__person${f.id === selected?.id ? ' assign-subject__person--picked' : ''}`}>
+                                    {f.full_name || f.email}
+                                  </span>
+                                ))}
+                                {shared && <span className="assign-subject__shared">Shared · {instructors.length} faculty</span>}
+                              </div>
+                            </div>
+                            <button className="btn btn--ghost btn--sm" onClick={() => handleUnassign(c)} disabled={busy}
+                              aria-label={`Remove ${c.code} from ${displayName(selected)}`}
+                              title={`Remove from ${displayName(selected)}`}>
+                              <Icon name="x" size={13} />
+                            </button>
+                          </div>
+                        )
+                      })
                     )}
                   </div>
                   <SubjectMultiAssign
                     facultyName={displayName(selected)}
-                    options={assignable.map((c) => ({
-                      id: c.id,
-                      code: c.code,
-                      title: c.title,
-                      current: instructorLabelOf(c.instructor_id) || null,
-                    }))}
+                    options={assignable.map((c) => {
+                      const currentNames = instructorsOf(c).map((f) => f.full_name || f.email)
+                      return {
+                        id: c.id,
+                        code: c.code,
+                        title: c.title,
+                        current: currentNames.length > 0 ? currentNames.join(', ') : null,
+                      }
+                    })}
                     picks={picks}
                     onToggle={togglePick}
                     onSelectAll={selectAllPicks}
                     onClear={() => setPicks([])}
                     onAssign={handleAssign}
                     busy={busy}
-                    emptyHint={`Every active subject in this program is already ${displayName(selected)}'s.`}
+                    emptyHint={'Every assignable subject is taken — a subject can have at most 3 instructors.'}
                   />
                 </>
               )}
