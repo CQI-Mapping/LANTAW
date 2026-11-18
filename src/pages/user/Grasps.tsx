@@ -129,10 +129,11 @@ const GRASPS_PARTS: Array<{
 
 type GraspsKey = (typeof GRASPS_PARTS)[number]['key']
 const PART_KEYS = GRASPS_PARTS.map((p) => p.key)
-/** True when the draft text carries rich lines — a bullet ("- item") or an
- *  inline bold ("**text**") — so the live preview has something to show. */
+/** True when the draft text carries rich lines — a bullet ("- item"), a
+ *  numbered item ("1. item") or inline bold ("**text**") — so the live
+ *  preview has something to show. */
 const hasBulletLines = (text: string) =>
-  /(^|\n)\s*[-*•]\s+/.test(text) || text.includes('**')
+  /(^|\n)\s*[-*•]\s+/.test(text) || /(^|\n)\s*\d+[.)]\s+/.test(text) || text.includes('**')
 
 interface GraspsDraft {
   /** The saved row the editor currently holds, or null for a fresh draft. */
@@ -821,7 +822,9 @@ export default function Grasps() {
               Complete each section to create a meaningful real-world learning experience. For list items,
               start a line with{' '}
               <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>-&nbsp;</code>{' '}
-              and the Word download renders it as a bullet point. Wrap text in{' '}
+              and the Word download renders it as a bullet point; number a line{' '}
+              <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>1.&nbsp;</code>{' '}
+              for a numbered list. Wrap text in{' '}
               <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>**bold**</code>{' '}
               and it prints bold.
             </p>
@@ -871,12 +874,11 @@ export default function Grasps() {
                             .split(/\*\*(.+?)\*\*/g)
                             .map((seg, j) => (j % 2 === 1 ? <strong key={j}>{seg}</strong> : <span key={j}>{seg}</span>))
                         const render = (l: string, i: number) => {
-                          const m = l.match(/^[-*•]\s+(.+)$/)
-                          return m ? (
-                            <p key={i} className="g26-preview__bullet">&bull; {boldRuns(m[1])}</p>
-                          ) : (
-                            <p key={i} className="g26-preview__line">{boldRuns(l)}</p>
-                          )
+                          const m = l.match(/^[-*•–]\s+(.+)$/)
+                          if (m) return <p key={i} className="g26-preview__bullet">&bull; {boldRuns(m[1])}</p>
+                          const n = l.match(/^(\d+)[.)]\s+(.+)$/)
+                          if (n) return <p key={i} className="g26-preview__bullet">{n[1]}. {boldRuns(n[2])}</p>
+                          return <p key={i} className="g26-preview__line">{boldRuns(l)}</p>
                         }
                         return labelAlone ? (
                           <>

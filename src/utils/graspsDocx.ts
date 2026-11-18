@@ -76,7 +76,7 @@ async function fetchLetterhead(): Promise<Uint8Array | null> {
 
 export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   const {
-    AlignmentType, BorderStyle, Document, Header, ImageRun, Packer,
+    AlignmentType, BorderStyle, Document, Header, ImageRun, LevelFormat, Packer,
     Paragraph, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
     convertInchesToTwip,
   } = await import('docx')
@@ -156,10 +156,26 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // at the bullet's own indent, so the faculty composes lists by typing a
   // dash before each item.
   const linePara = (l: string) => {
-    const m = l.match(/^[-*•]\s+(.+)$/)
+    const m = l.match(/^[-*•–]\s+(.+)$/)
     if (m) return new Paragraph({ bullet: { level: 0 }, children: runsOf(m[1]) })
     return new Paragraph({ alignment: JUSTIFIED, children: runsOf(l) })
   }
+
+  // Numbered lines ("1. item") become real Word numbered lists — a fresh
+  // numbering instance per contiguous block, so each list restarts at 1
+  // the way the model document's parts do. Word owns the counter, so
+  // inserting an item renumbers the list without retyping it. Faculty
+  // bullet styles vary across the department: dashes, asterisks, typed
+  // bullets and en-dashes all read as bullets; digits+dot/paren read as
+  // numbers; anything else is prose.
+  const isNumbered = (l: string) => /^\d+[.)]\s+/.test(l)
+  let numInstance = 0
+  let prevNumbered = false
+  const numPara = (l: string, instance: number) =>
+    new Paragraph({
+      numbering: { reference: 'grasps-numbered', level: 0, instance },
+      children: runsOf(l.replace(/^\d+[.)]\s+/, '')),
+    })
 
   const parts: Array<{ label: string; value: string }> = [
     { label: 'Goal', value: data.goal },
@@ -171,6 +187,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   ]
 
   parts.forEach((c) => {
+    prevNumbered = false
     const lines = c.value.split('\n').map((l) => l.trim()).filter((l) => l !== '')
     const labelPara = (firstInline: boolean) =>
       new Paragraph({
@@ -180,14 +197,25 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
           ...(firstInline ? [run(' '), ...runsOf(lines[0])] : []),
         ],
       })
+    const emitLines = (list: string[]) => {
+      list.forEach((l) => {
+        if (isNumbered(l)) {
+          if (!prevNumbered) numInstance += 1
+          children.push(numPara(l, numInstance))
+        } else {
+          children.push(linePara(l))
+        }
+        prevNumbered = isNumbered(l)
+      })
+    }
     if (lines.length === 0) {
       children.push(labelPara(false))
     } else if (lines[0].endsWith(':')) {
       children.push(labelPara(false))
-      lines.forEach((l) => children.push(linePara(l)))
+      emitLines(lines)
     } else {
       children.push(labelPara(true))
-      lines.slice(1).forEach((l) => children.push(linePara(l)))
+      emitLines(lines.slice(1))
     }
     children.push(new Paragraph({ spacing: { after: 100 }, children: [] }))
   })
@@ -277,6 +305,22 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
 
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: SZ } } } },
+    numbering: {
+      config: [
+        {
+          reference: 'grasps-numbered',
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+            },
+          ],
+        },
+      ],
+    },
     sections: [
       {
         properties: {
