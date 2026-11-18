@@ -135,6 +135,215 @@ const PART_KEYS = GRASPS_PARTS.map((p) => p.key)
 const hasBulletLines = (text: string) =>
   /(^|\n)\s*[-*•]\s+/.test(text) || /(^|\n)\s*\d+[.)]\s+/.test(text) || text.includes('**')
 
+// ---------------------------------------------------------------------------
+// The rich component editor
+//
+// The six component boxes are Word-style editors: the text inside renders
+// bold, italic, underline and real bullet/numbered lists while typing. The
+// draft keeps the same plain marker text everything else reads (**bold**,
+// _italic_, ++underline++, "- " bullets, "1." numbers), and the two forms
+// convert through the grammar below - markers to HTML for the box, the
+// box's DOM back to markers for the draft. The box is uncontrolled: its
+// HTML is reset only when the incoming marker text differs from what the
+// box last emitted (typing round-trips identically, so the caret never
+// jumps), and every input serializes back through the same grammar.
+// ---------------------------------------------------------------------------
+
+/** Marker text -> editor HTML: bullet and numbered lines become real
+ *  lists, the inline markers become their tags, everything is escaped. */
+function markersToHtml(text: string): string {
+  const escape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inline = (s: string) =>
+    escape(s)
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/_(.+?)_/g, '<i>$1</i>')
+      .replace(/\+\+(.+?)\+\+/g, '<u>$1</u>')
+  const out: string[] = []
+  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null
+  const flush = () => {
+    if (list) {
+      out.push(`<${list.tag}>${list.items.map((i) => `<li>${i}</li>`).join('')}</${list.tag}>`)
+      list = null
+    }
+  }
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (line === '') {
+      flush()
+      continue
+    }
+    const bullet = line.match(/^[-*•–]\s+(.*)$/)
+    const num = line.match(/^\d+[.)]\s+(.*)$/)
+    if (bullet) {
+      if (!list || list.tag !== 'ul') {
+        flush()
+        list = { tag: 'ul', items: [] }
+      }
+      list.items.push(inline(bullet[1]))
+    } else if (num) {
+      if (!list || list.tag !== 'ol') {
+        flush()
+        list = { tag: 'ol', items: [] }
+      }
+      list.items.push(inline(num[1]))
+    } else {
+      flush()
+      out.push(`<div>${inline(line)}</div>`)
+    }
+  }
+  flush()
+  return out.join('')
+}
+
+/** Editor DOM -> marker text: real lists back to "- "/"1." lines, the
+ *  inline tags back to their markers, every block a line. */
+function htmlToMarkers(root: HTMLElement): string {
+  const lines: string[] = []
+  const BLOCKISH = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li'])
+  const inlineOf = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+    if (node.nodeType !== Node.ELEMENT_NODE) return ''
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    const inner = Array.from(el.childNodes).map(inlineOf).join('')
+    if (tag === 'b' || tag === 'strong') return `**${inner}**`
+    if (tag === 'i' || tag === 'em') return `_${inner}_`
+    if (tag === 'u') return `++${inner}++`
+    if (tag === 'br') return '\n'
+    return inner
+  }
+  const pushInline = (node: Node) => {
+    // Inline content may hold <br> breaks: each becomes its own line.
+    inlineOf(node)
+      .split('\n')
+      .forEach((part) => {
+        const t = part.trim()
+        if (t) lines.push(t)
+      })
+  }
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      pushInline(node)
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'ul' || tag === 'ol') {
+      let n = 1
+      el.querySelectorAll(':scope > li').forEach((li) => {
+        const content = inlineOf(li)
+          .split('\n')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .join(' ')
+        lines.push(tag === 'ul' ? `- ${content}` : `${n++}. ${content}`)
+      })
+      return
+    }
+    if (BLOCKISH.has(tag)) {
+      const hasBlockChild = Array.from(el.children).some((c) => BLOCKISH.has(c.tagName.toLowerCase()))
+      if (!hasBlockChild) {
+        pushInline(el)
+      } else {
+        Array.from(el.childNodes).forEach(walk)
+      }
+      return
+    }
+    Array.from(el.childNodes).forEach(walk)
+  }
+  Array.from(root.childNodes).forEach(walk)
+  return lines.join('\n')
+}
+
+/** Paste sanitizer: only the grammar's tags survive a paste - b/strong,
+ *  i/em, u, br, ul/ol/li and block lines - everything else (styles, fonts,
+ *  tables, script) is unwrapped or dropped, so Word's hidden markup
+ *  cannot ride in. */
+function sanitizeRich(html: string): string {
+  const ALLOWED = new Set(['b', 'strong', 'i', 'em', 'u', 'br', 'ul', 'ol', 'li', 'p', 'div'])
+  const clean = (node: Node): Node[] => {
+    if (node.nodeType === Node.TEXT_NODE) return [document.createTextNode(node.textContent ?? '')]
+    if (node.nodeType !== Node.ELEMENT_NODE) return []
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'script' || tag === 'style') return []
+    if (ALLOWED.has(tag)) {
+      const copy = document.createElement(tag)
+      Array.from(el.childNodes)
+        .flatMap(clean)
+        .forEach((c) => copy.appendChild(c))
+      return [copy]
+    }
+    return Array.from(el.childNodes).flatMap(clean)
+  }
+  const probe = document.createElement('div')
+  Array.from(new DOMParser().parseFromString(html, 'text/html').body.childNodes)
+    .flatMap(clean)
+    .forEach((c) => probe.appendChild(c))
+  return probe.innerHTML
+}
+
+interface RichEditorProps {
+  /** The draft's marker text for this component. */
+  value: string
+  onChange: (next: string) => void
+  disabled?: boolean
+  placeholder: string
+}
+
+function RichEditor({ value, onChange, disabled, placeholder }: RichEditorProps) {
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const lastEmitted = useRef<string>('')
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    if (value === lastEmitted.current) return
+    box.innerHTML = markersToHtml(value)
+    lastEmitted.current = value
+  }, [value])
+
+  const emit = () => {
+    const box = boxRef.current
+    if (!box) return
+    const text = htmlToMarkers(box)
+    lastEmitted.current = text
+    if (text !== value) onChange(text)
+  }
+
+  return (
+    <div
+      ref={boxRef}
+      className={`g26-rich${focused ? ' g26-rich--focused' : ''}`}
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      role="textbox"
+      aria-multiline="true"
+      data-placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false)
+        emit()
+      }}
+      onInput={emit}
+      onPaste={(e) => {
+        e.preventDefault()
+        const html = e.clipboardData.getData('text/html')
+        if (html) {
+          document.execCommand('insertHTML', false, sanitizeRich(html))
+        } else {
+          document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+        }
+        emit()
+      }}
+    />
+  )
+}
+
+
 interface GraspsDraft {
   /** The saved row the editor currently holds, or null for a fresh draft. */
   id: string | null
@@ -641,97 +850,13 @@ export default function Grasps() {
     el.style.height = `${el.scrollHeight}px`
   }, [])
 
-  // Per-component editor refs: the toolbar's buttons read and restore the
-  // caret and selection through them.
-  const partRefs = useRef<Partial<Record<GraspsKey, HTMLTextAreaElement | null>>>({})
-
-  // Inline styles, Word-toolbar style: select text (or set the caret) and
-  // press B / I / U — the selection is wrapped in the marker pair the
-  // export parses, the caret restored inside so typing continues styled.
-  const wrapSelection = useCallback(
-    (key: GraspsKey, before: string, after: string) => {
-      const el = partRefs.current[key]
-      if (!el) return
-      const text = draft[key]
-      const start = el.selectionStart
-      const end = el.selectionEnd
-      const sel = text.slice(start, end)
-      const next = text.slice(0, start) + before + sel + after + text.slice(end)
-      patchPart(key, next)
-      requestAnimationFrame(() => {
-        el.focus()
-        el.setSelectionRange(start + before.length, end + before.length)
-      })
-    },
-    [draft, patchPart],
-  )
-
-  const toggleBold = useCallback(
-    (key: GraspsKey) => {
-      const el = partRefs.current[key]
-      if (!el) return
-      const text = draft[key]
-      const start = el.selectionStart
-      const end = el.selectionEnd
-      // Already wrapped? Peel the pair off instead of stacking another.
-      if (text.slice(start - 2, start) === '**' && text.slice(end, end + 2) === '**') {
-        patchPart(key, text.slice(0, start - 2) + text.slice(start, end) + text.slice(end + 2))
-        requestAnimationFrame(() => {
-          el.focus()
-          el.setSelectionRange(start - 2, end - 2)
-        })
-        return
-      }
-      wrapSelection(key, '**', '**')
-    },
-    [draft, patchPart, wrapSelection],
-  )
-
-  // List buttons act on the lines the selection touches: every line is
-  // stripped of whatever list marker it holds, then given the pressed
-  // kind — bullets (-), numbers (1. 2. 3., renumbered from the first
-  // touched line). Pressing the active kind again clears the list.
-  const toggleList = useCallback(
-    (key: GraspsKey, kind: '-' | 'num') => {
-      const el = partRefs.current[key]
-      if (!el) return
-      const text = draft[key]
-      const start = el.selectionStart
-      const end = el.selectionEnd
-      const lineStart = text.lastIndexOf('\n', start - 1) + 1
-      let lineEnd = text.indexOf('\n', end)
-      if (lineEnd === -1) lineEnd = text.length
-      const lines = text.slice(lineStart, lineEnd).split('\n')
-      const stripList = (l: string) => l.replace(/^\s*(?:[-*•–]\s+|\d+[.)]\s+)/, '')
-      const nonEmpty = lines.filter((l) => l.trim() !== '')
-      const allListed =
-        nonEmpty.length > 0 &&
-        nonEmpty.every((l) =>
-          kind === '-' ? /^\s*[-*•–]\s+/.test(l) : /^\s*\d+[.)]\s+/.test(l),
-        )
-      let n = 1
-      const next = lines
-        .map((l) => {
-          if (l.trim() === '') return l
-          if (allListed) return stripList(l)
-          return kind === '-' ? `- ${stripList(l)}` : `${n++}. ${stripList(l)}`
-        })
-        .join('\n')
-      patchPart(key, next)
-      requestAnimationFrame(() => {
-        el.focus()
-        el.setSelectionRange(lineStart, lineStart + next.length)
-      })
-    },
-    [draft, patchPart],
-  )
 
   // A restored or loaded task puts saved text into fixed-height boxes; one
   // pass over the component editors grows them to fit, the same routine every
   // keystroke runs. Keyed on the draft's id so loading a card re-fits them
   // too, and plain text restores are covered by the mount pass.
   useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('.g26-part textarea, .g26-rubric textarea').forEach(autoResize)
+    document.querySelectorAll<HTMLTextAreaElement>('.g26-rubric textarea').forEach(autoResize)
   }, [draft.id, autoResize])
 
   // The Quick Reference guide opens from the hero and closes on Escape or
@@ -939,38 +1064,24 @@ export default function Grasps() {
                     touched lines — the box below stays the plain-text
                     source of truth. */}
                 <div className="g26-toolbar">
-                  <button type="button" title="Bold — wraps the selection in ** **" disabled={!ready} onClick={() => toggleBold(p.key)}>
+                  <button type="button" title="Bold" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('bold')}>
                     <strong>B</strong>
                   </button>
-                  <button type="button" title="Italic — _text_" disabled={!ready} onClick={() => wrapSelection(p.key, '_', '_')}>
+                  <button type="button" title="Italic" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('italic')}>
                     <em>I</em>
                   </button>
-                  <button type="button" title="Underline — ++text++" disabled={!ready} onClick={() => wrapSelection(p.key, '++', '++')}>
+                  <button type="button" title="Underline" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('underline')}>
                     <u>U</u>
                   </button>
                   <span className="g26-toolbar__sep" aria-hidden="true" />
-                  <button type="button" title="Bullet list — starts the line with -" disabled={!ready} onClick={() => toggleList(p.key, '-')}>
+                  <button type="button" title="Bullet list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertUnorderedList')}>
                     &bull;
                   </button>
-                  <button type="button" title="Numbered list — 1. 2. 3." disabled={!ready} onClick={() => toggleList(p.key, 'num')}>
+                  <button type="button" title="Numbered list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertOrderedList')}>
                     1.
                   </button>
                 </div>
-                <textarea
-                  className="input input--sm"
-                  ref={(el) => {
-                    partRefs.current[p.key] = el
-                    autoResize(el)
-                  }}
-                  value={draft[p.key]}
-                  placeholder={p.placeholder}
-                  rows={3}
-                  disabled={!ready}
-                  onChange={(e) => {
-                    patchPart(p.key, e.target.value)
-                    autoResize(e.currentTarget)
-                  }}
-                />
+                <RichEditor value={draft[p.key]} onChange={(next) => patchPart(p.key, next)} disabled={!ready} placeholder={p.placeholder} />
                 <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
                 {hasBulletLines(draft[p.key]) && (
                   <div className="g26-preview">

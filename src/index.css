@@ -10512,6 +10512,38 @@ html.lantaw-dark .clo26-hact--deleted {
   margin: 0 3px;
 }
 
+/* The rich component editor: the Word-style contentEditable box - real
+   bold, italic, underline and lists while typing, placeholder shown when
+   empty, green border when focused. */
+.g26-rich {
+  min-height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+.g26-rich--focused {
+  border-color: var(--primary);
+}
+
+.g26-rich:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.g26-rich ul,
+.g26-rich ol {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */
