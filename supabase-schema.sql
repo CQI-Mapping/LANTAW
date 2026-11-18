@@ -1287,6 +1287,9 @@ CREATE TABLE IF NOT EXISTS public.grasps_tasks (
     -- performance levels, each with its point value. Optional — a task
     -- may be filed without one.
     rubric JSONB,
+    -- The bullet library choice (035): which glyph the bullet lists print
+    -- with in the Word export. NULL reads as the default disc.
+    bullet_style TEXT,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

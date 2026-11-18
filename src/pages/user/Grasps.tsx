@@ -307,15 +307,30 @@ function sanitizeRich(html: string): string {
   return probe.innerHTML
 }
 
+/** The bullet library the toolbar's caret opens - the same styles Word's
+ *  library offers, rendered as the box's list marker and the Word file's
+ *  bullet glyph. 'none' removes the bullets (list lines print as prose). */
+const BULLET_STYLES: Array<{ id: string; glyph: string; label: string; title: string }> = [
+  { id: 'none', glyph: '', label: 'None', title: 'No bullets - the list lines print as plain text' },
+  { id: 'disc', glyph: '●', label: '', title: 'Filled round bullet' },
+  { id: 'circle', glyph: '○', label: '', title: 'Hollow circle bullet' },
+  { id: 'square', glyph: '■', label: '', title: 'Square bullet' },
+  { id: 'diamond', glyph: '❖', label: '', title: 'Diamond bullet' },
+  { id: 'arrow', glyph: '➤', label: '', title: 'Arrow bullet' },
+  { id: 'check', glyph: '✓', label: '', title: 'Check-mark bullet' },
+]
+
 interface RichEditorProps {
   /** The draft's marker text for this component. */
   value: string
   onChange: (next: string) => void
   disabled?: boolean
   placeholder: string
+  /** The bullet library choice - the box's list marker follows it. */
+  bulletStyle?: string
 }
 
-function RichEditor({ value, onChange, disabled, placeholder }: RichEditorProps) {
+function RichEditor({ value, onChange, disabled, placeholder, bulletStyle }: RichEditorProps) {
   const boxRef = useRef<HTMLDivElement | null>(null)
   const lastEmitted = useRef<string>('')
   const [focused, setFocused] = useState(false)
@@ -339,7 +354,7 @@ function RichEditor({ value, onChange, disabled, placeholder }: RichEditorProps)
   return (
     <div
       ref={boxRef}
-      className={`g26-rich${focused ? ' g26-rich--focused' : ''}`}
+      className={`g26-rich${focused ? ' g26-rich--focused' : ''}${bulletStyle && bulletStyle !== 'disc' ? ` g26-rich--bullet-${bulletStyle}` : ''}`}
       contentEditable={!disabled}
       suppressContentEditableWarning
       role="textbox"
@@ -384,6 +399,8 @@ interface GraspsDraft {
   standards: string
   /** The analytic rubric rows (034), edited below the Standards card. */
   rubric: GraspsRubricRow[]
+  /** The bullet library choice (035) - which glyph the lists print. */
+  bulletStyle: string
 }
 
 const blankDraft = (): GraspsDraft => ({
@@ -400,6 +417,7 @@ const blankDraft = (): GraspsDraft => ({
   product: '',
   standards: '',
   rubric: [],
+  bulletStyle: 'disc',
 })
 
 /** A saved task, loaded back into the editor as its own editable copy. */
@@ -417,6 +435,7 @@ const draftFromRow = (row: GraspsTaskRow): GraspsDraft => ({
   product: row.product ?? '',
   standards: row.standards ?? '',
   rubric: row.rubric ?? [],
+  bulletStyle: row.bullet_style ?? 'disc',
 })
 
 /**
@@ -737,6 +756,7 @@ export default function Grasps() {
         product: draft.product.trim() || null,
         standards: draft.standards.trim() || null,
         rubric: cleanRubric,
+        bullet_style: draft.bulletStyle,
       }
 
       let id: string
@@ -845,6 +865,7 @@ export default function Grasps() {
           product: row.product ?? '',
           standards: row.standards ?? '',
           rubric: row.rubric ?? [],
+          bulletStyle: row.bullet_style ?? 'disc',
           preparedBy: '',
         })
         await addActivityLog('grasps_task.exported', {
@@ -884,6 +905,16 @@ export default function Grasps() {
   // The Quick Reference guide opens from the hero and closes on Escape or
   // an outside click, like the syllabus reader's dialog.
   const [guideOpen, setGuideOpen] = useState(false)
+  // The bullet library popover: which card's caret is open (null = closed).
+  const [bulletLibFor, setBulletLibFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!bulletLibFor) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBulletLibFor(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [bulletLibFor])
   useEffect(() => {
     if (!guideOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -1096,14 +1127,50 @@ export default function Grasps() {
                     <u>U</u>
                   </button>
                   <span className="g26-toolbar__sep" aria-hidden="true" />
-                  <button type="button" title="Bullet list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertUnorderedList')}>
-                    &bull;
-                  </button>
+                  <span className="g26-toolbar__split">
+                    <button type="button" title="Bullet list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertUnorderedList')}>
+                      &bull;
+                    </button>
+                    <button
+                      type="button"
+                      className="g26-toolbar__caret"
+                      title="Bullet library"
+                      disabled={!ready}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setBulletLibFor(bulletLibFor === p.key ? null : p.key)}
+                    >
+                      ▾
+                    </button>
+                    {bulletLibFor === p.key && (
+                      <>
+                        <div className="g26-bulletlib__backdrop" onClick={() => setBulletLibFor(null)} />
+                        <div className="g26-bulletlib">
+                          <span className="g26-bulletlib__head">Bullet library</span>
+                          {BULLET_STYLES.map((bl) => (
+                            <button
+                              key={bl.id}
+                              type="button"
+                              className={`g26-bulletlib__tile${draft.bulletStyle === bl.id ? ' active' : ''}${bl.id === 'none' ? ' g26-bulletlib__tile--text' : ''}`}
+                              title={bl.title}
+                              disabled={!ready}
+                              onClick={() => {
+                                patchDraft({ bulletStyle: bl.id })
+                                setBulletLibFor(null)
+                              }}
+                            >
+                              {bl.glyph || bl.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </span>
+
                   <button type="button" title="Numbered list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertOrderedList')}>
                     1.
                   </button>
                 </div>
-                <RichEditor value={draft[p.key]} onChange={(next) => patchPart(p.key, next)} disabled={!ready} placeholder={p.placeholder} />
+                <RichEditor value={draft[p.key]} onChange={(next) => patchPart(p.key, next)} disabled={!ready} placeholder={p.placeholder} bulletStyle={draft.bulletStyle} />
                 <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
                 {hasBulletLines(draft[p.key]) && (
                   <div className="g26-preview">

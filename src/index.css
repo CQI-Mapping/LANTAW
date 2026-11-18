@@ -10574,6 +10574,117 @@ html.lantaw-dark .g26-toolbar {
   padding-left: 22px;
 }
 
+/* The bullet library: the split bullet button opens a tile picker - the
+   chosen glyph styles the box's lists (list-style) and the Word export's
+   numbering reference. */
+.g26-toolbar__split {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.g26-toolbar__caret {
+  min-width: 17px;
+  padding: 0 3px;
+  font-size: 9px;
+}
+
+.g26-bulletlib__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+}
+
+.g26-bulletlib {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 46px);
+  gap: 6px;
+  box-shadow: 0 10px 28px rgba(15, 23, 20, 0.16);
+}
+
+.g26-bulletlib__head {
+  grid-column: 1 / -1;
+  font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.g26-bulletlib__tile {
+  width: 46px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  padding: 0;
+}
+
+.g26-bulletlib__tile:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.g26-bulletlib__tile.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--g100);
+}
+
+html.lantaw-dark .g26-bulletlib__tile.active {
+  background: rgba(124, 192, 142, 0.1);
+}
+
+.g26-bulletlib__tile--text {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.g26-bulletlib__tile:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The chosen library style is the box's list marker as well. */
+.g26-rich--bullet-circle ul {
+  list-style-type: circle;
+}
+
+.g26-rich--bullet-square ul {
+  list-style-type: square;
+}
+
+.g26-rich--bullet-diamond ul {
+  list-style-type: '"❖  "';
+}
+
+.g26-rich--bullet-arrow ul {
+  list-style-type: '"➤  "';
+}
+
+.g26-rich--bullet-check ul {
+  list-style-type: '"✓  "';
+}
+
+.g26-rich--bullet-none ul {
+  list-style-type: none;
+  padding-left: 8px;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

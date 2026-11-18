@@ -24,6 +24,17 @@ import {
 } from './letterhead'
 
 const FONT = 'Arial'
+/** The bullet library's glyphs, one numbering reference each - the
+ *  toolbar's picker chooses which one the bullet lines print with. */
+const BULLET_LISTS: Array<{ id: string; glyph: string }> = [
+  { id: 'disc', glyph: '●' },
+  { id: 'circle', glyph: '○' },
+  { id: 'square', glyph: '■' },
+  { id: 'diamond', glyph: '❖' },
+  { id: 'arrow', glyph: '➤' },
+  { id: 'check', glyph: '✓' },
+]
+
 const NAVY = '002060'
 const SZ = 22 // half-points -> 11pt (the GRASPS model format)
 
@@ -41,6 +52,8 @@ export interface GraspsDocxData {
   standards: string
   /** The analytic rubric, printed after the components table. */
   rubric?: GraspsRubricRow[]
+  /** The bullet library choice - which glyph the bullet lists print. */
+  bulletStyle?: string
   preparedBy: string
 }
 
@@ -172,17 +185,28 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // the model document's list style. The marker is stripped; the text runs
   // at the bullet's own indent, so the faculty composes lists by typing a
   // dash before each item.
+  // The bullet library: the task's chosen style picks the numbering
+  // reference; 'none' prints the list lines as plain prose.
+  const styleId = BULLET_LISTS.some((b) => b.id === (data.bulletStyle ?? 'disc'))
+    ? data.bulletStyle ?? 'disc'
+    : 'disc'
+  const bulletRef = styleId === 'none' ? '' : `grasps-bullet-${styleId}`
+
   const linePara = (l: string) => {
     const m = l.match(/^[-*•–]\s+(.+)$/)
-    if (m)
+    if (m) {
+      if (!bulletRef) {
+        return new Paragraph({ alignment: JUSTIFIED, children: runsOf(m[1]) })
+      }
       return new Paragraph({
-        bullet: { level: 0 },
+        numbering: { reference: bulletRef, level: 0 },
         // The model document's list paragraphs carry a small before/after
         // gap (Word's 100-twip autospacing ≈ 5pt) — copied here so the
         // export breathes the same way.
         spacing: { before: 100, after: 100 },
         children: runsOf(m[1]),
       })
+    }
     return new Paragraph({ alignment: JUSTIFIED, children: runsOf(l) })
   }
 
@@ -333,6 +357,18 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     styles: { default: { document: { run: { font: FONT, size: SZ } } } },
     numbering: {
       config: [
+        ...BULLET_LISTS.map((b) => ({
+          reference: `grasps-bullet-${b.id}`,
+          levels: [
+            {
+              level: 0,
+              format: LevelFormat.BULLET,
+              text: b.glyph,
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+            },
+          ],
+        })),
         {
           reference: 'grasps-numbered',
           levels: [
