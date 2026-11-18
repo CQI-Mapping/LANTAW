@@ -10471,6 +10471,47 @@ html.lantaw-dark .clo26-hact--deleted {
   line-height: 1.5;
 }
 
+/* The component's Word-style mini toolbar: small square buttons for the
+   inline styles (B / I / U) and the two list kinds (bullet, numbered). */
+.g26-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.g26-toolbar button {
+  min-width: 27px;
+  height: 24px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  font-family: inherit;
+}
+
+.g26-toolbar button:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.g26-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.g26-toolbar__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

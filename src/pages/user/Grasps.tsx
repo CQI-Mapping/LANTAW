@@ -14,7 +14,7 @@
 // disagree about what is stored. Archive and restore are the only removals;
 // nothing is ever hard-deleted from here.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Icon from '../../components/icons'
 import {
   addActivityLog,
@@ -641,6 +641,91 @@ export default function Grasps() {
     el.style.height = `${el.scrollHeight}px`
   }, [])
 
+  // Per-component editor refs: the toolbar's buttons read and restore the
+  // caret and selection through them.
+  const partRefs = useRef<Partial<Record<GraspsKey, HTMLTextAreaElement | null>>>({})
+
+  // Inline styles, Word-toolbar style: select text (or set the caret) and
+  // press B / I / U — the selection is wrapped in the marker pair the
+  // export parses, the caret restored inside so typing continues styled.
+  const wrapSelection = useCallback(
+    (key: GraspsKey, before: string, after: string) => {
+      const el = partRefs.current[key]
+      if (!el) return
+      const text = draft[key]
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      const sel = text.slice(start, end)
+      const next = text.slice(0, start) + before + sel + after + text.slice(end)
+      patchPart(key, next)
+      requestAnimationFrame(() => {
+        el.focus()
+        el.setSelectionRange(start + before.length, end + before.length)
+      })
+    },
+    [draft, patchPart],
+  )
+
+  const toggleBold = useCallback(
+    (key: GraspsKey) => {
+      const el = partRefs.current[key]
+      if (!el) return
+      const text = draft[key]
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      // Already wrapped? Peel the pair off instead of stacking another.
+      if (text.slice(start - 2, start) === '**' && text.slice(end, end + 2) === '**') {
+        patchPart(key, text.slice(0, start - 2) + text.slice(start, end) + text.slice(end + 2))
+        requestAnimationFrame(() => {
+          el.focus()
+          el.setSelectionRange(start - 2, end - 2)
+        })
+        return
+      }
+      wrapSelection(key, '**', '**')
+    },
+    [draft, patchPart, wrapSelection],
+  )
+
+  // List buttons act on the lines the selection touches: every line is
+  // stripped of whatever list marker it holds, then given the pressed
+  // kind — bullets (-), numbers (1. 2. 3., renumbered from the first
+  // touched line). Pressing the active kind again clears the list.
+  const toggleList = useCallback(
+    (key: GraspsKey, kind: '-' | 'num') => {
+      const el = partRefs.current[key]
+      if (!el) return
+      const text = draft[key]
+      const start = el.selectionStart
+      const end = el.selectionEnd
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1
+      let lineEnd = text.indexOf('\n', end)
+      if (lineEnd === -1) lineEnd = text.length
+      const lines = text.slice(lineStart, lineEnd).split('\n')
+      const stripList = (l: string) => l.replace(/^\s*(?:[-*•–]\s+|\d+[.)]\s+)/, '')
+      const nonEmpty = lines.filter((l) => l.trim() !== '')
+      const allListed =
+        nonEmpty.length > 0 &&
+        nonEmpty.every((l) =>
+          kind === '-' ? /^\s*[-*•–]\s+/.test(l) : /^\s*\d+[.)]\s+/.test(l),
+        )
+      let n = 1
+      const next = lines
+        .map((l) => {
+          if (l.trim() === '') return l
+          if (allListed) return stripList(l)
+          return kind === '-' ? `- ${stripList(l)}` : `${n++}. ${stripList(l)}`
+        })
+        .join('\n')
+      patchPart(key, next)
+      requestAnimationFrame(() => {
+        el.focus()
+        el.setSelectionRange(lineStart, lineStart + next.length)
+      })
+    },
+    [draft, patchPart],
+  )
+
   // A restored or loaded task puts saved text into fixed-height boxes; one
   // pass over the component editors grows them to fit, the same routine every
   // keystroke runs. Keyed on the draft's id so loading a card re-fits them
@@ -849,9 +934,34 @@ export default function Grasps() {
                 </div>
                 <p className="g26-part__hint">{p.hint}</p>
                 <p className="g26-part__tip">{p.tip}</p>
+                {/* The Word-style mini toolbar: B / I / U wrap the selection
+                    in the inline markers, the list buttons mark or clear the
+                    touched lines — the box below stays the plain-text
+                    source of truth. */}
+                <div className="g26-toolbar">
+                  <button type="button" title="Bold — wraps the selection in ** **" disabled={!ready} onClick={() => toggleBold(p.key)}>
+                    <strong>B</strong>
+                  </button>
+                  <button type="button" title="Italic — _text_" disabled={!ready} onClick={() => wrapSelection(p.key, '_', '_')}>
+                    <em>I</em>
+                  </button>
+                  <button type="button" title="Underline — ++text++" disabled={!ready} onClick={() => wrapSelection(p.key, '++', '++')}>
+                    <u>U</u>
+                  </button>
+                  <span className="g26-toolbar__sep" aria-hidden="true" />
+                  <button type="button" title="Bullet list — starts the line with -" disabled={!ready} onClick={() => toggleList(p.key, '-')}>
+                    &bull;
+                  </button>
+                  <button type="button" title="Numbered list — 1. 2. 3." disabled={!ready} onClick={() => toggleList(p.key, 'num')}>
+                    1.
+                  </button>
+                </div>
                 <textarea
                   className="input input--sm"
-                  ref={autoResize}
+                  ref={(el) => {
+                    partRefs.current[p.key] = el
+                    autoResize(el)
+                  }}
                   value={draft[p.key]}
                   placeholder={p.placeholder}
                   rows={3}
@@ -869,16 +979,30 @@ export default function Grasps() {
                       {(() => {
                         const lines = draft[p.key].split('\n').map((l) => l.trim()).filter((l) => l !== '')
                         const labelAlone = lines[0].endsWith(':')
-                        const boldRuns = (s: string) =>
-                          s
-                            .split(/\*\*(.+?)\*\*/g)
-                            .map((seg, j) => (j % 2 === 1 ? <strong key={j}>{seg}</strong> : <span key={j}>{seg}</span>))
+                        // The same inline grammar the export parses: **bold**,
+                        // _italic_ and ++underline++ segments become their
+                        // Word equivalents.
+                        const richRuns = (s: string) => {
+                          const re = /\*\*(.+?)\*\*|_(.+?)_|\+\+(.+?)\+\+/g
+                          const out: ReactNode[] = []
+                          let last = 0
+                          let m: RegExpExecArray | null
+                          while ((m = re.exec(s)) !== null) {
+                            if (m.index > last) out.push(<span key={out.length}>{s.slice(last, m.index)}</span>)
+                            if (m[1] !== undefined) out.push(<strong key={out.length}>{m[1]}</strong>)
+                            else if (m[2] !== undefined) out.push(<em key={out.length}>{m[2]}</em>)
+                            else if (m[3] !== undefined) out.push(<u key={out.length}>{m[3]}</u>)
+                            last = m.index + m[0].length
+                          }
+                          if (last < s.length) out.push(<span key={out.length}>{s.slice(last)}</span>)
+                          return out
+                        }
                         const render = (l: string, i: number) => {
                           const m = l.match(/^[-*•–]\s+(.+)$/)
-                          if (m) return <p key={i} className="g26-preview__bullet">&bull; {boldRuns(m[1])}</p>
+                          if (m) return <p key={i} className="g26-preview__bullet">&bull; {richRuns(m[1])}</p>
                           const n = l.match(/^(\d+)[.)]\s+(.+)$/)
-                          if (n) return <p key={i} className="g26-preview__bullet">{n[1]}. {boldRuns(n[2])}</p>
-                          return <p key={i} className="g26-preview__line">{boldRuns(l)}</p>
+                          if (n) return <p key={i} className="g26-preview__bullet">{n[1]}. {richRuns(n[2])}</p>
+                          return <p key={i} className="g26-preview__line">{richRuns(l)}</p>
                         }
                         return labelAlone ? (
                           <>
@@ -887,7 +1011,7 @@ export default function Grasps() {
                           </>
                         ) : (
                           <>
-                            <p className="g26-preview__line"><strong>{p.label}:</strong> {boldRuns(lines[0])}</p>
+                            <p className="g26-preview__line"><strong>{p.label}:</strong> {richRuns(lines[0])}</p>
                             {lines.slice(1).map(render)}
                           </>
                         )

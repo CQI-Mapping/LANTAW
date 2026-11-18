@@ -81,8 +81,16 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     convertInchesToTwip,
   } = await import('docx')
 
-  const run = (text: string, o: { bold?: boolean; italics?: boolean; color?: string } = {}) =>
-    new TextRun({ text, bold: o.bold, italics: o.italics, color: o.color, font: FONT, size: SZ })
+  const run = (text: string, o: { bold?: boolean; italics?: boolean; color?: string; underline?: boolean } = {}) =>
+    new TextRun({
+      text,
+      bold: o.bold,
+      italics: o.italics,
+      color: o.color,
+      underline: o.underline ? {} : undefined,
+      font: FONT,
+      size: SZ,
+    })
 
   const para = (
     text: string,
@@ -94,16 +102,25 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       children: [run(text, o)],
     })
 
-  // Inline bold: "**Part 1: Sketch Wireframes**" prints its middle bold.
-  // Splitting on the marker pair yields plain/bold alternating segments —
-  // odd indexes are the bold ones — and empty segments are dropped so a
-  // lone "**" pair never prints an empty run.
-  const runsOf = (text: string, o: { bold?: boolean; italics?: boolean } = {}) =>
-    text
-      .split(/\*\*(.+?)\*\*/g)
-      .map((seg, i) => ({ seg, bold: i % 2 === 1 }))
-      .filter((s) => s.seg !== '')
-      .map((s) => run(s.seg, { ...o, bold: s.bold || o.bold }))
+  // The inline grammar the toolbar and the typed markers share: **bold**,
+  // _italic_ and ++underline++ segments become their Word equivalents;
+  // anything outside the markers keeps the caller's base style. The walk
+  // is flat — no nested markers — which is all the document needs.
+  const runsOf = (text: string, o: { bold?: boolean; italics?: boolean; underline?: boolean } = {}) => {
+    const re = /\*\*(.+?)\*\*|_(.+?)_|\+\+(.+?)\+\+/g
+    const out: ReturnType<typeof run>[] = []
+    let last = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) out.push(run(text.slice(last, m.index), o))
+      if (m[1] !== undefined) out.push(run(m[1], { ...o, bold: true }))
+      else if (m[2] !== undefined) out.push(run(m[2], { ...o, italics: true }))
+      else if (m[3] !== undefined) out.push(run(m[3], { ...o, underline: true }))
+      last = m.index + m[0].length
+    }
+    if (last < text.length) out.push(run(text.slice(last), o))
+    return out.length ? out : [run(text, o)]
+  }
 
   const BORDER = { style: BorderStyle.SINGLE, size: 4, color: '000000' }
   const CELL_BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER }
