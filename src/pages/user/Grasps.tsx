@@ -30,6 +30,7 @@ import {
 } from '../../services/database'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
+import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
   buildExamTypeOptions,
@@ -1552,6 +1553,7 @@ export default function Grasps() {
           <div className="syl-reader__scroll">
             <div className={`syl-reader__doc g26-reader g26-rich--bullet-${viewRow.bullet_style ?? 'disc'}`}>
               <div className="g26-reader__page">
+                <img className="g26-reader__letterhead" src={LETTERHEAD_URL} alt="Letterhead" />
                 <p className="g26-reader__center">Institute for Computer Studies</p>
                 <p className="g26-reader__center g26-reader__strong">
                   {(() => {
