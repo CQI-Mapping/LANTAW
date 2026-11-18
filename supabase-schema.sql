@@ -234,6 +234,9 @@ CREATE TABLE public.program_educational_objectives (
 
 CREATE TABLE public.admin_program_outcomes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- The program a manager-authored outcome belongs to (037); admin
+    -- outcomes stay NULL and are global.
+    program_id UUID REFERENCES public.programs(id) ON DELETE SET NULL,
     code TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
@@ -640,20 +643,45 @@ CREATE POLICY "Admins can manage strategic_goals" ON public.strategic_goals FOR 
     WITH CHECK (public.current_user_role() = 'admin');
 
 -- ADMIN PROGRAM OUTCOMES
-CREATE POLICY "Authenticated users can read admin_program_outcomes" ON public.admin_program_outcomes FOR SELECT
-    USING (auth.role() = 'authenticated');
+-- A manager reads/creates/edits only their program's outcomes (037);
+-- admin-authored rows are global. Managers still cannot delete.
+CREATE POLICY "Managers read only their program outcomes" ON public.admin_program_outcomes FOR SELECT
+    USING (
+        public.current_user_role() IN ('admin', 'user')
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
 CREATE POLICY "Admins can manage admin_program_outcomes" ON public.admin_program_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
 
--- Managers may create and edit program outcomes but not delete them.
-CREATE POLICY "Managers and admins can create admin_program_outcomes" ON public.admin_program_outcomes FOR INSERT
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins create any outcome, managers only for their program" ON public.admin_program_outcomes FOR INSERT
+    WITH CHECK (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
-CREATE POLICY "Managers and admins can update admin_program_outcomes" ON public.admin_program_outcomes FOR UPDATE
-    USING (public.current_user_role() IN ('admin', 'manager'))
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins update any outcome, managers only their program's" ON public.admin_program_outcomes FOR UPDATE
+    USING (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    )
+    WITH CHECK (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
 -- PROGRAM EDUCATIONAL OBJECTIVES
 CREATE POLICY "Authenticated users can read program_educational_objectives" ON public.program_educational_objectives FOR SELECT

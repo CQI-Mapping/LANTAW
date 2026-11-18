@@ -942,6 +942,8 @@ export async function deleteProgramEducationalObjective(id: string): Promise<voi
 
 export interface ProgramOutcomeStandalone {
   id: string
+  /** The program a manager-authored outcome belongs to (037). */
+  program_id?: string | null
   code: string
   title: string
   description: string | null
@@ -957,11 +959,15 @@ export interface ProgramOutcomeStandalone {
   updated_at: string
 }
 
-export async function fetchProgramOutcomesStandalone(source?: 'admin' | 'manager'): Promise<ProgramOutcomeStandalone[]> {
+export async function fetchProgramOutcomesStandalone(
+  source?: 'admin' | 'manager',
+  programId?: string | null,
+): Promise<ProgramOutcomeStandalone[]> {
   let query = supabase
     .from('admin_program_outcomes')
     .select('*')
   if (source) query = query.eq('source', source)
+  if (programId) query = query.eq('program_id', programId)
   query = query.order('code', { ascending: true })
   const { data, error } = await query
   if (error) throw error

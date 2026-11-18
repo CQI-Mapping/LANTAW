@@ -29,7 +29,8 @@ const toSgSuggestion = (i: { code: string; description: string | null }): Sugges
   label: `${i.code.replace(/^SG-/i, 'Goal ')}: ${i.description ?? ''}`.trim(),
 })
 
-export default function ProgramOutcomes() {
+export default function ProgramOutcomes({ profile }: { profile?: { program_id?: string | null } | null }) {
+  const myProgramId = profile?.program_id ?? null
   const [cmoOptions, setCmoOptions] = useState<AlignmentOption[]>([])
   const [peoSuggestions, setPeoSuggestions] = useState<SuggestionOption[]>([])
   const [sgSuggestions, setSgSuggestions] = useState<SuggestionOption[]>([])
@@ -46,13 +47,13 @@ export default function ProgramOutcomes() {
     ;(async () => {
       try {
         const [pos, peos, sgs, cmosAll, allPos] = await Promise.all([
-          fetchProgramOutcomesStandalone('manager'),
+          fetchProgramOutcomesStandalone('manager', myProgramId),
           fetchProgramEducationalObjectives(),
           fetchStrategicGoals(),
           fetchChedMemoOrders(),
           // The read side: the manager's own rows — the list below the form
           // is manager-authored only, and the reader mirrors it.
-          fetchProgramOutcomesStandalone(),
+          fetchProgramOutcomesStandalone(undefined, myProgramId),
         ])
         const referencedCmos = new Set(pos.map((p) => p.cmo_id).filter(Boolean) as string[])
         const cmos = cmosAll.filter(
@@ -86,7 +87,7 @@ export default function ProgramOutcomes() {
       }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [myProgramId])
 
   if (error) return <p className="msg msg--error">{error}</p>
   if (loading) return <p>Loading program outcomes...</p>
@@ -128,11 +129,11 @@ export default function ProgramOutcomes() {
 
   // Manager create: stamp source='manager' so View can separate admin vs manager inputs.
   const managerCreate = async (payload: Partial<ProgramOutcomeStandalone>) => {
-    return createProgramOutcomeStandalone({ ...payload, source: 'manager' })
+    return createProgramOutcomeStandalone({ ...payload, source: 'manager', program_id: myProgramId })
   }
 
   // Manager load: only fetch source='manager' outcomes.
-  const managerLoad = async () => fetchProgramOutcomesStandalone('manager')
+  const managerLoad = async () => fetchProgramOutcomesStandalone('manager', myProgramId)
 
   return (
     <EntityCrudPage<ProgramOutcomeStandalone>

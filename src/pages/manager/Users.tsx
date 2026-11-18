@@ -136,7 +136,7 @@ function Users({ profile }: { profile?: Profile | null }) {
       // add faculty, they don't administer admins. EVERY faculty row is
       // kept (active and archived alike): the tab below decides which ones
       // the table shows, and the Archive tab needs its roster too.
-      setUsers(profiles.filter((u) => u.role !== 'admin'))
+      setUsers(profiles.filter((u) => u.role !== 'admin' && !!myProgramId && u.program_id === myProgramId))
       try {
         const { data } = await supabase!.auth.getUser()
         const me = profiles.find((u) => u.id === data?.user?.id)
