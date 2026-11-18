@@ -645,12 +645,15 @@ CREATE POLICY "Admins can manage strategic_goals" ON public.strategic_goals FOR 
 -- ADMIN PROGRAM OUTCOMES
 -- A manager reads/creates/edits only their program's outcomes (037);
 -- admin-authored rows are global. Managers still cannot delete.
-CREATE POLICY "Managers read only their program outcomes" ON public.admin_program_outcomes FOR SELECT
+CREATE POLICY "Managers read their program and global outcomes" ON public.admin_program_outcomes FOR SELECT
     USING (
         public.current_user_role() IN ('admin', 'user')
         OR (
             public.current_user_role() = 'manager'
-            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+            AND (
+                program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+                OR program_id IS NULL
+            )
         )
     );
 
