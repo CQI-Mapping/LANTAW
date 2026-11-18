@@ -2711,6 +2711,17 @@ code {
   white-space: nowrap;
 }
 
+/* Manager's Add Faculty note: the program every new account inherits. */
+.users-program-note {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.users-program-note strong {
+  color: var(--g700);
+}
+
 .users-program-chip--none {
   color: var(--text-muted);
   font-weight: 500;

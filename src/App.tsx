@@ -677,7 +677,7 @@ function App() {
 
     if (page === 'dashboard') return <Page profile={profile} onNavigate={navigate} />
     if (page === 'profile') return <Page profile={profile} onSaved={setProfile} onNavigate={navigate} />
-    if (page === 'users') return <Page />
+    if (page === 'users') return <Page profile={profile} />
     if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} />
     if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} />
     if (page === 'view') {
