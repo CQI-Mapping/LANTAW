@@ -10488,16 +10488,20 @@ html.lantaw-dark .clo26-hact--deleted {
   display: flex;
   align-items: center;
   gap: 3px;
-  margin-bottom: 6px;
   /* Word-ribbon behavior: the toolbar stays pinned right under the top
      bar for as long as its component is in view, so a long editor never
-     needs a scroll back up to reach the buttons. The panel background
-     keeps the scrolling text from showing through beneath the buttons. */
+     needs a scroll back up to reach the buttons. It spans the card edge
+     to edge (negative margins cancel the card's padding, the inner
+     padding restores the alignment) so the pinned strip never looks
+     like a floating button row inside the padding, and the panel
+     background keeps the scrolling text hidden beneath it. */
   position: sticky;
   top: 64px;
   z-index: 20;
   background: var(--bg-panel);
-  padding: 3px 0;
+  margin: 0 -14px 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
 }
 
 .g26-toolbar button {
