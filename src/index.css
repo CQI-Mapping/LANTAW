@@ -10471,6 +10471,17 @@ html.lantaw-dark .clo26-hact--deleted {
   line-height: 1.5;
 }
 
+.g26-preview__doc ul,
+.g26-preview__doc ol {
+  margin: 3px 0;
+  padding-left: 20px;
+}
+
+.g26-preview__doc b,
+.g26-preview__doc strong {
+  font-weight: 700;
+}
+
 /* The component's Word-style mini toolbar: small square buttons for the
    inline styles (B / I / U) and the two list kinds (bullet, numbered). */
 .g26-toolbar {

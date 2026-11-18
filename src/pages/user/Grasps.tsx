@@ -1088,48 +1088,38 @@ export default function Grasps() {
                     <span className="g26-preview__tag">In the Word file</span>
                     <div className="g26-preview__doc">
                       {(() => {
+                        // The preview renders through the SAME converter the
+                        // editor box loads with (markersToHtml), so it can
+                        // never disagree with the box or the document - the
+                        // typed markers become the exact tags both render.
                         const lines = draft[p.key].split('\n').map((l) => l.trim()).filter((l) => l !== '')
                         const labelAlone = lines[0].endsWith(':')
-                        // The same inline grammar the export parses: **bold**,
-                        // _italic_ and ++underline++ segments become their
-                        // Word equivalents.
-                        const richRuns = (s: string) => {
-                          const re = /\*\*(.+?)\*\*|_(.+?)_|\+\+(.+?)\+\+/g
-                          const out: ReactNode[] = []
-                          let last = 0
-                          let m: RegExpExecArray | null
-                          while ((m = re.exec(s)) !== null) {
-                            if (m.index > last) out.push(<span key={out.length}>{s.slice(last, m.index)}</span>)
-                            if (m[1] !== undefined) out.push(<strong key={out.length}>{m[1]}</strong>)
-                            else if (m[2] !== undefined) out.push(<em key={out.length}>{m[2]}</em>)
-                            else if (m[3] !== undefined) out.push(<u key={out.length}>{m[3]}</u>)
-                            last = m.index + m[0].length
-                          }
-                          if (last < s.length) out.push(<span key={out.length}>{s.slice(last)}</span>)
-                          return out
+                        const firstIsPlain = !/^[-*•–]\s+/.test(lines[0]) && !/^\d+[.)]\s+/.test(lines[0])
+                        if (labelAlone || !firstIsPlain) {
+                          return (
+                            <>
+                              <p className="g26-preview__line">
+                                <strong>{p.label}:</strong>
+                              </p>
+                              <div dangerouslySetInnerHTML={{ __html: markersToHtml(draft[p.key]) }} />
+                            </>
+                          )
                         }
-                        const render = (l: string, i: number) => {
-                          const m = l.match(/^[-*•–]\s+(.+)$/)
-                          if (m) return <p key={i} className="g26-preview__bullet">&bull; {richRuns(m[1])}</p>
-                          const n = l.match(/^(\d+)[.)]\s+(.+)$/)
-                          if (n) return <p key={i} className="g26-preview__bullet">{n[1]}. {richRuns(n[2])}</p>
-                          return <p key={i} className="g26-preview__line">{richRuns(l)}</p>
-                        }
-                        return labelAlone ? (
+                        const restHtml = markersToHtml(lines.slice(1).join('\n'))
+                        const firstHtml = markersToHtml(lines[0]).replace(/^<div>/, '').replace(/<\/div>$/, '')
+                        return (
                           <>
-                            <p className="g26-preview__line"><strong>{p.label}:</strong></p>
-                            {lines.map(render)}
-                          </>
-                        ) : (
-                          <>
-                            <p className="g26-preview__line"><strong>{p.label}:</strong> {richRuns(lines[0])}</p>
-                            {lines.slice(1).map(render)}
+                            <p className="g26-preview__line">
+                              <strong>{p.label}:</strong> <span dangerouslySetInnerHTML={{ __html: firstHtml }} />
+                            </p>
+                            <div dangerouslySetInnerHTML={{ __html: restHtml }} />
                           </>
                         )
                       })()}
                     </div>
                   </div>
                 )}
+
                 {p.key === 'standards' && (
                   <div className="g26-rubric">
                     {/* The Standards component's companion: criteria scored across
