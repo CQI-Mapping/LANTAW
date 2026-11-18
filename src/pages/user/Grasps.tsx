@@ -1565,11 +1565,10 @@ export default function Grasps() {
           aria-label="GRASPS task preview"
           onClick={() => setViewRow(null)}
         >
-          <div className="syl-reader__bar" onClick={(e) => e.stopPropagation()}>
-            <div className="syl-reader__title">
-              <h3>GRASPS Performance Task{viewRow.task_type.trim() ? ` for ${viewRow.task_type.trim()}` : ''}</h3>
-              <span>{[viewRow.code, viewRow.title].filter(Boolean).join(' — ') || 'GRASPS task'}</span>
-            </div>
+          <div className="syl-reader__bar g26-reader__bar" onClick={(e) => e.stopPropagation()}>
+            {/* No title here: this bar is dialog chrome, not part of the
+                paper - the sheet below is exactly what the Word file
+                prints, letterhead and all. */}
             <div className="syl-reader__actions">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => void exportRow(viewRow)}>
                 <Icon name="download" size={13} /> Download Word

@@ -10694,6 +10694,11 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   max-width: 816px; /* 8.5in at 96dpi - the sheet's real width */
 }
 
+/* The bar carries only the actions now - keep them right of the sheet. */
+.g26-reader__bar .syl-reader__actions {
+  margin-left: auto;
+}
+
 .g26-reader__page {
   background: #ffffff;
   color: #111111;
