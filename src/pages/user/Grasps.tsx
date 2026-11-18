@@ -129,6 +129,8 @@ const GRASPS_PARTS: Array<{
 
 type GraspsKey = (typeof GRASPS_PARTS)[number]['key']
 const PART_KEYS = GRASPS_PARTS.map((p) => p.key)
+/** True when the draft text carries at least one bullet line ("- item"). */
+const hasBulletLines = (text: string) => /(^|\n)\s*[-*•]\s+/.test(text)
 
 interface GraspsDraft {
   /** The saved row the editor currently holds, or null for a fresh draft. */
@@ -853,6 +855,36 @@ export default function Grasps() {
                   }}
                 />
                 <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
+                {hasBulletLines(draft[p.key]) && (
+                  <div className="g26-preview">
+                    <span className="g26-preview__tag">In the Word file</span>
+                    <div className="g26-preview__doc">
+                      {(() => {
+                        const lines = draft[p.key].split('\n').map((l) => l.trim()).filter((l) => l !== '')
+                        const labelAlone = lines[0].endsWith(':')
+                        const render = (l: string, i: number) => {
+                          const m = l.match(/^[-*•]\s+(.+)$/)
+                          return m ? (
+                            <p key={i} className="g26-preview__bullet">&bull; {m[1]}</p>
+                          ) : (
+                            <p key={i} className="g26-preview__line">{l}</p>
+                          )
+                        }
+                        return labelAlone ? (
+                          <>
+                            <p className="g26-preview__line"><strong>{p.label}:</strong></p>
+                            {lines.map(render)}
+                          </>
+                        ) : (
+                          <>
+                            <p className="g26-preview__line"><strong>{p.label}:</strong> {lines[0]}</p>
+                            {lines.slice(1).map(render)}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
                 {p.key === 'standards' && (
                   <div className="g26-rubric">
                     {/* The Standards component's companion: criteria scored across

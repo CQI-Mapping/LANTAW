@@ -10432,6 +10432,45 @@ html.lantaw-dark .clo26-hact--deleted {
   color: var(--text-muted);
 }
 
+/* The "In the Word file" preview under a component box: the draft's lines
+   laid out exactly as the export will print them - label, prose, and the
+   typed "- " lines as bullets - so the bullet pattern is visible while
+   typing. */
+.g26-preview {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.g26-preview__tag {
+  display: inline-block;
+  font: 700 9px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.g26-preview__doc {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.g26-preview__line {
+  margin: 0 0 3px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.g26-preview__bullet {
+  margin: 0 0 3px 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */
