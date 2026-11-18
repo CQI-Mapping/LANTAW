@@ -44,12 +44,9 @@ function SyField({ value, onChange }: { value: string; onChange: (v: string) => 
 
 interface CurriculumProps {
   userEmail: string
-  /** The checklist view is a manager-only feature (the Program Head reads
-   *  the imported subjects as the printed curriculum document). */
-  isManager?: boolean
 }
 
-function Curriculum({ userEmail, isManager = false }: CurriculumProps) {
+function Curriculum({ userEmail }: CurriculumProps) {
   const errMsg = (e: unknown) => {
     if (e instanceof Error) return e.message
     if (e && typeof e === 'object') {
@@ -86,9 +83,6 @@ function Curriculum({ userEmail, isManager = false }: CurriculumProps) {
   const [selectedId, select, clearSelection] = useSelection('cqi.selected.curriculumId')
   const [relatedCourses, setRelatedCourses] = useState<Course[]>([])
   const [relatedLoading, setRelatedLoading] = useState(false)
-  // Manager-only checklist view: the imported subjects rendered like the
-  // ICS curriculum checklist document.
-  const [view, setView] = useState<'records' | 'checklist'>('records')
 
   // Filtered lists
   const isActive = (i: Resource) => !i.status || i.status === 'active'
@@ -244,414 +238,285 @@ function Curriculum({ userEmail, isManager = false }: CurriculumProps) {
   return (
     <div className="resources">
       <div className="page-heading">
-        <div>
-          <h2>Curriculum</h2>
-          <p>Create, edit, and archive curriculum records.</p>
-        </div>
-        {isManager && (
-          <div className="clo26-viewtabs" role="tablist" aria-label="Curriculum view">
-            <button type="button" role="tab" aria-selected={view === 'records'}
-              className={`clo26-tab ${view === 'records' ? 'active' : ''}`} onClick={() => setView('records')}>
-              Records
-            </button>
-            <button type="button" role="tab" aria-selected={view === 'checklist'}
-              className={`clo26-tab ${view === 'checklist' ? 'active' : ''}`} onClick={() => setView('checklist')}>
-              Checklist
-            </button>
-          </div>
-        )}
+        <h2>Curriculum</h2>
+        <p>Create, edit, and archive curriculum records.</p>
       </div>
 
       {error && <p className="msg msg--error" role="alert">{error}</p>}
       {message && <p className="msg msg--success" role="status">{message}</p>}
 
-      {isManager && view === 'checklist' ? (
-        <CurriculumChecklist
-          items={items}
-          loading={loading}
-          selectedId={selectedId}
-          onSelect={select}
-          relatedCourses={relatedCourses}
-          relatedLoading={relatedLoading}
-        />
+      <form className="panel create-resource" onSubmit={handleCreate}>
+        <h3>New curriculum record</h3>
+        <label className="field">
+          <span>Curriculum code</span>
+          <input
+            className="input"
+            type="text"
+            placeholder="e.g. BSIT 2021-2022"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+          />
+        </label>
+        <SyField value={syStart} onChange={setSyStart} />
+        <label className="field">
+          <span>Curriculum description</span>
+          <textarea
+            className="input"
+            rows={3}
+            placeholder="Describe this curriculum record"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Total Units</span>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            placeholder="e.g. 3"
+            value={units}
+            onChange={(e) => setUnits(e.target.value)}
+          />
+        </label>
+        <div className="create-resource__submit">
+          <button className="btn btn--primary" type="submit" disabled={busy} aria-label="Add curriculum record" title="Add">
+            {busy ? 'Saving...' : (<Icon name="plus" size={14} />)}
+          </button>
+        </div>
+      </form>
+
+      {loading ? (
+        <p>Loading curriculum...</p>
       ) : (
-        <>
-          <form className="panel create-resource" onSubmit={handleCreate}>
-            <h3>New curriculum record</h3>
-            <label className="field">
-              <span>Curriculum code</span>
-              <input
-                className="input"
-                type="text"
-                placeholder="e.g. BSIT 2021-2022"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-              />
-            </label>
-            <SyField value={syStart} onChange={setSyStart} />
-            <label className="field">
-              <span>Curriculum description</span>
-              <textarea
-                className="input"
-                rows={3}
-                placeholder="Describe this curriculum record"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Total Units</span>
-              <input
-                className="input"
-                type="number"
-                min="0"
-                placeholder="e.g. 3"
-                value={units}
-                onChange={(e) => setUnits(e.target.value)}
-              />
-            </label>
-            <div className="create-resource__submit">
-              <button className="btn btn--primary" type="submit" disabled={busy} aria-label="Add curriculum record" title="Add">
-                {busy ? 'Saving...' : (<Icon name="plus" size={14} />)}
+        <div className="panel table-wrap">
+          <div className="program-toolbar">
+            <div className="sd-tabs" style={{ marginBottom: 0, flex: 1 }}>
+              <button className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(false)}>Active</button>
+              <button className={`sd-tab ${archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(true)}>
+                Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
               </button>
             </div>
-          </form>
-
-          {loading ? (
-            <p>Loading curriculum...</p>
-          ) : (
-            <div className="panel table-wrap">
-              <div className="program-toolbar">
-                <div className="sd-tabs" style={{ marginBottom: 0, flex: 1 }}>
-                  <button className={`sd-tab ${!archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(false)}>Active</button>
-                  <button className={`sd-tab ${archived ? 'sd-tab--active' : ''}`} onClick={() => setArchived(true)}>
-                    Archive {archivedCount > 0 && <span className="sd-tab__count">{archivedCount}</span>}
-                  </button>
-                </div>
-                <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-                <label className="program-search" aria-label="Search curriculum">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M20 20L15.5 15.5"/></svg>
-                  <input className="input input--sm" type="search" placeholder="Search curriculum..." value={query} onChange={(e) => setQuery(e.target.value)} />
-                </label>
+            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <label className="program-search" aria-label="Search curriculum">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M20 20L15.5 15.5"/></svg>
+              <input className="input input--sm" type="search" placeholder="Search curriculum..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            </label>
+          </div>
+          {viewMode === 'list' ? (
+          <div className="resource-list">
+            {visible.length === 0 && (
+              <div className="program-empty" style={{ marginTop: 14 }}>
+                <strong>No {archived ? 'archived' : 'active'} curriculum records yet.</strong>
+                <span>{query ? `No results for "${query}"` : 'Add your first curriculum record above.'}</span>
               </div>
-              {viewMode === 'list' ? (
-                <div className="resource-list">
-                  {visible.length === 0 && (
-                    <div className="program-empty" style={{ marginTop: 14 }}>
-                      <strong>No {archived ? 'archived' : 'active'} curriculum records yet.</strong>
-                      <span>{query ? `No results for "${query}"` : 'Add your first curriculum record above.'}</span>
-                    </div>
-                  )}
-                  {visible.map((item) => (
-                    <div
-                      className={`resource-card ${item.status === 'archived' ? 'resource-card--archived' : ''} ${selectedId === item.id ? 'resource-card--selected' : ''}`}
-                      key={item.id}
-                      onDoubleClick={() => select(item.id)}
-                      title="Double-click to view details"
-                    >
-                      {editingId === item.id ? (
-                        <div className="resource-card__edit">
-                          <label className="field">
-                            <span>Curriculum code</span>
-                            <input
-                              className="input"
-                              value={editCode}
-                              onChange={(e) => setEditCode(e.target.value)}
-                            />
-                          </label>
-                          <SyField value={editSyStart} onChange={setEditSyStart} />
-                          <label className="field">
-                            <span>Curriculum description</span>
-                            <textarea
-                              className="input"
-                              rows={3}
-                              value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
-                            />
-                          </label>
-                          <label className="field">
-                            <span>Total Units</span>
-                            <input
-                              className="input"
-                              type="number"
-                              min="0"
-                              value={editUnits}
-                              onChange={(e) => setEditUnits(e.target.value)}
-                            />
-                          </label>
-                          <div className="resource-card__actions">
-                            <button className="btn btn--primary btn--sm" onClick={() => handleSave(item.id)} disabled={busy} aria-label="Save changes" title="Save">
-                              <Icon name="check" size={13} />
-                            </button>
-                            <button className="btn btn--ghost btn--sm" onClick={cancelEdit} aria-label="Cancel" title="Cancel">
-                              <Icon name="x" size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="resource-card__body">
-                            <h4>{item.code || item.title}</h4>
-                            {item.description && <p>{item.description}</p>}
-                            <div className="resource-card__meta">
-                              <span className={`status-badge status-badge--${item.status}`}>{item.status}</span>
-                              {item.units != null && <span>{item.units} unit{item.units === 1 ? '' : 's'}</span>}
-                              {item.sy_start != null && <span>SY {item.sy_start}-{item.sy_start + 1}</span>}
-                              <span>by {(typeof item.created_by === 'object' && item.created_by?.full_name) || 'Unknown'}</span>
-                              <span>{new Date(item.created_at).toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          <div className="resource-card__actions">
-                            <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} aria-label={`Edit ${item.code || item.title}`} title="Edit">
-                              <Icon name="edit" size={13} />
-                            </button>
-                            <button
-                              className="btn btn--ghost btn--sm"
-                              onClick={() => handleToggleStatus(item)} aria-label={item.status === 'active' ? `Archive ${item.code || item.title}` : `Restore ${item.code || item.title}`} title={item.status === 'active' ? 'Archive' : 'Restore'}
-                            >
-                              <Icon name={item.status === 'active' ? 'archive' : 'restore'} size={13} />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="program-grid" style={{ marginTop: 0 }}>
-                  {visible.length === 0 && (
-                    <div className="program-empty" style={{ marginTop: 14 }}>
-                      <strong>No {archived ? 'archived' : 'active'} curriculum records yet.</strong>
-                      <span>{query ? `No results for "${query}"` : 'Add your first curriculum record above.'}</span>
-                    </div>
-                  )}
-                  {visible.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`program-card--2026 card-enter ${selectedId === item.id ? 'program-card--selected' : ''}`}
-                      data-status={isActive(item) ? 'active' : 'archived'}
-                      data-selected={selectedId === item.id ? 'true' : 'false'}
-                      onDoubleClick={() => select(item.id)}
-                      title="Double-click to view details"
-                    >
-                      {editingId === item.id ? (
-                        <div className="resource-card__edit">
-                          <label className="field">
-                            <span>Curriculum code</span>
-                            <input
-                              className="input"
-                              value={editCode}
-                              onChange={(e) => setEditCode(e.target.value)}
-                            />
-                          </label>
-                          <SyField value={editSyStart} onChange={setEditSyStart} />
-                          <label className="field">
-                            <span>Curriculum description</span>
-                            <textarea
-                              className="input"
-                              rows={3}
-                              value={editDescription}
-                              onChange={(e) => setEditDescription(e.target.value)}
-                            />
-                          </label>
-                          <label className="field">
-                            <span>Total Units</span>
-                            <input
-                              className="input"
-                              type="number"
-                              min="0"
-                              value={editUnits}
-                              onChange={(e) => setEditUnits(e.target.value)}
-                            />
-                          </label>
-                          <div className="resource-card__actions">
-                            <button className="btn btn--primary btn--sm" onClick={() => handleSave(item.id)} disabled={busy} aria-label="Save changes" title="Save">
-                              <Icon name="check" size={13} />
-                            </button>
-                            <button className="btn btn--ghost btn--sm" onClick={cancelEdit} aria-label="Cancel" title="Cancel">
-                              <Icon name="x" size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="program-card__top">
-                            <span className="program-card__code">{item.code || item.title}</span>
-                            <span className={`program-card__status ${isActive(item) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
-                              <span className="program-card__status-dot" />
-                              {isActive(item) ? 'Active' : 'Archived'}
-                            </span>
-                          </div>
-                          <h3 className="program-card__name">{item.code || item.title}</h3>
-                          {item.description && <p className="program-card__desc">{item.description}</p>}
-                          <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
-                            {item.units != null && <span>{item.units} unit{item.units === 1 ? '' : 's'}</span>}
-                            {item.sy_start != null && <span>SY {item.sy_start}-{item.sy_start + 1}</span>}
-                            <span>by {(typeof item.created_by === 'object' && item.created_by?.full_name) || 'Unknown'}</span>
-                            <span>{new Date(item.created_at).toLocaleString()}</span>
-                          </div>
-                          <div className="program-card__actions">
-                            <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} aria-label={`Edit ${item.code || item.title}`} title="Edit">
-                              <Icon name="edit" size={13} />
-                            </button>
-                            <button
-                              className="btn btn--ghost btn--sm"
-                              onClick={() => handleToggleStatus(item)} aria-label={item.status === 'active' ? `Archive ${item.code || item.title}` : `Restore ${item.code || item.title}`} title={item.status === 'active' ? 'Archive' : 'Restore'}
-                            >
-                              <Icon name={item.status === 'active' ? 'archive' : 'restore'} size={13} />
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="selection-details" aria-live="polite">
-                {selectedItem ? (
-                  <>
-                    <div className="selection-details__header">
-                      <div>
-                        <strong>Selected: {selectedItem.code || selectedItem.title}</strong>
-                        {selectedItem.description && <p>{selectedItem.description}</p>}
-                        <div className="resource-card__meta">
-                          <span className={`status-badge status-badge--${selectedItem.status}`}>{selectedItem.status}</span>
-                          {selectedItem.units != null && <span>{selectedItem.units} units</span>}
-                        </div>
-                      </div>
-                      <button className="btn btn--ghost btn--sm" onClick={clearSelection}>
-                        Selected
+            )}
+            {visible.map((item) => (
+              <div
+                className={`resource-card ${item.status === 'archived' ? 'resource-card--archived' : ''} ${selectedId === item.id ? 'resource-card--selected' : ''}`}
+                key={item.id}
+                onDoubleClick={() => select(item.id)}
+                title="Double-click to view details"
+              >
+                {editingId === item.id ? (
+                  <div className="resource-card__edit">
+                    <label className="field">
+                      <span>Curriculum code</span>
+                      <input
+                        className="input"
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value)}
+                      />
+                    </label>
+                    <SyField value={editSyStart} onChange={setEditSyStart} />
+                    <label className="field">
+                      <span>Curriculum description</span>
+                      <textarea
+                        className="input"
+                        rows={3}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Total Units</span>
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        value={editUnits}
+                        onChange={(e) => setEditUnits(e.target.value)}
+                      />
+                    </label>
+                    <div className="resource-card__actions">
+                      <button className="btn btn--primary btn--sm" onClick={() => handleSave(item.id)} disabled={busy} aria-label="Save changes" title="Save">
+                        <Icon name="check" size={13} />
+                      </button>
+                      <button className="btn btn--ghost btn--sm" onClick={cancelEdit} aria-label="Cancel" title="Cancel">
+                        <Icon name="x" size={13} />
                       </button>
                     </div>
-                    <div className="selection-details__body">
-                      {relatedLoading ? (
-                        <p>Loading linked courses...</p>
-                      ) : relatedCourses.length === 0 ? (
-                        <p>No courses linked to this curriculum yet.</p>
-                      ) : (
-                        <ul className="selection-details__list">
-                          {relatedCourses.map((c) => (
-                            <li key={c.id}>
-                              <strong>{c.code}</strong> — {c.title}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="resource-card__body">
+                      <h4>{item.code || item.title}</h4>
+                      {item.description && <p>{item.description}</p>}
+                      <div className="resource-card__meta">
+                        <span className={`status-badge status-badge--${item.status}`}>{item.status}</span>
+                        {item.units != null && <span>{item.units} unit{item.units === 1 ? '' : 's'}</span>}
+                        {item.sy_start != null && <span>SY {item.sy_start}-{item.sy_start + 1}</span>}
+                        <span>by {(typeof item.created_by === 'object' && item.created_by?.full_name) || 'Unknown'}</span>
+                        <span>{new Date(item.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    <div className="resource-card__actions">
+                      <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} aria-label={`Edit ${item.code || item.title}`} title="Edit">
+                        <Icon name="edit" size={13} />
+                      </button>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => handleToggleStatus(item)} aria-label={item.status === 'active' ? `Archive ${item.code || item.title}` : `Restore ${item.code || item.title}`} title={item.status === 'active' ? 'Archive' : 'Restore'}
+                      >
+                        <Icon name={item.status === 'active' ? 'archive' : 'restore'} size={13} />
+                      </button>
                     </div>
                   </>
-                ) : (
-                  <p className="selection-details__empty">Select a curriculum to see its details and linked courses.</p>
                 )}
               </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-
-/** The manager-only checklist view: the selected curriculum's subjects
- *  rendered like the ICS curriculum checklist document — Year Level
- *  sections, two semester tables side by side (the midyear tables are
- *  single), black header rows with white type. */
-function CurriculumChecklist(props: {
-  items: Resource[]
-  loading: boolean
-  selectedId: string | null
-  onSelect: (id: string) => void
-  relatedCourses: Course[]
-  relatedLoading: boolean
-}) {
-  const isActive = (i: Resource) => !i.status || i.status === 'active'
-  const options = props.items.filter(isActive)
-  const selectedItem = options.find((i) => i.id === props.selectedId) ?? null
-
-  return (
-    <div className="panel table-wrap cur-checklist">
-      <div className="cur-checklist__bar">
-        <label className="field" style={{ marginBottom: 0 }}>
-          <span>Curriculum</span>
-          <select className="input input--sm" value={props.selectedId ?? ''}
-            onChange={(e) => props.onSelect(e.target.value)}>
-            <option value="">Select a curriculum</option>
-            {options.map((i) => (
-              <option key={i.id} value={i.id}>{i.code || i.title}</option>
             ))}
-          </select>
-        </label>
-        <p style={{ margin: 0, fontSize: 11.5, color: 'var(--text-muted)' }}>
-          The imported subjects rendered as the curriculum checklist document.
-        </p>
-      </div>
-      {!selectedItem ? (
-        <div className="clo26-empty" style={{ margin: 14 }}>
-          Select a curriculum above to read it as the checklist.
-        </div>
-      ) : props.relatedLoading ? (
-        <p style={{ padding: 14 }}>Loading subjects…</p>
-      ) : (
-        <div className="cur-checklist__doc">
-          <h3 className="cur-checklist__title">{selectedItem.code || selectedItem.title}</h3>
-          {props.relatedCourses.length === 0 && (
-            <div className="clo26-empty">
-              No subjects linked to this curriculum yet — import the checklist on the Course page.
-            </div>
-          )}
-          {[1, 2, 3, 4].map((year) => {
-            const yearCourses = props.relatedCourses.filter((c) => String(c.year_level ?? '') === String(year))
-            if (yearCourses.length === 0) return null
-            const bySem = (sem: number) => yearCourses.filter((c) => String(c.semester ?? '1') === String(sem))
-            const sem1 = bySem(1)
-            const sem2 = bySem(2)
-            const sem3 = bySem(3)
-            const midyear = sem3.length > 0
-            return (
-              <div key={year} className="cur-checklist__year">
-                <p className="cur-checklist__yearlabel">
-                  Year Level{' '}
-                  <b>{['FIRST', 'SECOND', 'THIRD', 'FOURTH'][year - 1]}{midyear ? ' · Midyear' : ''}</b>
-                </p>
-                <div className={`cur-checklist__tables${sem2.length === 0 ? ' single' : ''}`}>
-                  {sem1.length > 0 && <ChecklistTable title="First Semester" courses={sem1} />}
-                  {sem2.length > 0 && <ChecklistTable title="Second Semester" courses={sem2} />}
-                  {midyear && sem3.length > 0 && <ChecklistTable title="Midyear" courses={sem3} />}
-                </div>
+          </div>
+          ) : (
+          <div className="program-grid" style={{ marginTop: 0 }}>
+            {visible.length === 0 && (
+              <div className="program-empty" style={{ marginTop: 14 }}>
+                <strong>No {archived ? 'archived' : 'active'} curriculum records yet.</strong>
+                <span>{query ? `No results for "${query}"` : 'Add your first curriculum record above.'}</span>
               </div>
-            )
-          })}
+            )}
+            {visible.map((item) => (
+              <div
+                key={item.id}
+                className={`program-card--2026 card-enter ${selectedId === item.id ? 'program-card--selected' : ''}`}
+                data-status={isActive(item) ? 'active' : 'archived'}
+                data-selected={selectedId === item.id ? 'true' : 'false'}
+                onDoubleClick={() => select(item.id)}
+                title="Double-click to view details"
+              >
+                {editingId === item.id ? (
+                  <div className="resource-card__edit">
+                    <label className="field">
+                      <span>Curriculum code</span>
+                      <input
+                        className="input"
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value)}
+                      />
+                    </label>
+                    <SyField value={editSyStart} onChange={setEditSyStart} />
+                    <label className="field">
+                      <span>Curriculum description</span>
+                      <textarea
+                        className="input"
+                        rows={3}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Total Units</span>
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        value={editUnits}
+                        onChange={(e) => setEditUnits(e.target.value)}
+                      />
+                    </label>
+                    <div className="resource-card__actions">
+                      <button className="btn btn--primary btn--sm" onClick={() => handleSave(item.id)} disabled={busy} aria-label="Save changes" title="Save">
+                        <Icon name="check" size={13} />
+                      </button>
+                      <button className="btn btn--ghost btn--sm" onClick={cancelEdit} aria-label="Cancel" title="Cancel">
+                        <Icon name="x" size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="program-card__top">
+                      <span className="program-card__code">{item.code || item.title}</span>
+                      <span className={`program-card__status ${isActive(item) ? 'program-card__status--active' : 'program-card__status--archived'}`}>
+                        <span className="program-card__status-dot" />
+                        {isActive(item) ? 'Active' : 'Archived'}
+                      </span>
+                    </div>
+                    <h3 className="program-card__name">{item.code || item.title}</h3>
+                    {item.description && <p className="program-card__desc">{item.description}</p>}
+                    <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+                      {item.units != null && <span>{item.units} unit{item.units === 1 ? '' : 's'}</span>}
+                      {item.sy_start != null && <span>SY {item.sy_start}-{item.sy_start + 1}</span>}
+                      <span>by {(typeof item.created_by === 'object' && item.created_by?.full_name) || 'Unknown'}</span>
+                      <span>{new Date(item.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="program-card__actions">
+                      <button className="btn btn--ghost btn--sm" onClick={() => startEdit(item)} aria-label={`Edit ${item.code || item.title}`} title="Edit">
+                        <Icon name="edit" size={13} />
+                      </button>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => handleToggleStatus(item)} aria-label={item.status === 'active' ? `Archive ${item.code || item.title}` : `Restore ${item.code || item.title}`} title={item.status === 'active' ? 'Archive' : 'Restore'}
+                      >
+                        <Icon name={item.status === 'active' ? 'archive' : 'restore'} size={13} />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          )}
+          <div className="selection-details" aria-live="polite">
+            {selectedItem ? (
+              <>
+                <div className="selection-details__header">
+                  <div>
+                    <strong>Selected: {selectedItem.code || selectedItem.title}</strong>
+                    {selectedItem.description && <p>{selectedItem.description}</p>}
+                    <div className="resource-card__meta">
+                      <span className={`status-badge status-badge--${selectedItem.status}`}>{selectedItem.status}</span>
+                      {selectedItem.units != null && <span>{selectedItem.units} units</span>}
+                    </div>
+                  </div>
+                  <button className="btn btn--ghost btn--sm" onClick={clearSelection}>
+                    Selected
+                  </button>
+                </div>
+                <div className="selection-details__body">
+                  {relatedLoading ? (
+                    <p>Loading linked courses...</p>
+                  ) : relatedCourses.length === 0 ? (
+                    <p>No courses linked to this curriculum yet.</p>
+                  ) : (
+                    <ul className="selection-details__list">
+                      {relatedCourses.map((c) => (
+                        <li key={c.id}>
+                          <strong>{c.code}</strong> — {c.title}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="selection-details__empty">Select a curriculum to see its details and linked courses.</p>
+            )}
+          </div>
         </div>
       )}
     </div>
-  )
-}
-
-function ChecklistTable({ title, courses }: { title: string; courses: Course[] }) {
-  const sorted = [...courses].sort((a, b) =>
-    a.code.replace(/\d+/g, (d) => d.padStart(3, '0')).localeCompare(
-      b.code.replace(/\d+/g, (d) => d.padStart(3, '0')),
-    ),
-  )
-  return (
-    <table className="cur-checklist__table">
-      <thead>
-        <tr><th colSpan={4} className="cur-checklist__sem">{title}</th></tr>
-        <tr><th>CODE</th><th>Course Description</th><th>Units</th><th>Pre-Req</th></tr>
-      </thead>
-      <tbody>
-        {sorted.map((c) => (
-          <tr key={c.id}>
-            <td className="cur-checklist__code">{c.code}</td>
-            <td>{c.title}</td>
-            <td className="cur-checklist__units">{c.units ?? ''}</td>
-            <td>{c.prerequisite || 'None'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   )
 }
 
