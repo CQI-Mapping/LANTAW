@@ -33,6 +33,35 @@ const BULLET_LISTS: Array<{ id: string; glyph: string }> = [
 const NAVY = '002060'
 const SZ = 22 // half-points -> 11pt (the GRASPS model format)
 
+/** Reconnects sentence fragments an old paste left on separate lines -
+ *  a legacy draft's soft-wrap artifacts ("Part 1: Sketch" / "Wireframes").
+ *  Strong signals only: a trailing space, a next line starting lowercase,
+ *  or a short heading-like line containing ':' ("Part 3: Design"). Real
+ *  breaks - list items, numbered lines, lines ending in punctuation - are
+ *  left alone. Applied on every read/export, so even an old draft prints
+ *  whole sentences, and the editor's next emit self-heals the draft. */
+function repairWrappedLines(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  const isList = (s: string) => /^\s*(?:[-*•–]\s+|\d+[.)]\s+)/.test(s)
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1]
+      if (!next.trim() || isList(next)) break
+      if (/[.!?:;,]$/.test(line.trimEnd())) break
+      const trailingSpace = /\s$/.test(line)
+      const lowercaseNext = /^[a-z]/.test(next.trim())
+      const headingFragment = line.includes(':') && line.trim().length < 40
+      if (!(trailingSpace || lowercaseNext || headingFragment)) break
+      line = line.trimEnd() + ' ' + next.trim()
+      i += 1
+    }
+    out.push(line)
+  }
+  return out.join('\n')
+}
+
 export interface GraspsDocxData {
   program: string
   course: string
@@ -152,7 +181,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     return m ? `${m[1].trim()}: ${m[2].trim()}` : data.course
   })()
   const termLine = data.term.includes(',')
-    ? data.term.replace(/,/, ', S.Y.: ')
+    ? data.term.replace(/,/, ', S.Y.: ').replace(/S\.Y\.:\s+/, 'S.Y.: ')
     : data.term
 
   children.push(
@@ -227,7 +256,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
 
   parts.forEach((c) => {
     prevNumbered = false
-    const lines = c.value.split('\n').map((l) => l.trim()).filter((l) => l !== '')
+    const lines = repairWrappedLines(c.value).split('\n').map((l) => l.trim()).filter((l) => l !== '')
     const labelPara = (firstInline: boolean) =>
       new Paragraph({
         alignment: JUSTIFIED,

@@ -150,6 +150,35 @@ const hasBulletLines = (text: string) =>
 // jumps), and every input serializes back through the same grammar.
 // ---------------------------------------------------------------------------
 
+/** Reconnects sentence fragments an old paste left on separate lines -
+ *  a legacy draft's soft-wrap artifacts ("Part 1: Sketch" / "Wireframes").
+ *  Strong signals only: a trailing space, a next line starting lowercase,
+ *  or a short heading-like line containing ':' ("Part 3: Design"). Real
+ *  breaks - list items, numbered lines, lines ending in punctuation - are
+ *  left alone. Applied on every read/export, so even an old draft prints
+ *  whole sentences, and the editor's next emit self-heals the draft. */
+function repairWrappedLines(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  const isList = (s: string) => /^\s*(?:[-*•–]\s+|\d+[.)]\s+)/.test(s)
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1]
+      if (!next.trim() || isList(next)) break
+      if (/[.!?:;,]$/.test(line.trimEnd())) break
+      const trailingSpace = /\s$/.test(line)
+      const lowercaseNext = /^[a-z]/.test(next.trim())
+      const headingFragment = line.includes(':') && line.trim().length < 40
+      if (!(trailingSpace || lowercaseNext || headingFragment)) break
+      line = line.trimEnd() + ' ' + next.trim()
+      i += 1
+    }
+    out.push(line)
+  }
+  return out.join('\n')
+}
+
 /** Marker text -> editor HTML: bullet and numbered lines become real
  *  lists, the inline markers become their tags, everything is escaped. */
 function markersToHtml(text: string): string {
@@ -172,7 +201,7 @@ function markersToHtml(text: string): string {
       list = null
     }
   }
-  for (const raw of text.split('\n')) {
+  for (const raw of repairWrappedLines(text).split('\n')) {
     const line = raw.trim()
     if (line === '') {
       flush()
@@ -1564,7 +1593,9 @@ export default function Grasps() {
                 <p className="g26-reader__center">
                   {(() => {
                     const term = viewRow.term || composeTerm(viewRow.semester ?? '', viewRow.school_year ?? '')
-                    return term.includes(',') ? term.replace(/,/, ', S.Y.: ') : term
+                    return term.includes(',')
+                      ? term.replace(/,/, ', S.Y.: ').replace(/S\.Y\.:\s+/, 'S.Y.: ')
+                      : term
                   })()}
                 </p>
                 <p className="g26-reader__center g26-reader__strong">{viewRow.task_type || 'GRASPS'}</p>
