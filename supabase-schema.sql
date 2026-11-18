@@ -489,15 +489,23 @@ CREATE POLICY "Admins can delete resources" ON public.resources FOR DELETE
     USING (public.current_user_role() = 'admin');
 
 -- PROGRAMS
-CREATE POLICY "Authenticated users can read programs" ON public.programs FOR SELECT
-    USING (auth.role() = 'authenticated');
+-- A manager sees only their assigned program and cannot create/edit
+-- programs (036); admins and faculty keep the full read.
+CREATE POLICY "Managers read only their assigned program" ON public.programs FOR SELECT
+    USING (
+        public.current_user_role() IN ('admin', 'user')
+        OR (
+            public.current_user_role() = 'manager'
+            AND id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
-CREATE POLICY "Managers and admins can create programs" ON public.programs FOR INSERT
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins can create programs" ON public.programs FOR INSERT
+    WITH CHECK (public.current_user_role() = 'admin');
 
-CREATE POLICY "Managers and admins can update programs" ON public.programs FOR UPDATE
-    USING (public.current_user_role() IN ('admin', 'manager'))
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins can update programs" ON public.programs FOR UPDATE
+    USING (public.current_user_role() = 'admin')
+    WITH CHECK (public.current_user_role() = 'admin');
 
 CREATE POLICY "Admins can delete programs" ON public.programs FOR DELETE
     USING (public.current_user_role() = 'admin');

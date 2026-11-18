@@ -19,6 +19,7 @@ import {
   fetchCourses,
   fetchResources,
 } from '../services/database'
+import { visiblePrograms } from '../utils/programScope'
 import type { Program, Course, Resource, UserRole } from '../services/database'
 import { normalizeCode, standingPrereqYear, everythingTakenPrereq } from '../utils/courseCodes'
 import { CURRENT_SY_START, labelSchoolYearStart } from '../utils/schoolYear'
@@ -118,7 +119,7 @@ function MapPreview({ profile, onNavigate }: MapPreviewProps) {
     setError(null)
     Promise.all([fetchPrograms(), fetchCourses(), fetchResources()])
       .then(([p, c, r]) => {
-        setPrograms(p)
+        setPrograms(visiblePrograms(p, profile))
         setCourses(c)
         setCurricula(r)
         setFocusId(null)

@@ -678,7 +678,7 @@ function App() {
     if (page === 'dashboard') return <Page profile={profile} onNavigate={navigate} />
     if (page === 'profile') return <Page profile={profile} onSaved={setProfile} onNavigate={navigate} />
     if (page === 'users') return <Page profile={profile} />
-    if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} />
+    if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} profile={profile} />
     if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} />
     if (page === 'view') {
       // One shared page, one banner wording: every sidebar that opens it names
@@ -686,7 +686,7 @@ function App() {
       // banner matches its nav item instead of the page's file-level default.
       // (The faculty nav has no 'view' item, so the gating above never routes
       // them here.)
-      return <Page userEmail={profile?.email} title="View Syllabus" />
+      return <Page userEmail={profile?.email} title="View Syllabus" profile={profile} />
     }
     // The log page filters by role, and which roles it may offer depends on
     // the viewer: RLS hides admin-authored rows from managers (migration 003),

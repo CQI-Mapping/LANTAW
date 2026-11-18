@@ -33,6 +33,7 @@ import { normalizeCode, cloMatchesSubject } from '../../utils/courseCodes'
 import { courseProgramId } from '../../utils/alignment'
 import { isActive, buildGroups, splitReportPos, poNumber } from '../../utils/report'
 import SyllabusReport from '../../components/SyllabusReport'
+import { visiblePrograms } from '../../utils/programScope'
 import Icon from '../../components/icons'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
 import { reportFileName } from '../../utils/download'
@@ -45,7 +46,7 @@ interface ViewProps {
   title?: string
 }
 
-function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
+function View({ userEmail, title = 'Curriculum Report', profile }: ViewProps & { profile?: { role?: string | null; program_id?: string | null } | null }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -108,7 +109,7 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
       setClos(clo)
       setCourses(c)
       setCmos(cmo)
-      setPrograms(progs)
+      setPrograms(visiblePrograms(progs, profile))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load curriculum map data.')
     } finally {

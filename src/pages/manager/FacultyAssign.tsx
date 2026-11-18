@@ -9,6 +9,7 @@
 // subjects belong to programs, and the counts answer "how many here".
 
 import { useState, useEffect, useCallback } from 'react'
+import { visiblePrograms } from '../../utils/programScope'
 import Icon from '../../components/icons'
 import SubjectMultiAssign from '../../components/SubjectMultiAssign'
 import {
@@ -87,7 +88,8 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
     setError('')
     try {
       const [p, c, profiles] = await Promise.all([fetchPrograms(), fetchCourses(), fetchAllProfiles()])
-      setPrograms(p)
+      const scoped = visiblePrograms(p, profile)
+      setPrograms(scoped)
       setCourses(c)
       setFaculty(profiles.filter((pr) => pr.role === 'user' && pr.status !== 'archived'))
       setProgramId((prev) => {
@@ -96,7 +98,7 @@ export default function AssignFaculty({ profile }: FacultyAssignProps) {
         // program — the same courtesy MapBrief and Reports extend — else the
         // first program on file.
         const mine = profile?.program_id ? p.find((x) => x.id === profile.program_id) : null
-        return mine ? mine.id : (p[0]?.id ?? '')
+        return mine ? mine.id : (scoped[0]?.id ?? '')
       })
     } catch (e) {
       setError('Unable to load the assignment data: ' + errMsg(e))

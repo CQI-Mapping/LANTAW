@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useDraft } from '../../hooks/useDraft'
+import { visiblePrograms } from '../../utils/programScope'
 import Icon from '../../components/icons'
 import { normalizeCode } from '../../utils/courseCodes'
 import {
@@ -51,7 +52,7 @@ const termLabelOf = (c: Pick<Course, 'year_level' | 'semester'>): string => {
 }
 
 interface CourseProps {
-  profile?: { email?: string | null } | null
+  profile?: { email?: string | null; role?: string | null; program_id?: string | null } | null
 }
 
 type CourseForm = {
@@ -241,7 +242,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
     setError('')
     try {
       const [p, res, c] = await Promise.all([fetchPrograms(), fetchResources(), fetchCourses()])
-      setPrograms(p)
+      const scoped = visiblePrograms(p, profile)
+      setPrograms(scoped)
       // Arrange curriculum options by number (natural order: 1, 2, … 10)
       setCurriculums(
         res
@@ -257,7 +259,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
       setCourses(c)
       setProgramId((prev) => {
         if (prev && p.some((x) => x.id === prev)) return prev
-        return p[0]?.id ?? ''
+        return scoped[0]?.id ?? ''
       })
     } catch (e) {
       setError('Unable to load courses: ' + errMsg(e))
