@@ -1581,7 +1581,18 @@ export default function Grasps() {
           <div className="syl-reader__scroll">
             <div className={`syl-reader__doc g26-reader g26-rich--bullet-${viewRow.bullet_style ?? 'disc'}`}>
               <div className="g26-reader__page">
-                <img className="g26-reader__letterhead" src={LETTERHEAD_URL} alt="Letterhead" />
+                {/* The official form header, matching the Word file's band:
+                    the college seal, the centred address and motto, and the
+                    double rule that closes the band in the model form. */}
+                <div className="g26-reader__band">
+                  <img className="g26-reader__seal" src="/nbsc-seal.jpg" alt="NBSC seal" />
+                  <div className="g26-reader__address">
+                    <p>Republic of the Philippines</p>
+                    <p className="g26-reader__strong g26-reader__college">NORTHERN BUKIDNON STATE COLLEGE</p>
+                    <p>Manolo Fortich, 8703 Bukidnon</p>
+                    <p className="g26-reader__motto">Creando Futura, Transformationis Vitae, Ductae a Deo</p>
+                  </div>
+                </div>
                 <p className="g26-reader__center">Institute for Computer Studies</p>
                 <p className="g26-reader__center g26-reader__strong">
                   {(() => {

@@ -10709,10 +10709,46 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: justify;
 }
 
-.g26-reader__letterhead {
-  display: block;
-  width: 100%;
-  height: auto;
+/* The GRASPS reader's form header band - the same seal, centred address,
+   Latin motto and closing double rule the Word file prints, so the
+   preview's header matches the download exactly. */
+.g26-reader__band {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 3px double #000000;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.g26-reader__seal {
+  width: 64px;
+  height: 84px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.g26-reader__address {
+  flex: 1;
+  text-align: center;
+  font-family: 'Times New Roman', Times, serif;
+}
+
+.g26-reader__address p {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.g26-reader__college {
+  font-size: 14pt;
+}
+
+.g26-reader__motto {
+  color: #bf8f00;
+  font-family: 'Regards Script', 'Segoe Script', cursive;
+  font-style: italic;
+  font-size: 8pt;
+  margin-top: 4px;
 }
 
 .g26-reader__center {

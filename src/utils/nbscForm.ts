@@ -67,6 +67,9 @@ export async function buildFormChrome(
   // model form's rules are hairline strokes; 1.5pt (size 12 in eighths) reads
   // the same on paper.
   const RULE = { style: BorderStyle.SINGLE, size: 12, color: '000000' }
+  // The model form closes its header band with a double rule; its
+  // footer keeps the thin single rule.
+  const HEADER_RULE = { style: BorderStyle.DOUBLE, size: 6, color: '000000' }
   const NO_BORDER = { style: BorderStyle.NIL }
   // Borderless cells carry the band; the rule is one border on the shared
   // edge (the header cells' bottom, the footer cells' top).
@@ -109,14 +112,14 @@ export async function buildFormChrome(
             children: [
               new TableCell({
                 width: pct(14),
-                borders: { ...CLEAR, bottom: RULE },
+                borders: { ...CLEAR, bottom: HEADER_RULE },
                 verticalAlign: VerticalAlign.TOP,
                 margins: { top: 0, bottom: 80, left: 0, right: 0 },
                 children: [new Paragraph({ children: image(seal, IMAGES.seal) })],
               }),
               new TableCell({
                 width: pct(86),
-                borders: { ...CLEAR, bottom: RULE },
+                borders: { ...CLEAR, bottom: HEADER_RULE },
                 verticalAlign: VerticalAlign.TOP,
                 margins: { top: 0, bottom: 80, left: 0, right: 0 },
                 children: [
