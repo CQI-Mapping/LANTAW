@@ -157,6 +157,7 @@ function markersToHtml(text: string): string {
   const inline = (s: string) =>
     escape(s)
       .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/__(.+?)__/g, '<i>$1</i>')
       .replace(/_(.+?)_/g, '<i>$1</i>')
       .replace(/\+\+(.+?)\+\+/g, '<u>$1</u>')
   const out: string[] = []
@@ -939,13 +940,15 @@ export default function Grasps() {
   const draftFilled = PART_KEYS.filter((k) => draft[k].trim() !== '').length
   const pct = Math.round((draftFilled / PART_KEYS.length) * 100)
   const activeCount = rows.filter((r) => r.status !== 'archived').length
-  // The rubric's live total: rows holding a number sum toward the title;
-  // a text value (a range like "18-20") is printed as written, and the
-  // heading drops its total rather than pretending to a number it
-  // cannot honor.
+  // The rubric's live total reads the first number of each entry, so a
+  // typed "/20" or "20" both count as 20.
   const rubricScored = draft.rubric.filter((r) => r.points !== null && String(r.points).trim() !== '')
-  const rubricAllNumeric = rubricScored.every((r) => Number.isFinite(Number(String(r.points).trim())))
-  const rubricTotal = rubricScored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
+  const rubricNumbers = rubricScored.map((r) => {
+    const m = String(r.points).match(/\d+(?:\.\d+)?/)
+    return m ? Number(m[0]) : null
+  })
+  const rubricAllNumeric = rubricNumbers.every((n) => n !== null)
+  const rubricTotal = rubricNumbers.reduce<number>((s, n) => s + (n ?? 0), 0)
 
   return (
     <div className="programs-page curriculum-view grasps26-page">
@@ -1591,9 +1594,24 @@ export default function Grasps() {
                       || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
                   )
                   if (rows.length === 0) return null
+                  const rubricNumber = (v: unknown): number | null => {
+                    const m = String(v ?? '').match(/\d+(?:\.\d+)?/)
+                    return m ? Number(m[0]) : null
+                  }
+                  const rubricCriterion = (r: GraspsRubricRow) => {
+                    const name = r.criteria.trim()
+                    return /\(.*?points\)\s*$/i.test(name) || r.points == null
+                      ? name
+                      : `${name} (${r.points} points)`
+                  }
+                  const rubricPointsCell = (v: unknown) => {
+                    const s = String(v).trim()
+                    return s.startsWith('/') ? s : `/${s}`
+                  }
                   const scored = rows.filter((r) => r.points !== null && String(r.points).trim() !== '')
-                  const allNumeric = scored.every((r) => Number.isFinite(Number(String(r.points).trim())))
-                  const total = scored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
+                  const numbers = scored.map((r) => rubricNumber(r.points))
+                  const allNumeric = numbers.every((n) => n !== null)
+                  const total = numbers.reduce<number>((s, n) => s + (n ?? 0), 0)
                   return (
                     <div className="g26-reader__rubric">
                       <p className="g26-reader__heading">{allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'}</p>
@@ -1611,12 +1629,12 @@ export default function Grasps() {
                         <tbody>
                           {rows.map((r, i) => (
                             <tr key={i}>
-                              <td><strong>{r.criteria.trim()}{r.points != null ? ` (${r.points} points)` : ''}</strong></td>
+                              <td><strong>{rubricCriterion(r)}</strong></td>
                               <td>{r.excellent.trim() || '—'}</td>
                               <td>{r.proficient.trim() || '—'}</td>
                               <td>{r.developing.trim() || '—'}</td>
                               <td>{r.beginning.trim() || '—'}</td>
-                              <td style={{ textAlign: 'right' }}>{r.points != null ? `/${r.points}` : '—'}</td>
+                              <td style={{ textAlign: 'right' }}>{r.points != null ? rubricPointsCell(r.points) : '—'}</td>
                             </tr>
                           ))}
                         </tbody>

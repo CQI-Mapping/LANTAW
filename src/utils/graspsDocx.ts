@@ -120,15 +120,18 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // anything outside the markers keeps the caller's base style. The walk
   // is flat — no nested markers — which is all the document needs.
   const runsOf = (text: string, o: { bold?: boolean; italics?: boolean; underline?: boolean } = {}) => {
-    const re = /\*\*(.+?)\*\*|_(.+?)_|\+\+(.+?)\+\+/g
+    // The doubled-underscore form is tolerated: a nested italic wrap
+    // serializes as __text__, and the grammar reads it the same as _text_.
+    const re = /\*\*(.+?)\*\*|\+\+(.+?)\+\+|__(.+?)__|_(.+?)_/g
     const out: ReturnType<typeof run>[] = []
     let last = 0
     let m: RegExpExecArray | null
     while ((m = re.exec(text)) !== null) {
       if (m.index > last) out.push(run(text.slice(last, m.index), o))
       if (m[1] !== undefined) out.push(run(m[1], { ...o, bold: true }))
-      else if (m[2] !== undefined) out.push(run(m[2], { ...o, italics: true }))
-      else if (m[3] !== undefined) out.push(run(m[3], { ...o, underline: true }))
+      else if (m[2] !== undefined) out.push(run(m[2], { ...o, underline: true }))
+      else if (m[3] !== undefined) out.push(run(m[3], { ...o, italics: true }))
+      else if (m[4] !== undefined) out.push(run(m[4], { ...o, italics: true }))
       last = m.index + m[0].length
     }
     if (last < text.length) out.push(run(text.slice(last), o))
@@ -281,9 +284,29 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
   )
   if (rubricRows.length) {
+    // The criterion's points note is appended only when the typed name
+    // does not already carry one - a pasted "Sketch Wireframes (20
+    // points)" never prints the note twice. The Points cell normalizes a
+    // typed "/20" (the slash is the column's own), and the heading's
+    // total reads the first number of each entry, so "/20" counts as 20.
+    const rubricNumber = (v: unknown): number | null => {
+      const m = String(v ?? '').match(/\d+(?:\.\d+)?/)
+      return m ? Number(m[0]) : null
+    }
+    const rubricCriterion = (r: GraspsRubricRow) => {
+      const name = r.criteria.trim()
+      return /\(.*?points\)\s*$/i.test(name) || r.points == null
+        ? name
+        : `${name} (${r.points} points)`
+    }
+    const rubricPointsCell = (v: unknown) => {
+      const s = String(v).trim()
+      return s.startsWith('/') ? s : `/${s}`
+    }
     const scored = rubricRows.filter((r) => r.points !== null && String(r.points).trim() !== '')
-    const allNumeric = scored.every((r) => Number.isFinite(Number(String(r.points).trim())))
-    const total = scored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
+    const numbers = scored.map((r) => rubricNumber(r.points))
+    const allNumeric = numbers.every((n) => n !== null)
+    const total = numbers.reduce<number>((s, n) => s + (n ?? 0), 0)
     children.push(
       para(allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'),
       new Paragraph({ spacing: { after: 80 }, children: [] }),
@@ -305,14 +328,14 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
             new TableRow({
               children: [
                 cell(
-                  [para(`${r.criteria.trim()}${r.points != null ? ` (${r.points} points)` : ''}`, { bold: true })],
+                  [para(rubricCriterion(r), { bold: true })],
                   18,
                 ),
                 cell([para(r.excellent.trim() || '—')], 19),
                 cell([para(r.proficient.trim() || '—')], 19),
                 cell([para(r.developing.trim() || '—')], 19),
                 cell([para(r.beginning.trim() || '—')], 19),
-                cell([para(r.points != null ? `/${r.points}` : '—', { align: CENTER })], 6),
+                cell([para(r.points != null ? rubricPointsCell(r.points) : '—', { align: CENTER })], 6),
               ],
             }),
           ),
