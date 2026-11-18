@@ -129,8 +129,10 @@ const GRASPS_PARTS: Array<{
 
 type GraspsKey = (typeof GRASPS_PARTS)[number]['key']
 const PART_KEYS = GRASPS_PARTS.map((p) => p.key)
-/** True when the draft text carries at least one bullet line ("- item"). */
-const hasBulletLines = (text: string) => /(^|\n)\s*[-*•]\s+/.test(text)
+/** True when the draft text carries rich lines — a bullet ("- item") or an
+ *  inline bold ("**text**") — so the live preview has something to show. */
+const hasBulletLines = (text: string) =>
+  /(^|\n)\s*[-*•]\s+/.test(text) || text.includes('**')
 
 interface GraspsDraft {
   /** The saved row the editor currently holds, or null for a fresh draft. */
@@ -816,10 +818,12 @@ export default function Grasps() {
             <span className="g26-kicker">The six components</span>
             <h3>Build your performance task</h3>
             <p>
-              Complete each section to create a meaningful real-world learning experience.
-              For list items, start a line with{' '}
+              Complete each section to create a meaningful real-world learning experience. For list items,
+              start a line with{' '}
               <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>-&nbsp;</code>{' '}
-              and the Word download renders it as a bullet point.
+              and the Word download renders it as a bullet point. Wrap text in{' '}
+              <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>**bold**</code>{' '}
+              and it prints bold.
             </p>
           </div>
           <div className="g26-progress">
@@ -862,12 +866,16 @@ export default function Grasps() {
                       {(() => {
                         const lines = draft[p.key].split('\n').map((l) => l.trim()).filter((l) => l !== '')
                         const labelAlone = lines[0].endsWith(':')
+                        const boldRuns = (s: string) =>
+                          s
+                            .split(/\*\*(.+?)\*\*/g)
+                            .map((seg, j) => (j % 2 === 1 ? <strong key={j}>{seg}</strong> : <span key={j}>{seg}</span>))
                         const render = (l: string, i: number) => {
                           const m = l.match(/^[-*•]\s+(.+)$/)
                           return m ? (
-                            <p key={i} className="g26-preview__bullet">&bull; {m[1]}</p>
+                            <p key={i} className="g26-preview__bullet">&bull; {boldRuns(m[1])}</p>
                           ) : (
-                            <p key={i} className="g26-preview__line">{l}</p>
+                            <p key={i} className="g26-preview__line">{boldRuns(l)}</p>
                           )
                         }
                         return labelAlone ? (
@@ -877,7 +885,7 @@ export default function Grasps() {
                           </>
                         ) : (
                           <>
-                            <p className="g26-preview__line"><strong>{p.label}:</strong> {lines[0]}</p>
+                            <p className="g26-preview__line"><strong>{p.label}:</strong> {boldRuns(lines[0])}</p>
                             {lines.slice(1).map(render)}
                           </>
                         )

@@ -94,6 +94,17 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       children: [run(text, o)],
     })
 
+  // Inline bold: "**Part 1: Sketch Wireframes**" prints its middle bold.
+  // Splitting on the marker pair yields plain/bold alternating segments —
+  // odd indexes are the bold ones — and empty segments are dropped so a
+  // lone "**" pair never prints an empty run.
+  const runsOf = (text: string, o: { bold?: boolean; italics?: boolean } = {}) =>
+    text
+      .split(/\*\*(.+?)\*\*/g)
+      .map((seg, i) => ({ seg, bold: i % 2 === 1 }))
+      .filter((s) => s.seg !== '')
+      .map((s) => run(s.seg, { ...o, bold: s.bold || o.bold }))
+
   const BORDER = { style: BorderStyle.SINGLE, size: 4, color: '000000' }
   const CELL_BORDERS = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER }
   const pct = (v: number) => ({ size: Math.round(v), type: WidthType.PERCENTAGE })
@@ -146,8 +157,8 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // dash before each item.
   const linePara = (l: string) => {
     const m = l.match(/^[-*•]\s+(.+)$/)
-    if (m) return new Paragraph({ bullet: { level: 0 }, children: [run(m[1])] })
-    return new Paragraph({ alignment: JUSTIFIED, children: [run(l)] })
+    if (m) return new Paragraph({ bullet: { level: 0 }, children: runsOf(m[1]) })
+    return new Paragraph({ alignment: JUSTIFIED, children: runsOf(l) })
   }
 
   const parts: Array<{ label: string; value: string }> = [
@@ -166,7 +177,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
         alignment: JUSTIFIED,
         children: [
           run(`${c.label}:`, { bold: true }),
-          ...(firstInline ? [run(` ${lines[0]}`)] : []),
+          ...(firstInline ? [run(' '), ...runsOf(lines[0])] : []),
         ],
       })
     if (lines.length === 0) {
