@@ -200,17 +200,39 @@ function markersToHtml(text: string): string {
  *  inline tags back to their markers, every block a line. */
 function htmlToMarkers(root: HTMLElement): string {
   const lines: string[] = []
-  const BLOCKISH = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li'])
+  const BLOCKISH = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li', 'ul', 'ol'])
   const inlineOf = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
     if (node.nodeType !== Node.ELEMENT_NODE) return ''
     const el = node as HTMLElement
     const tag = el.tagName.toLowerCase()
+    if (tag === 'ul' || tag === 'ol') {
+      // A list met inside inline content (Chrome wraps lists in divs)
+      // still becomes its lines - joined with breaks, never concatenated
+      // into one run of text.
+      let n = 1
+      return Array.from(el.querySelectorAll(':scope > li'))
+        .map((li) => {
+          const content = inlineOf(li)
+            .split('\n')
+            .map((p) => p.trim())
+            .filter(Boolean)
+            .join(' ')
+          return tag === 'ul' ? `- ${content}` : `${n++}. ${content}`
+        })
+        .join('\n')
+    }
     const inner = Array.from(el.childNodes).map(inlineOf).join('')
-    if (tag === 'b' || tag === 'strong') return `**${inner}**`
-    if (tag === 'i' || tag === 'em') return `_${inner}_`
-    if (tag === 'u') return `++${inner}++`
+    if (tag === 'b' || tag === 'strong') return `**${inner.replace(/\n+/g, ' ')}**`
+    if (tag === 'i' || tag === 'em') return `_${inner.replace(/\n+/g, ' ')}_`
+    if (tag === 'u') return `++${inner.replace(/\n+/g, ' ')}++`
     if (tag === 'br') return '\n'
+    // A block met in inline context breaks the line: children join with
+    // breaks so the caller's split turns them into separate lines. This
+    // is what keeps Word-paste source newlines from tearing a sentence
+    // in half - they become line splits at honest boundaries or are
+    // flattened inside the inline markers.
+    if (BLOCKISH.has(tag)) return Array.from(el.childNodes).map(inlineOf).join('\n')
     return inner
   }
   const pushInline = (node: Node) => {
