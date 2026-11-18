@@ -157,7 +157,15 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   // dash before each item.
   const linePara = (l: string) => {
     const m = l.match(/^[-*•–]\s+(.+)$/)
-    if (m) return new Paragraph({ bullet: { level: 0 }, children: runsOf(m[1]) })
+    if (m)
+      return new Paragraph({
+        bullet: { level: 0 },
+        // The model document's list paragraphs carry a small before/after
+        // gap (Word's 100-twip autospacing ≈ 5pt) — copied here so the
+        // export breathes the same way.
+        spacing: { before: 100, after: 100 },
+        children: runsOf(m[1]),
+      })
     return new Paragraph({ alignment: JUSTIFIED, children: runsOf(l) })
   }
 
@@ -174,6 +182,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
   const numPara = (l: string, instance: number) =>
     new Paragraph({
       numbering: { reference: 'grasps-numbered', level: 0, instance },
+      spacing: { before: 100, after: 100 },
       children: runsOf(l.replace(/^\d+[.)]\s+/, '')),
     })
 
@@ -192,6 +201,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     const labelPara = (firstInline: boolean) =>
       new Paragraph({
         alignment: JUSTIFIED,
+        spacing: { before: 100, after: 100 },
         children: [
           run(`${c.label}:`, { bold: true }),
           ...(firstInline ? [run(' '), ...runsOf(lines[0])] : []),
@@ -217,7 +227,6 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       children.push(labelPara(true))
       emitLines(lines.slice(1))
     }
-    children.push(new Paragraph({ spacing: { after: 100 }, children: [] }))
   })
 
   // ---- Analytic rubric ---------------------------------------------------
