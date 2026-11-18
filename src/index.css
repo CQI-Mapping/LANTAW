@@ -10432,6 +10432,380 @@ html.lantaw-dark .clo26-hact--deleted {
   color: var(--text-muted);
 }
 
+/* The "In the Word file" preview under a component box: the draft's lines
+   laid out exactly as the export will print them - label, prose, and the
+   typed "- " lines as bullets - so the bullet pattern is visible while
+   typing. */
+.g26-preview {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.g26-preview__tag {
+  display: inline-block;
+  font: 700 9px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.g26-preview__doc {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.g26-preview__line {
+  margin: 0 0 3px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.g26-preview__bullet {
+  margin: 0 0 3px 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.g26-preview__doc ul,
+.g26-preview__doc ol {
+  margin: 3px 0;
+  padding-left: 20px;
+}
+
+.g26-preview__doc b,
+.g26-preview__doc strong {
+  font-weight: 700;
+}
+
+/* The component's Word-style mini toolbar: small square buttons for the
+   inline styles (B / I / U) and the two list kinds (bullet, numbered). */
+.g26-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  /* Word-ribbon behavior: the toolbar stays pinned right under the top
+     bar for as long as its component is in view, so a long editor never
+     needs a scroll back up to reach the buttons. It spans the card edge
+     to edge (negative margins cancel the card's padding, the inner
+     padding restores the alignment) so the pinned strip never looks
+     like a floating button row inside the padding, and the panel
+     background keeps the scrolling text hidden beneath it. */
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  /* The ribbon reads as its own band: the palette's light green, with a
+     matching rule, instead of the bare panel color. */
+  background: var(--g100);
+  margin: 0 -14px 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid rgba(124, 192, 142, 0.35);
+}
+
+html.lantaw-dark .g26-toolbar {
+  background: rgba(124, 192, 142, 0.08);
+}
+
+.g26-toolbar button {
+  min-width: 27px;
+  height: 24px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+  font-family: inherit;
+}
+
+.g26-toolbar button:hover:not(:disabled) {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.g26-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.g26-toolbar__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+}
+
+/* The rich component editor: the Word-style contentEditable box - real
+   bold, italic, underline and lists while typing, placeholder shown when
+   empty, green border when focused. */
+.g26-rich {
+  min-height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+.g26-rich--focused {
+  border-color: var(--primary);
+}
+
+.g26-rich:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.g26-rich ul,
+.g26-rich ol {
+  margin: 4px 0;
+  padding-left: 22px;
+}
+
+/* The bullet library: the split bullet button opens a tile picker - the
+   chosen glyph styles the box's lists (list-style) and the Word export's
+   numbering reference. */
+.g26-toolbar__split {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+}
+
+.g26-toolbar__caret {
+  min-width: 17px;
+  padding: 0 3px;
+  font-size: 9px;
+}
+
+.g26-bulletlib__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+}
+
+.g26-bulletlib {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(4, 46px);
+  gap: 6px;
+  box-shadow: 0 10px 28px rgba(15, 23, 20, 0.16);
+}
+
+.g26-bulletlib__head {
+  grid-column: 1 / -1;
+  font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+
+.g26-bulletlib__tile {
+  width: 46px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+  padding: 0;
+}
+
+.g26-bulletlib__tile:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.g26-bulletlib__tile.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--g100);
+}
+
+html.lantaw-dark .g26-bulletlib__tile.active {
+  background: rgba(124, 192, 142, 0.1);
+}
+
+.g26-bulletlib__tile--text {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.g26-bulletlib__tile:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The chosen library style is the box's list marker as well. */
+.g26-rich--bullet-circle ul {
+  list-style-type: circle;
+}
+
+.g26-rich--bullet-square ul {
+  list-style-type: square;
+}
+
+.g26-rich--bullet-diamond ul {
+  list-style-type: '"❖  "';
+}
+
+.g26-rich--bullet-arrow ul {
+  list-style-type: '"➤  "';
+}
+
+.g26-rich--bullet-check ul {
+  list-style-type: '"✓  "';
+}
+
+.g26-rich--bullet-none ul {
+  list-style-type: none;
+  padding-left: 8px;
+}
+
+/* The GRASPS task reader: a true-scale paper - the document the export
+   prints, as it will print. White sheet, Arial 11pt, black text, the
+   letterhead band above, the export's 0.5in margins, Word's list
+   indents and the navy table header. Dark mode keeps the paper white
+   on purpose: this is a print preview. */
+.g26-reader {
+  max-width: 816px; /* 8.5in at 96dpi - the sheet's real width */
+}
+
+/* The bar carries only the actions now - keep them right of the sheet. */
+.g26-reader__bar .syl-reader__actions {
+  margin-left: auto;
+}
+
+.g26-reader__page {
+  background: #ffffff;
+  color: #111111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  line-height: 1.25;
+  padding: 0 0.5in 0.5in;
+  text-align: justify;
+}
+
+/* The GRASPS reader's form header band - the same seal, centred address,
+   Latin motto and closing double rule the Word file prints, so the
+   preview's header matches the download exactly. */
+.g26-reader__band {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 3px double #000000;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+
+.g26-reader__seal {
+  width: 64px;
+  height: 84px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.g26-reader__address {
+  flex: 1;
+  text-align: center;
+  font-family: 'Times New Roman', Times, serif;
+}
+
+.g26-reader__address p {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.g26-reader__college {
+  font-size: 14pt;
+}
+
+.g26-reader__motto {
+  color: #bf8f00;
+  font-family: 'Regards Script', 'Segoe Script', cursive;
+  font-style: italic;
+  font-size: 8pt;
+  margin-top: 4px;
+}
+
+.g26-reader__center {
+  text-align: center;
+  margin: 0 0 4pt;
+}
+
+.g26-reader__strong {
+  font-weight: 700;
+}
+
+.g26-reader__heading {
+  font-weight: 700;
+  margin: 10pt 0 5pt;
+  text-align: justify;
+}
+
+.g26-reader__part {
+  margin: 0 0 5pt;
+}
+
+.g26-reader__line {
+  margin: 0 0 4pt;
+}
+
+.g26-reader__part ul,
+.g26-reader__part ol {
+  margin: 4pt 0;
+  padding-left: 0.5in;
+}
+
+.g26-reader__rubric {
+  margin-top: 10pt;
+}
+
+.g26-reader__rubric .g26-rubric__table {
+  font-size: 10pt;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.g26-reader__rubric .g26-rubric__table th,
+.g26-reader__rubric .g26-rubric__table td {
+  border: 1pt solid #000000;
+  color: #111111;
+  padding: 4pt 5pt;
+  vertical-align: top;
+}
+
+.g26-reader__rubric .g26-rubric__table th {
+  background: transparent;
+  color: #002060;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

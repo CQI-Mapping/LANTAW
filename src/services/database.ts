@@ -1615,6 +1615,8 @@ export interface GraspsTaskRow {
   standards: string | null
   /** The analytic rubric (034); absent on rows saved before it. */
   rubric?: GraspsRubricRow[] | null
+  /** The bullet library choice (035); NULL reads as the default disc. */
+  bullet_style?: string | null
   status: 'active' | 'archived'
   created_at: string
   updated_at: string

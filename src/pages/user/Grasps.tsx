@@ -14,7 +14,7 @@
 // disagree about what is stored. Archive and restore are the only removals;
 // nothing is ever hard-deleted from here.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Icon from '../../components/icons'
 import {
   addActivityLog,
@@ -30,6 +30,7 @@ import {
 } from '../../services/database'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
+import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
   buildExamTypeOptions,
@@ -129,6 +130,290 @@ const GRASPS_PARTS: Array<{
 
 type GraspsKey = (typeof GRASPS_PARTS)[number]['key']
 const PART_KEYS = GRASPS_PARTS.map((p) => p.key)
+/** True when the draft text carries rich lines — a bullet ("- item"), a
+ *  numbered item ("1. item") or inline bold ("**text**") — so the live
+ *  preview has something to show. */
+const hasBulletLines = (text: string) =>
+  /(^|\n)\s*[-*•]\s+/.test(text) || /(^|\n)\s*\d+[.)]\s+/.test(text) || text.includes('**')
+
+// ---------------------------------------------------------------------------
+// The rich component editor
+//
+// The six component boxes are Word-style editors: the text inside renders
+// bold, italic, underline and real bullet/numbered lists while typing. The
+// draft keeps the same plain marker text everything else reads (**bold**,
+// _italic_, ++underline++, "- " bullets, "1." numbers), and the two forms
+// convert through the grammar below - markers to HTML for the box, the
+// box's DOM back to markers for the draft. The box is uncontrolled: its
+// HTML is reset only when the incoming marker text differs from what the
+// box last emitted (typing round-trips identically, so the caret never
+// jumps), and every input serializes back through the same grammar.
+// ---------------------------------------------------------------------------
+
+/** Reconnects sentence fragments an old paste left on separate lines -
+ *  a legacy draft's soft-wrap artifacts ("Part 1: Sketch" / "Wireframes").
+ *  Strong signals only: a trailing space, a next line starting lowercase,
+ *  or a short heading-like line containing ':' ("Part 3: Design"). Real
+ *  breaks - list items, numbered lines, lines ending in punctuation - are
+ *  left alone. Applied on every read/export, so even an old draft prints
+ *  whole sentences, and the editor's next emit self-heals the draft. */
+function repairWrappedLines(text: string): string {
+  const lines = text.split('\n')
+  const out: string[] = []
+  const isList = (s: string) => /^\s*(?:[-*•–]\s+|\d+[.)]\s+)/.test(s)
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1]
+      if (!next.trim() || isList(next)) break
+      if (/[.!?:;,]$/.test(line.trimEnd())) break
+      const trailingSpace = /\s$/.test(line)
+      const lowercaseNext = /^[a-z]/.test(next.trim())
+      const headingFragment = line.includes(':') && line.trim().length < 40
+      if (!(trailingSpace || lowercaseNext || headingFragment)) break
+      line = line.trimEnd() + ' ' + next.trim()
+      i += 1
+    }
+    out.push(line)
+  }
+  return out.join('\n')
+}
+
+/** Marker text -> editor HTML: bullet and numbered lines become real
+ *  lists, the inline markers become their tags, everything is escaped. */
+function markersToHtml(text: string): string {
+  const escape = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const inline = (s: string) =>
+    escape(s)
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/__(.+?)__/g, '<i>$1</i>')
+      .replace(/_(.+?)_/g, '<i>$1</i>')
+      .replace(/\+\+(.+?)\+\+/g, '<u>$1</u>')
+      // Unpaired leftovers - a legacy draft's half-applied style - lose
+      // their markers rather than printing them.
+      .replace(/\*\*|__|\+\+/g, '')
+  const out: string[] = []
+  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null
+  const flush = () => {
+    if (list) {
+      out.push(`<${list.tag}>${list.items.map((i) => `<li>${i}</li>`).join('')}</${list.tag}>`)
+      list = null
+    }
+  }
+  for (const raw of repairWrappedLines(text).split('\n')) {
+    const line = raw.trim()
+    if (line === '') {
+      flush()
+      continue
+    }
+    const bullet = line.match(/^[-*•–]\s+(.*)$/)
+    const num = line.match(/^\d+[.)]\s+(.*)$/)
+    if (bullet) {
+      if (!list || list.tag !== 'ul') {
+        flush()
+        list = { tag: 'ul', items: [] }
+      }
+      list.items.push(inline(bullet[1]))
+    } else if (num) {
+      if (!list || list.tag !== 'ol') {
+        flush()
+        list = { tag: 'ol', items: [] }
+      }
+      list.items.push(inline(num[1]))
+    } else {
+      flush()
+      out.push(`<div>${inline(line)}</div>`)
+    }
+  }
+  flush()
+  return out.join('')
+}
+
+/** Editor DOM -> marker text: real lists back to "- "/"1." lines, the
+ *  inline tags back to their markers, every block a line. */
+function htmlToMarkers(root: HTMLElement): string {
+  const lines: string[] = []
+  const BLOCKISH = new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li', 'ul', 'ol'])
+  const inlineOf = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+    if (node.nodeType !== Node.ELEMENT_NODE) return ''
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'ul' || tag === 'ol') {
+      // A list met inside inline content (Chrome wraps lists in divs)
+      // still becomes its lines - joined with breaks, never concatenated
+      // into one run of text.
+      let n = 1
+      return Array.from(el.querySelectorAll(':scope > li'))
+        .map((li) => {
+          const content = inlineOf(li)
+            .split('\n')
+            .map((p) => p.trim())
+            .filter(Boolean)
+            .join(' ')
+          return tag === 'ul' ? `- ${content}` : `${n++}. ${content}`
+        })
+        .join('\n')
+    }
+    const inner = Array.from(el.childNodes).map(inlineOf).join('')
+    if (tag === 'b' || tag === 'strong') return `**${inner.replace(/\n+/g, ' ')}**`
+    if (tag === 'i' || tag === 'em') return `_${inner.replace(/\n+/g, ' ')}_`
+    if (tag === 'u') return `++${inner.replace(/\n+/g, ' ')}++`
+    if (tag === 'br') return '\n'
+    // A block met in inline context breaks the line: children join with
+    // breaks so the caller's split turns them into separate lines. This
+    // is what keeps Word-paste source newlines from tearing a sentence
+    // in half - they become line splits at honest boundaries or are
+    // flattened inside the inline markers.
+    if (BLOCKISH.has(tag)) return Array.from(el.childNodes).map(inlineOf).join('\n')
+    return inner
+  }
+  const pushInline = (node: Node) => {
+    // Inline content may hold <br> breaks: each becomes its own line.
+    inlineOf(node)
+      .split('\n')
+      .forEach((part) => {
+        const t = part.trim()
+        if (t) lines.push(t)
+      })
+  }
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      pushInline(node)
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'ul' || tag === 'ol') {
+      let n = 1
+      el.querySelectorAll(':scope > li').forEach((li) => {
+        const content = inlineOf(li)
+          .split('\n')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .join(' ')
+        lines.push(tag === 'ul' ? `- ${content}` : `${n++}. ${content}`)
+      })
+      return
+    }
+    if (BLOCKISH.has(tag)) {
+      const hasBlockChild = Array.from(el.children).some((c) => BLOCKISH.has(c.tagName.toLowerCase()))
+      if (!hasBlockChild) {
+        pushInline(el)
+      } else {
+        Array.from(el.childNodes).forEach(walk)
+      }
+      return
+    }
+    Array.from(el.childNodes).forEach(walk)
+  }
+  Array.from(root.childNodes).forEach(walk)
+  return lines.join('\n')
+}
+
+/** Paste sanitizer: only the grammar's tags survive a paste - b/strong,
+ *  i/em, u, br, ul/ol/li and block lines - everything else (styles, fonts,
+ *  tables, script) is unwrapped or dropped, so Word's hidden markup
+ *  cannot ride in. */
+function sanitizeRich(html: string): string {
+  const ALLOWED = new Set(['b', 'strong', 'i', 'em', 'u', 'br', 'ul', 'ol', 'li', 'p', 'div'])
+  const clean = (node: Node): Node[] => {
+    if (node.nodeType === Node.TEXT_NODE) return [document.createTextNode(node.textContent ?? '')]
+    if (node.nodeType !== Node.ELEMENT_NODE) return []
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'script' || tag === 'style') return []
+    if (ALLOWED.has(tag)) {
+      const copy = document.createElement(tag)
+      Array.from(el.childNodes)
+        .flatMap(clean)
+        .forEach((c) => copy.appendChild(c))
+      return [copy]
+    }
+    return Array.from(el.childNodes).flatMap(clean)
+  }
+  const probe = document.createElement('div')
+  Array.from(new DOMParser().parseFromString(html, 'text/html').body.childNodes)
+    .flatMap(clean)
+    .forEach((c) => probe.appendChild(c))
+  return probe.innerHTML
+}
+
+/** The bullet library the toolbar's caret opens - the same styles Word's
+ *  library offers, rendered as the box's list marker and the Word file's
+ *  bullet glyph. 'none' removes the bullets (list lines print as prose). */
+const BULLET_STYLES: Array<{ id: string; glyph: string; label: string; title: string }> = [
+  { id: 'none', glyph: '', label: 'None', title: 'No bullets - the list lines print as plain text' },
+  { id: 'disc', glyph: '●', label: '', title: 'Filled round bullet' },
+  { id: 'circle', glyph: '○', label: '', title: 'Hollow circle bullet' },
+  { id: 'square', glyph: '■', label: '', title: 'Square bullet' },
+  { id: 'diamond', glyph: '❖', label: '', title: 'Diamond bullet' },
+  { id: 'arrow', glyph: '➤', label: '', title: 'Arrow bullet' },
+  { id: 'check', glyph: '✓', label: '', title: 'Check-mark bullet' },
+]
+
+interface RichEditorProps {
+  /** The draft's marker text for this component. */
+  value: string
+  onChange: (next: string) => void
+  disabled?: boolean
+  placeholder: string
+  /** The bullet library choice - the box's list marker follows it. */
+  bulletStyle?: string
+}
+
+function RichEditor({ value, onChange, disabled, placeholder, bulletStyle }: RichEditorProps) {
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const lastEmitted = useRef<string>('')
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box) return
+    if (value === lastEmitted.current) return
+    box.innerHTML = markersToHtml(value)
+    lastEmitted.current = value
+  }, [value])
+
+  const emit = () => {
+    const box = boxRef.current
+    if (!box) return
+    const text = htmlToMarkers(box)
+    lastEmitted.current = text
+    if (text !== value) onChange(text)
+  }
+
+  return (
+    <div
+      ref={boxRef}
+      className={`g26-rich${focused ? ' g26-rich--focused' : ''}${bulletStyle && bulletStyle !== 'disc' ? ` g26-rich--bullet-${bulletStyle}` : ''}`}
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      role="textbox"
+      aria-multiline="true"
+      data-placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => {
+        setFocused(false)
+        emit()
+      }}
+      onInput={emit}
+      onPaste={(e) => {
+        e.preventDefault()
+        const html = e.clipboardData.getData('text/html')
+        if (html) {
+          document.execCommand('insertHTML', false, sanitizeRich(html))
+        } else {
+          document.execCommand('insertText', false, e.clipboardData.getData('text/plain'))
+        }
+        emit()
+      }}
+    />
+  )
+}
+
 
 interface GraspsDraft {
   /** The saved row the editor currently holds, or null for a fresh draft. */
@@ -148,6 +433,8 @@ interface GraspsDraft {
   standards: string
   /** The analytic rubric rows (034), edited below the Standards card. */
   rubric: GraspsRubricRow[]
+  /** The bullet library choice (035) - which glyph the lists print. */
+  bulletStyle: string
 }
 
 const blankDraft = (): GraspsDraft => ({
@@ -164,6 +451,7 @@ const blankDraft = (): GraspsDraft => ({
   product: '',
   standards: '',
   rubric: [],
+  bulletStyle: 'disc',
 })
 
 /** A saved task, loaded back into the editor as its own editable copy. */
@@ -181,6 +469,7 @@ const draftFromRow = (row: GraspsTaskRow): GraspsDraft => ({
   product: row.product ?? '',
   standards: row.standards ?? '',
   rubric: row.rubric ?? [],
+  bulletStyle: row.bullet_style ?? 'disc',
 })
 
 /**
@@ -252,6 +541,8 @@ export default function Grasps() {
   const [rows, setRows] = useState<GraspsTaskRow[]>([])
   const [archived, setArchived] = useState(false)
   const [archivedCount, setArchivedCount] = useState(0)
+  // The task the View reader holds - the card's eye into its document.
+  const [viewRow, setViewRow] = useState<GraspsTaskRow | null>(null)
 
   const fail = useCallback((e: unknown, fallback: string) => {
     setError(describeGraspsError(e, fallback))
@@ -501,6 +792,7 @@ export default function Grasps() {
         product: draft.product.trim() || null,
         standards: draft.standards.trim() || null,
         rubric: cleanRubric,
+        bullet_style: draft.bulletStyle,
       }
 
       let id: string
@@ -609,6 +901,7 @@ export default function Grasps() {
           product: row.product ?? '',
           standards: row.standards ?? '',
           rubric: row.rubric ?? [],
+          bulletStyle: row.bullet_style ?? 'disc',
           preparedBy: '',
         })
         await addActivityLog('grasps_task.exported', {
@@ -636,17 +929,37 @@ export default function Grasps() {
     el.style.height = `${el.scrollHeight}px`
   }, [])
 
+
   // A restored or loaded task puts saved text into fixed-height boxes; one
   // pass over the component editors grows them to fit, the same routine every
   // keystroke runs. Keyed on the draft's id so loading a card re-fits them
   // too, and plain text restores are covered by the mount pass.
   useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('.g26-part textarea, .g26-rubric textarea').forEach(autoResize)
+    document.querySelectorAll<HTMLTextAreaElement>('.g26-rubric textarea').forEach(autoResize)
   }, [draft.id, autoResize])
 
   // The Quick Reference guide opens from the hero and closes on Escape or
   // an outside click, like the syllabus reader's dialog.
   const [guideOpen, setGuideOpen] = useState(false)
+  // The bullet library popover: which card's caret is open (null = closed).
+  const [bulletLibFor, setBulletLibFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!bulletLibFor) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBulletLibFor(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [bulletLibFor])
+
+  useEffect(() => {
+    if (!viewRow) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewRow(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewRow])
   useEffect(() => {
     if (!guideOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -660,13 +973,15 @@ export default function Grasps() {
   const draftFilled = PART_KEYS.filter((k) => draft[k].trim() !== '').length
   const pct = Math.round((draftFilled / PART_KEYS.length) * 100)
   const activeCount = rows.filter((r) => r.status !== 'archived').length
-  // The rubric's live total: rows holding a number sum toward the title;
-  // a text value (a range like "18-20") is printed as written, and the
-  // heading drops its total rather than pretending to a number it
-  // cannot honor.
+  // The rubric's live total reads the first number of each entry, so a
+  // typed "/20" or "20" both count as 20.
   const rubricScored = draft.rubric.filter((r) => r.points !== null && String(r.points).trim() !== '')
-  const rubricAllNumeric = rubricScored.every((r) => Number.isFinite(Number(String(r.points).trim())))
-  const rubricTotal = rubricScored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
+  const rubricNumbers = rubricScored.map((r) => {
+    const m = String(r.points).match(/\d+(?:\.\d+)?/)
+    return m ? Number(m[0]) : null
+  })
+  const rubricAllNumeric = rubricNumbers.every((n) => n !== null)
+  const rubricTotal = rubricNumbers.reduce<number>((s, n) => s + (n ?? 0), 0)
 
   return (
     <div className="programs-page curriculum-view grasps26-page">
@@ -814,10 +1129,14 @@ export default function Grasps() {
             <span className="g26-kicker">The six components</span>
             <h3>Build your performance task</h3>
             <p>
-              Complete each section to create a meaningful real-world learning experience.
-              For list items, start a line with{' '}
+              Complete each section to create a meaningful real-world learning experience. For list items,
+              start a line with{' '}
               <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>-&nbsp;</code>{' '}
-              and the Word download renders it as a bullet point.
+              and the Word download renders it as a bullet point; number a line{' '}
+              <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>1.&nbsp;</code>{' '}
+              for a numbered list. Wrap text in{' '}
+              <code style={{ background: 'var(--bg-soft)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>**bold**</code>{' '}
+              and it prints bold.
             </p>
           </div>
           <div className="g26-progress">
@@ -840,19 +1159,103 @@ export default function Grasps() {
                 </div>
                 <p className="g26-part__hint">{p.hint}</p>
                 <p className="g26-part__tip">{p.tip}</p>
-                <textarea
-                  className="input input--sm"
-                  ref={autoResize}
-                  value={draft[p.key]}
-                  placeholder={p.placeholder}
-                  rows={3}
-                  disabled={!ready}
-                  onChange={(e) => {
-                    patchPart(p.key, e.target.value)
-                    autoResize(e.currentTarget)
-                  }}
-                />
+                {/* The Word-style mini toolbar: B / I / U wrap the selection
+                    in the inline markers, the list buttons mark or clear the
+                    touched lines — the box below stays the plain-text
+                    source of truth. */}
+                <div className="g26-toolbar">
+                  <button type="button" title="Bold" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('bold')}>
+                    <strong>B</strong>
+                  </button>
+                  <button type="button" title="Italic" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('italic')}>
+                    <em>I</em>
+                  </button>
+                  <button type="button" title="Underline" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('underline')}>
+                    <u>U</u>
+                  </button>
+                  <span className="g26-toolbar__sep" aria-hidden="true" />
+                  <span className="g26-toolbar__split">
+                    <button type="button" title="Bullet list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertUnorderedList')}>
+                      &bull;
+                    </button>
+                    <button
+                      type="button"
+                      className="g26-toolbar__caret"
+                      title="Bullet library"
+                      disabled={!ready}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setBulletLibFor(bulletLibFor === p.key ? null : p.key)}
+                    >
+                      ▾
+                    </button>
+                    {bulletLibFor === p.key && (
+                      <>
+                        <div className="g26-bulletlib__backdrop" onClick={() => setBulletLibFor(null)} />
+                        <div className="g26-bulletlib">
+                          <span className="g26-bulletlib__head">Bullet library</span>
+                          {BULLET_STYLES.map((bl) => (
+                            <button
+                              key={bl.id}
+                              type="button"
+                              className={`g26-bulletlib__tile${draft.bulletStyle === bl.id ? ' active' : ''}${bl.id === 'none' ? ' g26-bulletlib__tile--text' : ''}`}
+                              title={bl.title}
+                              disabled={!ready}
+                              onClick={() => {
+                                patchDraft({ bulletStyle: bl.id })
+                                setBulletLibFor(null)
+                              }}
+                            >
+                              {bl.glyph || bl.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </span>
+
+                  <button type="button" title="Numbered list" disabled={!ready} onMouseDown={(e) => e.preventDefault()} onClick={() => document.execCommand('insertOrderedList')}>
+                    1.
+                  </button>
+                </div>
+                <RichEditor value={draft[p.key]} onChange={(next) => patchPart(p.key, next)} disabled={!ready} placeholder={p.placeholder} bulletStyle={draft.bulletStyle} />
                 <span className="g26-part__count">{draft[p.key].trim().length} characters</span>
+                {hasBulletLines(draft[p.key]) && (
+                  <div className="g26-preview">
+                    <span className="g26-preview__tag">In the Word file</span>
+                    <div className="g26-preview__doc">
+                      {(() => {
+                        // The preview renders through the SAME converter the
+                        // editor box loads with (markersToHtml), so it can
+                        // never disagree with the box or the document - the
+                        // typed markers become the exact tags both render.
+                        const lines = draft[p.key].split('\n').map((l) => l.trim()).filter((l) => l !== '')
+                        const labelAlone = lines[0].endsWith(':')
+                        const firstIsPlain = !/^[-*•–]\s+/.test(lines[0]) && !/^\d+[.)]\s+/.test(lines[0])
+                        if (labelAlone || !firstIsPlain) {
+                          return (
+                            <>
+                              <p className="g26-preview__line">
+                                <strong>{p.label}:</strong>
+                              </p>
+                              <div dangerouslySetInnerHTML={{ __html: markersToHtml(draft[p.key]) }} />
+                            </>
+                          )
+                        }
+                        const restHtml = markersToHtml(lines.slice(1).join('\n'))
+                        const firstHtml = markersToHtml(lines[0]).replace(/^<div>/, '').replace(/<\/div>$/, '')
+                        return (
+                          <>
+                            <p className="g26-preview__line">
+                              <strong>{p.label}:</strong> <span dangerouslySetInnerHTML={{ __html: firstHtml }} />
+                            </p>
+                            <div dangerouslySetInnerHTML={{ __html: restHtml }} />
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
+
                 {p.key === 'standards' && (
                   <div className="g26-rubric">
                     {/* The Standards component's companion: criteria scored across
@@ -860,7 +1263,7 @@ export default function Grasps() {
                         printed on the Word export — inside the card, directly
                         under its textarea. */}
               <div className="g26-rubric__head">
-                <h4>{rubricAllNumeric ? `Analytic Rubric (${rubricTotal} points)` : 'Analytic Rubric'}</h4>
+                <h4>{rubricAllNumeric && rubricScored.length > 0 ? `Analytic Rubric (${rubricTotal} points)` : 'Analytic Rubric'}</h4>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
                   <Icon name="plus" size={13} /> Add criterion
                 </button>
@@ -1091,6 +1494,10 @@ export default function Grasps() {
                 </div>
               </div>
               <div className="po26-actions">
+                <button type="button" onClick={() => setViewRow(row)}
+                  aria-label={`View ${row.code || row.title || 'task'}`}>
+                  View
+                </button>
                 <button type="button" onClick={() => editRow(row)}
                   aria-label={`Edit ${row.code || row.title || 'task'}`}>
                   Edit
@@ -1142,6 +1549,150 @@ export default function Grasps() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+      {/* ---- view reader ----
+          The saved task laid out as the document the export prints - the
+          same header block, labeled components through the same converter
+          the editor loads with, and the rubric table - with the Word
+          download one click away. */}
+      {viewRow && (
+        <div
+          className="syl-reader"
+          role="dialog"
+          aria-modal="true"
+          aria-label="GRASPS task preview"
+          onClick={() => setViewRow(null)}
+        >
+          <div className="syl-reader__bar g26-reader__bar" onClick={(e) => e.stopPropagation()}>
+            {/* No title here: this bar is dialog chrome, not part of the
+                paper - the sheet below is exactly what the Word file
+                prints, letterhead and all. */}
+            <div className="syl-reader__actions">
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void exportRow(viewRow)}>
+                <Icon name="download" size={13} /> Download Word
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setViewRow(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+          <div className="syl-reader__scroll">
+            <div className={`syl-reader__doc g26-reader g26-rich--bullet-${viewRow.bullet_style ?? 'disc'}`}>
+              <div className="g26-reader__page">
+                {/* The official form header, matching the Word file's band:
+                    the college seal, the centred address and motto, and the
+                    double rule that closes the band in the model form. */}
+                <div className="g26-reader__band">
+                  <img className="g26-reader__seal" src="/nbsc-seal.jpg" alt="NBSC seal" />
+                  <div className="g26-reader__address">
+                    <p>Republic of the Philippines</p>
+                    <p className="g26-reader__strong g26-reader__college">NORTHERN BUKIDNON STATE COLLEGE</p>
+                    <p>Manolo Fortich, 8703 Bukidnon</p>
+                    <p className="g26-reader__motto">Creando Futura, Transformationis Vitae, Ductae a Deo</p>
+                  </div>
+                </div>
+                <p className="g26-reader__center">Institute for Computer Studies</p>
+                <p className="g26-reader__center g26-reader__strong">
+                  {(() => {
+                    const m = viewRow.title.match(/^([A-Za-z0-9 .+()]+?)\s*[-–]\s*(.+)$/)
+                    return m ? `${m[1].trim()}: ${m[2].trim()}` : viewRow.title
+                  })()}
+                </p>
+                <p className="g26-reader__center">
+                  {(() => {
+                    const term = viewRow.term || composeTerm(viewRow.semester ?? '', viewRow.school_year ?? '')
+                    return term.includes(',')
+                      ? term.replace(/,/, ', S.Y.: ').replace(/S\.Y\.:\s+/, 'S.Y.: ')
+                      : term
+                  })()}
+                </p>
+                <p className="g26-reader__center g26-reader__strong">{viewRow.task_type || 'GRASPS'}</p>
+                <p className="g26-reader__heading">Performance/Product-based Assessment through GRASPS Model</p>
+
+                {GRASPS_PARTS.map((p) => {
+                  const text = (viewRow[p.key] ?? '').trim()
+                  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+                  if (lines.length === 0) return null
+                  // The reader speaks the export's labels - the document
+                  // says "Product/Performance:" without the spaces.
+                  const label = p.key === 'product' ? 'Product/Performance' : p.label
+                  const labelAlone = lines[0].endsWith(':')
+                  const firstIsPlain = !/^[-*•–]\s+/.test(lines[0]) && !/^\d+[.)]\s+/.test(lines[0])
+                  const bodyHtml = markersToHtml(text)
+                  return (
+                    <div key={p.key} className="g26-reader__part">
+                      {labelAlone || !firstIsPlain ? (
+                        <p className="g26-reader__line"><strong>{label}:</strong></p>
+                      ) : (
+                        <p className="g26-reader__line">
+                          <strong>{label}:</strong>{' '}
+                          <span dangerouslySetInnerHTML={{ __html: markersToHtml(lines[0]).replace(/^<div>/, '').replace(/<\/div>$/, '') }} />
+                        </p>
+                      )}
+                      <div dangerouslySetInnerHTML={{ __html: labelAlone || !firstIsPlain ? bodyHtml : markersToHtml(lines.slice(1).join('\n')) }} />
+                    </div>
+                  )
+                })}
+
+                {(() => {
+                  const rows = (viewRow.rubric ?? []).filter(
+                    (r) =>
+                      r.criteria.trim() || r.excellent.trim() || r.proficient.trim()
+                      || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
+                  )
+                  if (rows.length === 0) return null
+                  const rubricNumber = (v: unknown): number | null => {
+                    const m = String(v ?? '').match(/\d+(?:\.\d+)?/)
+                    return m ? Number(m[0]) : null
+                  }
+                  const rubricCriterion = (r: GraspsRubricRow) => {
+                    const name = r.criteria.trim()
+                    return /\(.*?points\)\s*$/i.test(name) || r.points == null
+                      ? name
+                      : `${name} (${r.points} points)`
+                  }
+                  const rubricPointsCell = (v: unknown) => {
+                    const s = String(v).trim()
+                    return s.startsWith('/') ? s : `/${s}`
+                  }
+                  const scored = rows.filter((r) => r.points !== null && String(r.points).trim() !== '')
+                  const numbers = scored.map((r) => rubricNumber(r.points))
+                  const allNumeric = numbers.every((n) => n !== null)
+                  const total = numbers.reduce<number>((s, n) => s + (n ?? 0), 0)
+                  return (
+                    <div className="g26-reader__rubric">
+                      <p className="g26-reader__heading">{allNumeric && scored.length > 0 ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'}</p>
+                      <table className="g26-rubric__table">
+                        <thead>
+                          <tr>
+                            <th>Criteria</th>
+                            <th>Excellent (4)</th>
+                            <th>Proficient (3)</th>
+                            <th>Developing (2)</th>
+                            <th>Beginning (1)</th>
+                            <th>Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r, i) => (
+                            <tr key={i}>
+                              <td><strong>{rubricCriterion(r)}</strong></td>
+                              <td>{r.excellent.trim() || '—'}</td>
+                              <td>{r.proficient.trim() || '—'}</td>
+                              <td>{r.developing.trim() || '—'}</td>
+                              <td>{r.beginning.trim() || '—'}</td>
+                              <td style={{ textAlign: 'right' }}>{r.points != null ? rubricPointsCell(r.points) : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}
