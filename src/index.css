@@ -10685,6 +10685,57 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   padding-left: 8px;
 }
 
+/* The GRASPS task reader: the export's document on screen - centered
+   header block, labeled components through the editor's converter, and
+   the rubric table reusing the editor's table styles. */
+.g26-reader__page {
+  padding: 26px 30px 34px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.g26-reader__center {
+  text-align: center;
+  margin: 0 0 3px;
+}
+
+.g26-reader__strong {
+  font-weight: 700;
+}
+
+.g26-reader__heading {
+  font-weight: 700;
+  margin: 18px 0 10px;
+  text-align: justify;
+}
+
+.g26-reader__part {
+  margin: 0 0 12px;
+}
+
+.g26-reader__line {
+  margin: 0 0 3px;
+}
+
+.g26-reader__part ul,
+.g26-reader__part ol {
+  margin: 3px 0;
+  padding-left: 20px;
+}
+
+.g26-reader__rubric {
+  margin-top: 16px;
+}
+
+.g26-reader__rubric .g26-rubric__table {
+  font-size: 11.5px;
+}
+
+.g26-reader__rubric .g26-rubric__table td {
+  padding: 6px;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

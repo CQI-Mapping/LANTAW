@@ -507,6 +507,8 @@ export default function Grasps() {
   const [rows, setRows] = useState<GraspsTaskRow[]>([])
   const [archived, setArchived] = useState(false)
   const [archivedCount, setArchivedCount] = useState(0)
+  // The task the View reader holds - the card's eye into its document.
+  const [viewRow, setViewRow] = useState<GraspsTaskRow | null>(null)
 
   const fail = useCallback((e: unknown, fallback: string) => {
     setError(describeGraspsError(e, fallback))
@@ -915,6 +917,15 @@ export default function Grasps() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [bulletLibFor])
+
+  useEffect(() => {
+    if (!viewRow) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewRow(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewRow])
   useEffect(() => {
     if (!guideOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -1447,6 +1458,10 @@ export default function Grasps() {
                 </div>
               </div>
               <div className="po26-actions">
+                <button type="button" onClick={() => setViewRow(row)}
+                  aria-label={`View ${row.code || row.title || 'task'}`}>
+                  View
+                </button>
                 <button type="button" onClick={() => editRow(row)}
                   aria-label={`Edit ${row.code || row.title || 'task'}`}>
                   Edit
@@ -1498,6 +1513,119 @@ export default function Grasps() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      )}
+      {/* ---- view reader ----
+          The saved task laid out as the document the export prints - the
+          same header block, labeled components through the same converter
+          the editor loads with, and the rubric table - with the Word
+          download one click away. */}
+      {viewRow && (
+        <div
+          className="syl-reader"
+          role="dialog"
+          aria-modal="true"
+          aria-label="GRASPS task preview"
+          onClick={() => setViewRow(null)}
+        >
+          <div className="syl-reader__bar" onClick={(e) => e.stopPropagation()}>
+            <div className="syl-reader__title">
+              <h3>GRASPS Performance Task{viewRow.task_type.trim() ? ` for ${viewRow.task_type.trim()}` : ''}</h3>
+              <span>{[viewRow.code, viewRow.title].filter(Boolean).join(' — ') || 'GRASPS task'}</span>
+            </div>
+            <div className="syl-reader__actions">
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => void exportRow(viewRow)}>
+                <Icon name="download" size={13} /> Download Word
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setViewRow(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+          <div className="syl-reader__scroll">
+            <div className={`syl-reader__doc g26-reader g26-rich--bullet-${viewRow.bullet_style ?? 'disc'}`}>
+              <div className="g26-reader__page">
+                <p className="g26-reader__center">Institute for Computer Studies</p>
+                <p className="g26-reader__center g26-reader__strong">
+                  {(() => {
+                    const m = viewRow.title.match(/^([A-Za-z0-9 .+()]+?)\s*[-–]\s*(.+)$/)
+                    return m ? `${m[1].trim()}: ${m[2].trim()}` : viewRow.title
+                  })()}
+                </p>
+                <p className="g26-reader__center">
+                  {(() => {
+                    const term = viewRow.term || composeTerm(viewRow.semester ?? '', viewRow.school_year ?? '')
+                    return term.includes(',') ? term.replace(/,/, ', S.Y.: ') : term
+                  })()}
+                </p>
+                <p className="g26-reader__center g26-reader__strong">{viewRow.task_type || 'GRASPS'}</p>
+                <p className="g26-reader__heading">Performance/Product-based Assessment through GRASPS Model</p>
+
+                {GRASPS_PARTS.map((p) => {
+                  const text = (viewRow[p.key] ?? '').trim()
+                  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+                  if (lines.length === 0) return null
+                  const labelAlone = lines[0].endsWith(':')
+                  const firstIsPlain = !/^[-*•–]\s+/.test(lines[0]) && !/^\d+[.)]\s+/.test(lines[0])
+                  const bodyHtml = markersToHtml(text)
+                  return (
+                    <div key={p.key} className="g26-reader__part">
+                      {labelAlone || !firstIsPlain ? (
+                        <p className="g26-reader__line"><strong>{p.label}:</strong></p>
+                      ) : (
+                        <p className="g26-reader__line">
+                          <strong>{p.label}:</strong>{' '}
+                          <span dangerouslySetInnerHTML={{ __html: markersToHtml(lines[0]).replace(/^<div>/, '').replace(/<\/div>$/, '') }} />
+                        </p>
+                      )}
+                      <div dangerouslySetInnerHTML={{ __html: labelAlone || !firstIsPlain ? bodyHtml : markersToHtml(lines.slice(1).join('\n')) }} />
+                    </div>
+                  )
+                })}
+
+                {(() => {
+                  const rows = (viewRow.rubric ?? []).filter(
+                    (r) =>
+                      r.criteria.trim() || r.excellent.trim() || r.proficient.trim()
+                      || r.developing.trim() || r.beginning.trim() || (r.points ?? 0) !== 0,
+                  )
+                  if (rows.length === 0) return null
+                  const scored = rows.filter((r) => r.points !== null && String(r.points).trim() !== '')
+                  const allNumeric = scored.every((r) => Number.isFinite(Number(String(r.points).trim())))
+                  const total = scored.reduce((s, r) => s + (Number(String(r.points).trim()) || 0), 0)
+                  return (
+                    <div className="g26-reader__rubric">
+                      <p className="g26-reader__heading">{allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'}</p>
+                      <table className="g26-rubric__table">
+                        <thead>
+                          <tr>
+                            <th>Criteria</th>
+                            <th>Excellent (4)</th>
+                            <th>Proficient (3)</th>
+                            <th>Developing (2)</th>
+                            <th>Beginning (1)</th>
+                            <th>Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map((r, i) => (
+                            <tr key={i}>
+                              <td><strong>{r.criteria.trim()}{r.points != null ? ` (${r.points} points)` : ''}</strong></td>
+                              <td>{r.excellent.trim() || '—'}</td>
+                              <td>{r.proficient.trim() || '—'}</td>
+                              <td>{r.developing.trim() || '—'}</td>
+                              <td>{r.beginning.trim() || '—'}</td>
+                              <td style={{ textAlign: 'right' }}>{r.points != null ? `/${r.points}` : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}
