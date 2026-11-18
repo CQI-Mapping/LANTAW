@@ -1,27 +1,22 @@
 // Word (.docx) export for a GRASPS performance task.
 //
 // The Generate GRASPS page keeps each task as six plain-text components, and
-// this export rebuilds them as the document faculty hand in: the letterhead
-// up top, the identifying header lines, then a two-column GRASPS table —
-// component name left, the written description right — and a prepared-by
-// line. Real Word constructs (paragraphs, one bordered table), so the file
-// stays editable rather than a rasterised page.
+// this export rebuilds them as the document faculty hand in: the official
+// form's header and footer bands (utils/nbscForm.ts, repeated on every page),
+// the identifying header lines, the six components as labeled paragraphs,
+// the analytic rubric table, and a prepared-by line. Real Word constructs
+// (paragraphs, one bordered table), so the file stays editable rather than a
+// rasterised page.
 //
-// Metrics follow the house report style shared with utils/syllabusDocx.ts:
-// Arial 10pt, 8.5 x 13in paper, 0.5in margins, letterhead repeated on every
-// page via a real page header. `docx` is imported dynamically — see the note
-// in syllabusDocx.ts for why it must never ride the main bundle.
+// Metrics are the model form's own — FM-NBSC-CID-030 is A4 portrait with
+// one-inch margins (see FORM_PAGE in nbscForm.ts). `docx` is imported
+// dynamically — see the note in syllabusDocx.ts for why it must never ride
+// the main bundle.
 
 import type { Paragraph as DocxParagraph, Table as DocxTable } from 'docx'
 import type { GraspsRubricRow } from '../services/database'
 import { saveBlob } from './download'
-import {
-  LETTERHEAD_URL,
-  LETTERHEAD_ASPECT,
-  LETTERHEAD_WIDTH_RATIO,
-  headerBandIn,
-  pageWidthIn,
-} from './letterhead'
+import { FORM_PAGE, buildFormChrome } from './nbscForm'
 
 const FONT = 'Arial'
 /** The bullet library's glyphs, one numbering reference each - the
@@ -76,23 +71,12 @@ function graspsFileName(course: string, taskType: string): string {
 }
 
 
-async function fetchLetterhead(): Promise<Uint8Array | null> {
-  try {
-    const res = await fetch(LETTERHEAD_URL)
-    if (!res.ok) return null
-    return new Uint8Array(await res.arrayBuffer())
-  } catch {
-    // A missing letterhead degrades the document but must not fail the export.
-    return null
-  }
-}
-
 export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
+  const d = await import('docx')
   const {
-    AlignmentType, BorderStyle, Document, Header, ImageRun, LevelFormat, Packer,
+    AlignmentType, BorderStyle, Document, LevelFormat, Packer,
     Paragraph, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
-    convertInchesToTwip,
-  } = await import('docx')
+  } = d
 
   const run = (text: string, o: { bold?: boolean; italics?: boolean; color?: string; underline?: boolean } = {}) =>
     new TextRun({
@@ -156,7 +140,6 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
 
   const CENTER = AlignmentType.CENTER
   const JUSTIFIED = AlignmentType.JUSTIFIED
-  const inch = (v: number) => convertInchesToTwip(v)
 
   const children: (DocxParagraph | DocxTable)[] = []
 
@@ -356,28 +339,12 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     )
   }
 
-  // ---- Page + letterhead header ------------------------------------------
-  const pageWIn = pageWidthIn('portrait')
-  const bandTwip = Math.round(headerBandIn(pageWIn) * 1440)
-  const HEADER_DIST_TWIP = Math.round(0.14 * 1440) // LETTERHEAD_TOP_IN
-
-  const letterhead = await fetchLetterhead()
-  const headerChildren: DocxParagraph[] = []
-  if (letterhead) {
-    const widthPx = Math.round(pageWIn * LETTERHEAD_WIDTH_RATIO * 96)
-    headerChildren.push(
-      new Paragraph({
-        alignment: CENTER,
-        children: [
-          new ImageRun({
-            type: 'png',
-            data: letterhead,
-            transformation: { width: widthPx, height: Math.round(widthPx / LETTERHEAD_ASPECT) },
-          }),
-        ],
-      }),
-    )
-  }
+  // ---- Page + the official form chrome ------------------------------------
+  // The model form's own section — A4 portrait, one-inch margins — with the
+  // college's header and footer bands repeating on every page. Both bands are
+  // real Word content, so Word grows them over the margins and keeps the body
+  // clear on every page the way the form itself lays out.
+  const { header, footer } = await buildFormChrome(d)
 
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: SZ } } } },
@@ -413,19 +380,12 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       {
         properties: {
           page: {
-            size: { width: inch(8.5), height: inch(13) },
-            margin: {
-              top: bandTwip,
-              right: inch(0.5),
-              bottom: inch(0.5),
-              left: inch(0.5),
-              header: HEADER_DIST_TWIP,
-            },
+            size: { width: FORM_PAGE.size.width, height: FORM_PAGE.size.height },
+            margin: { ...FORM_PAGE.margin },
           },
         },
-        ...(headerChildren.length
-          ? { headers: { default: new Header({ children: headerChildren }) } }
-          : {}),
+        headers: { default: header },
+        footers: { default: footer },
         children,
       },
     ],
