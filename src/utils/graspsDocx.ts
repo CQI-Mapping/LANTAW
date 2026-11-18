@@ -126,15 +126,18 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     const out: ReturnType<typeof run>[] = []
     let last = 0
     let m: RegExpExecArray | null
+    // Unpaired leftover markers (a legacy draft's half-applied style) are
+    // stripped from the runs outside a matched pair.
+    const plain = (s: string) => s.replace(/\*\*|__|\+\+/g, '')
     while ((m = re.exec(text)) !== null) {
-      if (m.index > last) out.push(run(text.slice(last, m.index), o))
+      if (m.index > last) out.push(run(plain(text.slice(last, m.index)), o))
       if (m[1] !== undefined) out.push(run(m[1], { ...o, bold: true }))
       else if (m[2] !== undefined) out.push(run(m[2], { ...o, underline: true }))
       else if (m[3] !== undefined) out.push(run(m[3], { ...o, italics: true }))
       else if (m[4] !== undefined) out.push(run(m[4], { ...o, italics: true }))
       last = m.index + m[0].length
     }
-    if (last < text.length) out.push(run(text.slice(last), o))
+    if (last < text.length) out.push(run(plain(text.slice(last)), o))
     return out.length ? out : [run(text, o)]
   }
 

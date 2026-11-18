@@ -160,6 +160,9 @@ function markersToHtml(text: string): string {
       .replace(/__(.+?)__/g, '<i>$1</i>')
       .replace(/_(.+?)_/g, '<i>$1</i>')
       .replace(/\+\+(.+?)\+\+/g, '<u>$1</u>')
+      // Unpaired leftovers - a legacy draft's half-applied style - lose
+      // their markers rather than printing them.
+      .replace(/\*\*|__|\+\+/g, '')
   const out: string[] = []
   let list: { tag: 'ul' | 'ol'; items: string[] } | null = null
   const flush = () => {
@@ -1569,16 +1572,19 @@ export default function Grasps() {
                   const text = (viewRow[p.key] ?? '').trim()
                   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
                   if (lines.length === 0) return null
+                  // The reader speaks the export's labels - the document
+                  // says "Product/Performance:" without the spaces.
+                  const label = p.key === 'product' ? 'Product/Performance' : p.label
                   const labelAlone = lines[0].endsWith(':')
                   const firstIsPlain = !/^[-*•–]\s+/.test(lines[0]) && !/^\d+[.)]\s+/.test(lines[0])
                   const bodyHtml = markersToHtml(text)
                   return (
                     <div key={p.key} className="g26-reader__part">
                       {labelAlone || !firstIsPlain ? (
-                        <p className="g26-reader__line"><strong>{p.label}:</strong></p>
+                        <p className="g26-reader__line"><strong>{label}:</strong></p>
                       ) : (
                         <p className="g26-reader__line">
-                          <strong>{p.label}:</strong>{' '}
+                          <strong>{label}:</strong>{' '}
                           <span dangerouslySetInnerHTML={{ __html: markersToHtml(lines[0]).replace(/^<div>/, '').replace(/<\/div>$/, '') }} />
                         </p>
                       )}
