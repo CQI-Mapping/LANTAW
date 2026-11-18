@@ -294,7 +294,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
     const allNumeric = numbers.every((n) => n !== null)
     const total = numbers.reduce<number>((s, n) => s + (n ?? 0), 0)
     children.push(
-      para(allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'),
+      para(allNumeric && scored.length > 0 ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'),
       new Paragraph({ spacing: { after: 80 }, children: [] }),
       new Table({
         width: pct(100),

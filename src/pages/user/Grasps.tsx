@@ -1234,7 +1234,7 @@ export default function Grasps() {
                         printed on the Word export — inside the card, directly
                         under its textarea. */}
               <div className="g26-rubric__head">
-                <h4>{rubricAllNumeric ? `Analytic Rubric (${rubricTotal} points)` : 'Analytic Rubric'}</h4>
+                <h4>{rubricAllNumeric && rubricScored.length > 0 ? `Analytic Rubric (${rubricTotal} points)` : 'Analytic Rubric'}</h4>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={addRubricRow} disabled={!ready}>
                   <Icon name="plus" size={13} /> Add criterion
                 </button>
@@ -1622,7 +1622,7 @@ export default function Grasps() {
                   const total = numbers.reduce<number>((s, n) => s + (n ?? 0), 0)
                   return (
                     <div className="g26-reader__rubric">
-                      <p className="g26-reader__heading">{allNumeric ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'}</p>
+                      <p className="g26-reader__heading">{allNumeric && scored.length > 0 ? `Analytic Rubric (${total} points)` : 'Analytic Rubric'}</p>
                       <table className="g26-rubric__table">
                         <thead>
                           <tr>
