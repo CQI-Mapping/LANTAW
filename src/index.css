@@ -10498,10 +10498,16 @@ html.lantaw-dark .clo26-hact--deleted {
   position: sticky;
   top: 64px;
   z-index: 20;
-  background: var(--bg-panel);
+  /* The ribbon reads as its own band: the palette's light green, with a
+     matching rule, instead of the bare panel color. */
+  background: var(--g100);
   margin: 0 -14px 6px;
   padding: 6px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(124, 192, 142, 0.35);
+}
+
+html.lantaw-dark .g26-toolbar {
+  background: rgba(124, 192, 142, 0.08);
 }
 
 .g26-toolbar button {
