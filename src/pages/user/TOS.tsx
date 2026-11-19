@@ -52,6 +52,7 @@ import { downloadTosExcel } from '../../utils/tosXlsx'
 import {
   buildProgramOptions,
   programLabel,
+  courseLabel,
   buildCourseOptions,
   buildSemesterOptions,
   buildSchoolYearOptions,
@@ -197,6 +198,31 @@ export default function TOS({ profile }: { profile?: { role?: string | null; pro
   )
   const [programs, setPrograms] = useState<Program[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  // The subject picker lists only the subjects the manager handed to this
+  // faculty member - the primary instructor column or a junction row (028),
+  // compared by email with strict null checks.
+  const [myEmail, setMyEmail] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    supabase!
+      .auth.getUser()
+      .then(({ data }) => { if (!cancelled) setMyEmail(data.user?.email ?? '') })
+      .catch(() => { /* unreadable session -> no subjects, never everyone's */ })
+    return () => { cancelled = true }
+  }, [])
+  const assignedCourses = useMemo(
+    () =>
+      courses.filter(
+        (c) =>
+          (c.instructor_id !== null &&
+            typeof c.instructor_id === 'object' &&
+            c.instructor_id.email === myEmail) ||
+          (c.course_instructors ?? []).some(
+            (ci) => ci.faculty_id !== null && ci.faculty_id.email === myEmail,
+          ),
+      ),
+    [courses, myEmail],
+  )
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -690,9 +716,15 @@ export default function TOS({ profile }: { profile?: { role?: string | null; pro
     [programs, exam.code],
   )
 
+  useEffect(() => {
+    if (!myEmail || !exam.title) return
+    const labels = assignedCourses.map(courseLabel)
+    if (!labels.includes(exam.title)) setExam((prev) => ({ ...prev, title: '' }))
+  }, [myEmail, assignedCourses, exam.title])
+
   const courseOptions = useMemo(
-    () => buildCourseOptions(courses, selectedProgramId, exam.title),
-    [courses, selectedProgramId, exam.title],
+    () => buildCourseOptions(assignedCourses, selectedProgramId, exam.title),
+    [assignedCourses, selectedProgramId, exam.title],
   )
 
   const semesterOptions = useMemo(() => buildSemesterOptions(exam.semester), [exam.semester])
