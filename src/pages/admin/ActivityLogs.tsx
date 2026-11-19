@@ -19,16 +19,17 @@ import {
   
   fetchActivityActors,
   fetchAllProfiles,
+  fetchPrograms,
   ACTIVITY_LOG_LIMIT,
 } from '../../services/database'
-import type { ActivityLogEntry, ActivityRollupRow, UserRole } from '../../services/database'
+import type { ActivityLogEntry, ActivityRollupRow, UserRole, Profile, Program } from '../../services/database'
+import { visiblePrograms } from '../../utils/programScope'
 import {
   labelAction,
   labelCategory,
   labelReason,
   labelRole,
   ROLE_ORDER,
-  ACTION_LABELS,
 } from './ActivityLabels'
 
 // The `label` is the only part of details a person would search for. The raw
@@ -131,7 +132,9 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
 
   // Filters
   const [search, setSearch] = useState('')
-  const [actionFilter, setActionFilter] = useState('')
+  const [programFilter, setProgramFilter] = useState('')
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
   const [userFilter, setUserFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -151,6 +154,14 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
   // again without first clearing itself.
   useEffect(() => {
     let cancelled = false
+    fetchPrograms()
+      .then((all) => { if (!cancelled) setPrograms(visiblePrograms(all, profile)) })
+      .catch(() => { /* the dropdown simply stays empty */ })
+    return () => { cancelled = true }
+  }, [profile])
+
+  useEffect(() => {
+    let cancelled = false
     fetchActivityActors()
       .then((rows) => { if (!cancelled) setActors(rows) })
       .catch(() => { /* the dropdown simply stays empty */ })
@@ -162,6 +173,7 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
     fetchAllProfiles()
       .then((rows) => {
         if (cancelled) return
+        setProfiles(rows)
         setRoleByEmail(Object.fromEntries(rows.map((p) => [p.email.toLowerCase(), p.role])))
       })
       .catch(() => {
@@ -196,14 +208,20 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
   const filters = useMemo(
     () => ({
       search: debouncedSearch.trim() || undefined,
-      action: actionFilter || undefined,
+      userEmails: programFilter
+        ? profiles
+            .filter((p) => p.program_id === programFilter)
+            .map((p) => p.email)
+            .filter(Boolean)
+        : isManagerViewer
+          ? programEmails ?? []
+          : undefined,
       userEmail: userFilter || undefined,
       from: dateFrom || undefined,
       to: dateTo || undefined,
       limit: ACTIVITY_LOG_LIMIT,
-      userEmails: isManagerViewer ? programEmails ?? [] : undefined,
     }),
-    [debouncedSearch, actionFilter, userFilter, dateFrom, dateTo, isManagerViewer, programEmails],
+    [debouncedSearch, programFilter, profiles, userFilter, dateFrom, dateTo, isManagerViewer, programEmails],
   )
 
   // Guards against a slow earlier response overwriting a newer one: without the
@@ -302,19 +320,11 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
     )
   }, [rows, roleByEmail])
 
-  // Every action the app can emit, not just the ones present in this page of
-  // results — otherwise picking an action would shrink the dropdown to nothing.
-  const actions = useMemo(() => {
-    const set = new Set<string>(Object.keys(ACTION_LABELS))
-    for (const e of entries) set.add(e.action)
-    return [...set].sort((a, b) => labelAction(a).localeCompare(labelAction(b)))
-  }, [entries])
-
-  const hasFilters = search || actionFilter || userFilter || roleFilter || dateFrom || dateTo
+  const hasFilters = search || programFilter || userFilter || roleFilter || dateFrom || dateTo
 
   const clearFilters = () => {
     setSearch('')
-    setActionFilter('')
+    setProgramFilter('')
     setUserFilter('')
     setRoleFilter('')
     setDateFrom('')
@@ -469,15 +479,15 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
           </label>
 
           <label className="activity-filter">
-            <span>Action</span>
+            <span>Program</span>
             <select
               className="input input--sm"
-              value={actionFilter}
-              onChange={(e) => setActionFilter(e.target.value)}
+              value={programFilter}
+              onChange={(e) => setProgramFilter(e.target.value)}
             >
-              <option value="">All actions</option>
-              {actions.map((a) => (
-                <option key={a} value={a}>{labelAction(a)}</option>
+              <option value="">All programs</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>{p.name || p.code}</option>
               ))}
             </select>
           </label>
