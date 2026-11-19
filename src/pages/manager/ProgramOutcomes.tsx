@@ -36,24 +36,24 @@ export default function ProgramOutcomes({ profile }: { profile?: { program_id?: 
   const [sgSuggestions, setSgSuggestions] = useState<SuggestionOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // The reader beside the add form: the manager's own active program
-  // outcomes — the same rows the page's list shows — grouped per CMO
-  // category and numbered continuously the way the syllabus document
-  // prints it.
+  // The reader beside the add form: the admin's active program outcomes —
+  // the list maintained on the admin Program Outcomes page — grouped per CMO
+  // category and numbered continuously the way the syllabus document prints
+  // it. The page's own list below the form stays manager-authored.
   const [readerGroups, setReaderGroups] = useState<PoGroup[]>([])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const [pos, peos, sgs, cmosAll, allPos] = await Promise.all([
+        const [pos, peos, sgs, cmosAll, adminPos] = await Promise.all([
           fetchProgramOutcomesStandalone('manager', myProgramId),
           fetchProgramEducationalObjectives(),
           fetchStrategicGoals(),
           fetchChedMemoOrders(),
-          // The read side: the manager's own rows — the list below the form
-          // is manager-authored only, and the reader mirrors it.
-          fetchProgramOutcomesStandalone(undefined, myProgramId),
+          // The read side: the admin's Program Outcomes. Admin rows are
+          // global (no program_id), so fetch them without one.
+          fetchProgramOutcomesStandalone('admin'),
         ])
         const referencedCmos = new Set(pos.map((p) => p.cmo_id).filter(Boolean) as string[])
         const cmos = cmosAll.filter(
@@ -66,14 +66,13 @@ export default function ProgramOutcomes({ profile }: { profile?: { program_id?: 
         }))
 
         if (!cancelled) {
-          // Reader build: the manager's own active rows only, code order
+          // Reader build: the admin's active rows only, code order
           // (PO-1… before SD-…, numeric within each family), grouped per CMO
-          // category — manager rows carry it in the description column.
-          const activeManager = allPos.filter(
-            (p) => p.source === 'manager' && (!p.status || p.status === 'active'),
-          )
-          activeManager.sort((a, b) => outcomeCodeKey(a.code).localeCompare(outcomeCodeKey(b.code)))
-          setReaderGroups(buildGroups(activeManager, cmosAll))
+          // category — admin rows carry it in cmo_id / cmo_text, which
+          // buildGroups resolves through cmoLabel.
+          const activeAdmin = adminPos.filter((p) => !p.status || p.status === 'active')
+          activeAdmin.sort((a, b) => outcomeCodeKey(a.code).localeCompare(outcomeCodeKey(b.code)))
+          setReaderGroups(buildGroups(activeAdmin, cmosAll))
           setCmoOptions([...fixedOptions, ...cmoOpts])
           setPeoSuggestions(peos.filter((p) => p.status === 'active').map(toSuggestion))
           setSgSuggestions(sgs.filter((s) => s.status === 'active').map(toSgSuggestion))
@@ -93,14 +92,14 @@ export default function ProgramOutcomes({ profile }: { profile?: { program_id?: 
   if (loading) return <p>Loading program outcomes...</p>
 
   // The reader leg beside the New Program Outcome form (the CLO page's pair
-  // layout): the manager's own active POs as one numbered run per CMO
-  // category — no panel title, the category headings speak for themselves,
-  // same as the CLO form's reference.
+  // layout): the admin's active POs as one numbered run per CMO category —
+  // no panel title, the category headings speak for themselves, same as the
+  // CLO form's reference.
   const readerRef = (
     <aside className="panel clo-layout__ref" aria-label="Program Outcomes reference">
       <div className="clo-layout__ref-scroll">
         {readerGroups.length === 0 ? (
-          <p className="clo-layout__ref-empty">No Program Outcomes yet — the first one added opens the run here.</p>
+          <p className="clo-layout__ref-empty">No admin Program Outcomes yet — add them on the admin Program Outcomes page to open the run here.</p>
         ) : (
           readerGroups.map((group, gi) => {
             const rowBase = readerGroups.slice(0, gi).reduce((n, prior) => n + prior.items.length, 0)
