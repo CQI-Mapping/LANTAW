@@ -30,6 +30,7 @@ import {
 } from '../../services/database'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
+import { SCORING_INTERPRETATION } from '../../utils/graspsScoring'
 import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
@@ -1257,6 +1258,7 @@ export default function Grasps() {
                 )}
 
                 {p.key === 'standards' && (
+                  <>
                   <div className="g26-rubric">
                     {/* The Standards component's companion: criteria scored across
                         the four performance levels, saved with the task (034) and
@@ -1387,6 +1389,20 @@ export default function Grasps() {
                 </p>
               )}
             </div>
+            <div className="g26-scoring">
+              <h4>Scoring Interpretation</h4>
+              <table className="g26-rubric__table">
+                <thead>
+                  <tr><th>Score Range</th><th>Performance Level</th></tr>
+                </thead>
+                <tbody>
+                  {SCORING_INTERPRETATION.map((s) => (
+                    <tr key={s.range}><td>{s.range}</td><td>{s.level}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+                  </>
                 )}
               </div>
             )
@@ -1691,6 +1707,20 @@ export default function Grasps() {
                     </div>
                   )
                 })()}
+
+                <div className="g26-reader__rubric">
+                  <h4>Scoring Interpretation</h4>
+                  <table className="g26-rubric__table">
+                    <thead>
+                      <tr><th>Score Range</th><th>Performance Level</th></tr>
+                    </thead>
+                    <tbody>
+                      {SCORING_INTERPRETATION.map((s) => (
+                        <tr key={s.range}><td>{s.range}</td><td>{s.level}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

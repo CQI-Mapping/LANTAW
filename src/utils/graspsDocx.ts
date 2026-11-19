@@ -16,6 +16,7 @@
 import type { Paragraph as DocxParagraph, Table as DocxTable } from 'docx'
 import type { GraspsRubricRow } from '../services/database'
 import { saveBlob } from './download'
+import { SCORING_INTERPRETATION } from './graspsScoring'
 import { FORM_PAGE, buildFormChrome } from './nbscForm'
 
 const FONT = 'Arial'
@@ -359,6 +360,31 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       new Paragraph({ spacing: { after: 200 }, children: [] }),
     )
   }
+
+  // ---- Scoring interpretation -------------------------------------------
+  // The form's fixed scale, printed after the analytic rubric.
+  children.push(
+    new Paragraph({ spacing: { after: 80 }, children: [] }),
+    para('Scoring Interpretation', { bold: true }),
+    new Table({
+      width: pct(100),
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          children: [
+            cell([para('Score Range', { bold: true, color: NAVY, align: CENTER })], 35),
+            cell([para('Performance Level', { bold: true, color: NAVY, align: CENTER })], 65),
+          ],
+        }),
+        ...SCORING_INTERPRETATION.map((s) =>
+          new TableRow({
+            children: [cell([para(s.range)], 35), cell([para(s.level)], 65)],
+          }),
+        ),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
+  )
 
   // ---- Prepared by -------------------------------------------------------
   if (data.preparedBy.trim()) {

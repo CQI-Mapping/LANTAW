@@ -10817,6 +10817,17 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   white-space: nowrap;
 }
 
+/* The scoring interpretation table under the Analytic Rubric. */
+.g26-scoring {
+  margin-top: 12px;
+}
+
+.g26-scoring h4 {
+  margin: 0 0 6px;
+  font: 700 13px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */
