@@ -80,7 +80,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'ched_memo_order.restored': 'Restored CHED memorandum order',
   'ched_memo_order.deleted': 'Deleted CHED memorandum order',
 
-  // Table of Specification blueprints (faculty "Generate TOS" page)
+  // Table of Specification blueprints (faculty "Create TOS" page)
   'tos_exam.created': 'Created exam blueprint',
   'tos_exam.updated': 'Updated exam blueprint',
   'tos_exam.archived': 'Archived exam blueprint',

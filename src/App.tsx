@@ -20,7 +20,7 @@
 //
 // Faculty pages (sidebar order):
 //   Dashboard, Course Learning Outcomes, Subject Graph (Generate Map),
-//   Create GRASPS, Generate TOS, Profile, Security & Privacy
+//   Create GRASPS, Create TOS, Profile, Security & Privacy
 //
 // The Program / CHED Memo / Strategic Goals / PEO pages are shared with the admin
 // role (same as Activity Logs and Subject Graph) — only destructive deletes stay
@@ -107,7 +107,7 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'clo', label: 'Course Learning Outcomes' },
     { id: 'subject-view', label: 'Generate Map' },
     { id: 'grasps', label: 'Create GRASPS' },
-    { id: 'tos', label: 'Generate TOS' },
+    { id: 'tos', label: 'Create TOS' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
     { id: 'appearance', label: 'Appearance' },
