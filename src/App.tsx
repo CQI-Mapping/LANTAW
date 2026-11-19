@@ -691,7 +691,7 @@ function App() {
     // The log page filters by role, and which roles it may offer depends on
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
     // so offering them an Admins filter would only ever yield an empty table.
-    if (page === 'activity-logs') return <Page viewerRole={role} />
+    if (page === 'activity-logs') return <Page viewerRole={role} profile={profile} />
     if (page === 'clo') {
       // The faculty CLO page scopes its pickers by the signed-in email —
       // without it the assignment gate cannot match anything.

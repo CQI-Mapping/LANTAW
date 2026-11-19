@@ -1174,6 +1174,8 @@ export async function fetchPoFeedback(): Promise<PoFeedback[]> {
 export interface ActivityLogFilters {
   /** Exact actor. The log is global, so this is how you isolate one person. */
   userEmail?: string
+  /** Restrict to these actors (a manager's program faculty). */
+  userEmails?: string[]
   /** Exact action string, e.g. 'course.viewed'. */
   action?: string
   /**
@@ -1216,6 +1218,7 @@ function localDayBoundary(date: string, endOfDay: boolean): string {
  */
 interface ActivityQuery {
   eq(column: string, value: string): ActivityQuery
+  in(column: string, values: string[]): ActivityQuery
   or(condition: string): ActivityQuery
   gte(column: string, value: string): ActivityQuery
   lte(column: string, value: string): ActivityQuery
@@ -1232,6 +1235,8 @@ function applyActivityFilters(
 ): ActivityQuery {
   let q = query
   if (filters.userEmail) q = q.eq('user_email', filters.userEmail)
+  // A manager narrows the log to the faculty of their program by email.
+  if (filters.userEmails) q = q.in('user_email', filters.userEmails)
   if (filters.action) q = q.eq('action', filters.action)
   if (filters.search) {
     // Strip the characters PostgREST's or() grammar treats as structure, so a

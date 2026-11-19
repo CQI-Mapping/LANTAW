@@ -50,6 +50,8 @@ interface ActivityLogsViewProps {
    * exist regardless (migrations/003 and 007).
    */
   viewerRole?: UserRole
+  /** The signed-in profile: a manager's log covers their program's faculty. */
+  profile?: { role?: string | null; program_id?: string | null } | null
 }
 
 /**
@@ -75,8 +77,31 @@ function summarise(row: ActivityRollupRow): string {
     .join(' · ')
 }
 
-function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = 'user' }: ActivityLogsViewProps = {}) {
+function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = 'user', profile }: ActivityLogsViewProps = {}) {
   const isAdminViewer = viewerRole === 'admin'
+  const isManagerViewer = viewerRole === 'manager'
+  const myProgramId = profile?.program_id ?? null
+  // null = still resolving (or not a manager); [] = an unassigned manager
+  // sees no one. The log fetch waits for this before showing any rows.
+  const [programEmails, setProgramEmails] = useState<string[] | null>(
+    isManagerViewer ? null : [],
+  )
+  useEffect(() => {
+    if (!isManagerViewer) { setProgramEmails([]); return }
+    let cancelled = false
+    fetchAllProfiles()
+      .then((all) => {
+        if (cancelled) return
+        setProgramEmails(
+          all
+            .filter((p) => p.role === 'user' && !!myProgramId && p.program_id === myProgramId)
+            .map((p) => p.email)
+            .filter(Boolean),
+        )
+      })
+      .catch(() => { if (!cancelled) setProgramEmails([]) })
+    return () => { cancelled = true }
+  }, [isManagerViewer, myProgramId])
   // Managers get Faculty alone — their database scope is faculty activity
   // (migration 007), so Managers/Admins options could only ever show nothing.
   const roleOptions = isAdminViewer
@@ -164,7 +189,9 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
    */
   const visibleActors = isAdminViewer
     ? actors
-    : actors.filter((a) => roleOf(a) === 'user')
+    : actors.filter(
+        (a) => roleOf(a) === 'user' && (!isManagerViewer || (programEmails ?? []).includes(a)),
+      )
 
   const filters = useMemo(
     () => ({
@@ -174,8 +201,9 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
       from: dateFrom || undefined,
       to: dateTo || undefined,
       limit: ACTIVITY_LOG_LIMIT,
+      userEmails: isManagerViewer ? programEmails ?? [] : undefined,
     }),
-    [debouncedSearch, actionFilter, userFilter, dateFrom, dateTo],
+    [debouncedSearch, actionFilter, userFilter, dateFrom, dateTo, isManagerViewer, programEmails],
   )
 
   // Guards against a slow earlier response overwriting a newer one: without the
@@ -183,6 +211,8 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
   const requestRef = useRef(0)
 
   const load = useCallback(async () => {
+    // Never show other programs' rows while the manager's roster resolves.
+    if (isManagerViewer && programEmails === null) return
     const token = ++requestRef.current
     setLoading(true)
     setError('')
@@ -196,7 +226,7 @@ function ActivityLogsView({ title = 'Activity Logs', description, viewerRole = '
     } finally {
       if (token === requestRef.current) setLoading(false)
     }
-  }, [filters])
+  }, [filters, isManagerViewer, programEmails])
 
   useEffect(() => { load() }, [load])
 

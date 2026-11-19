@@ -604,7 +604,14 @@ CREATE POLICY "Scoped activity log visibility" ON public.activity_logs FOR SELEC
         OR (
             public.current_user_role() = 'manager'
             AND user_email IS NOT NULL
-            AND public.actor_role(user_email) = 'user'
+            AND user_email IN (
+                SELECT p.email
+                FROM public.profiles p
+                WHERE p.role = 'user'
+                  AND p.program_id = (
+                      SELECT m.program_id FROM public.profiles m WHERE m.id = auth.uid()
+                  )
+            )
         )
     );
 
