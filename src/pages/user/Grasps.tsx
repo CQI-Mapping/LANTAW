@@ -31,11 +31,13 @@ import {
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
 import { SCORING_INTERPRETATION, defaultScoring, type GraspsScoringRow } from '../../utils/graspsScoring'
+import { visiblePrograms } from '../../utils/programScope'
 import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
   buildExamTypeOptions,
   buildProgramOptions,
+  programLabel,
   buildSchoolYearOptions,
   buildSemesterOptions,
   composeTerm,
@@ -527,7 +529,7 @@ const describeGraspsError = (e: unknown, fallback: string): string => {
   return describeTosError(e, fallback)
 }
 
-export default function Grasps() {
+export default function Grasps({ profile }: { profile?: { role?: string | null; program_id?: string | null } | null }) {
   // The draft, restored from localStorage when a previous visit left one.
   const [draft, setDraft] = useState<GraspsDraft>(() => readDraft() ?? blankDraft())
   const [programs, setPrograms] = useState<Program[]>([])
@@ -607,7 +609,17 @@ export default function Grasps() {
     let cancelled = false
     Promise.allSettled([fetchPrograms(), fetchCourses()]).then(([p, c]) => {
       if (cancelled) return
-      setPrograms(p.status === 'fulfilled' ? p.value.filter(isActive) : [])
+      const scoped = p.status === 'fulfilled'
+        ? visiblePrograms(p.value.filter(isActive), profile)
+        : []
+      setPrograms(scoped)
+      // Drop a stale program from an old draft and open on the assigned one.
+      setDraft((prev) => {
+        const labels = scoped.map(programLabel)
+        if (prev.code && labels.includes(prev.code)) return prev
+        if (scoped.length === 1) return { ...prev, code: labels[0] }
+        return prev.code ? { ...prev, code: '' } : prev
+      })
       setCourses(c.status === 'fulfilled' ? c.value.filter(isActive) : [])
     })
     return () => {

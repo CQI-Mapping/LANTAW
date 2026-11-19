@@ -46,10 +46,12 @@ import {
   type TosExamRow,
   type TosSheetRow,
 } from '../../services/database'
+import { visiblePrograms } from '../../utils/programScope'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadTosExcel } from '../../utils/tosXlsx'
 import {
   buildProgramOptions,
+  programLabel,
   buildCourseOptions,
   buildSemesterOptions,
   buildSchoolYearOptions,
@@ -184,7 +186,7 @@ const readDraft = (): { exam: TosExam; sheets: TosSheet[]; activeKind: SheetKind
   }
 }
 
-export default function TOS() {
+export default function TOS({ profile }: { profile?: { role?: string | null; program_id?: string | null } | null }) {
   // The draft, restored from localStorage when a previous visit left one.
   // Each initialiser reads once at mount, so the three come back consistent
   // with whatever was last written together.
@@ -657,7 +659,17 @@ export default function TOS() {
     let cancelled = false
     Promise.allSettled([fetchPrograms(), fetchCourses()]).then(([p, c]) => {
       if (cancelled) return
-      setPrograms(p.status === 'fulfilled' ? p.value.filter(isActive) : [])
+      const scoped = p.status === 'fulfilled'
+        ? visiblePrograms(p.value.filter(isActive), profile)
+        : []
+      setPrograms(scoped)
+      // Drop a stale program from an old draft and open on the assigned one.
+      setExam((prev) => {
+        const labels = scoped.map(programLabel)
+        if (prev.code && labels.includes(prev.code)) return prev
+        if (scoped.length === 1) return { ...prev, code: labels[0] }
+        return prev.code ? { ...prev, code: '' } : prev
+      })
       setCourses(c.status === 'fulfilled' ? c.value.filter(isActive) : [])
     })
     return () => {
