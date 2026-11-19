@@ -10828,6 +10828,20 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   color: var(--g700);
 }
 
+.g26-scoring__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.g26-scoring__table td:last-child,
+.g26-scoring__table th:last-child {
+  width: 40px;
+  text-align: center;
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */

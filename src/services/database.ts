@@ -1628,6 +1628,8 @@ export interface GraspsTaskRow {
   rubric?: GraspsRubricRow[] | null
   /** The bullet library choice (035); NULL reads as the default disc. */
   bullet_style?: string | null
+  /** The editable Scoring Interpretation rows (040). */
+  scoring_interpretation?: Array<{ range: string; level: string }> | null
   status: 'active' | 'archived'
   created_at: string
   updated_at: string

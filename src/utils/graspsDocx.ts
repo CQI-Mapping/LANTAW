@@ -79,6 +79,8 @@ export interface GraspsDocxData {
   rubric?: GraspsRubricRow[]
   /** The bullet library choice - which glyph the bullet lists print. */
   bulletStyle?: string
+  /** The faculty's saved Scoring Interpretation rows. */
+  scoringInterpretation?: Array<{ range: string; level: string }>
   preparedBy: string
 }
 
@@ -376,7 +378,7 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
             cell([para('Performance Level', { bold: true, color: NAVY, align: CENTER })], 65),
           ],
         }),
-        ...SCORING_INTERPRETATION.map((s) =>
+        ...(data.scoringInterpretation?.length ? data.scoringInterpretation : SCORING_INTERPRETATION).map((s) =>
           new TableRow({
             children: [cell([para(s.range)], 35), cell([para(s.level)], 65)],
           }),

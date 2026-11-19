@@ -30,7 +30,7 @@ import {
 } from '../../services/database'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
-import { SCORING_INTERPRETATION } from '../../utils/graspsScoring'
+import { SCORING_INTERPRETATION, defaultScoring, type GraspsScoringRow } from '../../utils/graspsScoring'
 import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
@@ -436,6 +436,8 @@ interface GraspsDraft {
   rubric: GraspsRubricRow[]
   /** The bullet library choice (035) - which glyph the lists print. */
   bulletStyle: string
+  /** The editable Scoring Interpretation rows (040). */
+  scoring: GraspsScoringRow[]
 }
 
 const blankDraft = (): GraspsDraft => ({
@@ -453,6 +455,7 @@ const blankDraft = (): GraspsDraft => ({
   standards: '',
   rubric: [],
   bulletStyle: 'disc',
+  scoring: defaultScoring(),
 })
 
 /** A saved task, loaded back into the editor as its own editable copy. */
@@ -471,6 +474,7 @@ const draftFromRow = (row: GraspsTaskRow): GraspsDraft => ({
   standards: row.standards ?? '',
   rubric: row.rubric ?? [],
   bulletStyle: row.bullet_style ?? 'disc',
+  scoring: row.scoring_interpretation?.length ? row.scoring_interpretation : defaultScoring(),
 })
 
 /**
@@ -654,6 +658,20 @@ export default function Grasps() {
 
   // The analytic rubric's rows: add, edit a cell, remove. The remove
   // button never reorders surviving rows — index-spliced, like a table.
+  // The Scoring Interpretation rows: add, edit a cell, remove.
+  const addScoringRow = useCallback(() => {
+    setDraft((prev) => ({ ...prev, scoring: [...prev.scoring, { range: '', level: '' }] }))
+    setDirty(true)
+  }, [])
+  const removeScoringRow = useCallback((idx: number) => {
+    setDraft((prev) => ({ ...prev, scoring: prev.scoring.filter((_, i) => i !== idx) }))
+    setDirty(true)
+  }, [])
+  const patchScoringRow = useCallback((idx: number, patch: Partial<GraspsScoringRow>) => {
+    setDraft((prev) => ({ ...prev, scoring: prev.scoring.map((s, i) => (i === idx ? { ...s, ...patch } : s)) }))
+    setDirty(true)
+  }, [])
+
   const addRubricRow = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
@@ -794,6 +812,7 @@ export default function Grasps() {
         standards: draft.standards.trim() || null,
         rubric: cleanRubric,
         bullet_style: draft.bulletStyle,
+        scoring_interpretation: draft.scoring,
       }
 
       let id: string
@@ -903,6 +922,7 @@ export default function Grasps() {
           standards: row.standards ?? '',
           rubric: row.rubric ?? [],
           bulletStyle: row.bullet_style ?? 'disc',
+          scoringInterpretation: row.scoring_interpretation ?? undefined,
           preparedBy: '',
         })
         await addActivityLog('grasps_task.exported', {
@@ -1389,18 +1409,52 @@ export default function Grasps() {
                 </p>
               )}
             </div>
+// The editable Scoring Interpretation block for the form. Indented to
+// sit inside the Standards card's fragment.
             <div className="g26-scoring">
-              <h4>Scoring Interpretation</h4>
-              <table className="g26-rubric__table">
-                <thead>
-                  <tr><th>Score Range</th><th>Performance Level</th></tr>
-                </thead>
-                <tbody>
-                  {SCORING_INTERPRETATION.map((s) => (
-                    <tr key={s.range}><td>{s.range}</td><td>{s.level}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="g26-scoring__head">
+                <h4>Scoring Interpretation</h4>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={addScoringRow} disabled={!ready}>
+                  <Icon name="plus" size={13} /> Add range
+                </button>
+              </div>
+              <div className="g26-rubric__scroll">
+                <table className="g26-rubric__table g26-scoring__table">
+                  <thead>
+                    <tr><th>Score Range</th><th>Performance Level</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {draft.scoring.map((s, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input
+                            className="g26-rubric__input"
+                            value={s.range}
+                            placeholder="90–100"
+                            disabled={!ready}
+                            onChange={(e) => patchScoringRow(i, { range: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="g26-rubric__input"
+                            value={s.level}
+                            placeholder="Outstanding"
+                            disabled={!ready}
+                            onChange={(e) => patchScoringRow(i, { level: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <button type="button" className="g26-rubric__remove" aria-label={`Remove scoring range ${i + 1}`}
+                            title="Remove this range" onClick={() => removeScoringRow(i)} disabled={!ready}>
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
                   </>
                 )}
@@ -1715,7 +1769,7 @@ export default function Grasps() {
                       <tr><th>Score Range</th><th>Performance Level</th></tr>
                     </thead>
                     <tbody>
-                      {SCORING_INTERPRETATION.map((s) => (
+                      {(viewRow.scoring_interpretation?.length ? viewRow.scoring_interpretation : SCORING_INTERPRETATION).map((s) => (
                         <tr key={s.range}><td>{s.range}</td><td>{s.level}</td></tr>
                       ))}
                     </tbody>

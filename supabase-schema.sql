@@ -1336,6 +1336,9 @@ CREATE TABLE IF NOT EXISTS public.grasps_tasks (
     -- The bullet library choice (035): which glyph the bullet lists print
     -- with in the Word export. NULL reads as the default disc.
     bullet_style TEXT,
+    -- The faculty's editable Scoring Interpretation rows (040); NULL
+    -- reads as the college's default bands.
+    scoring_interpretation JSONB,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
