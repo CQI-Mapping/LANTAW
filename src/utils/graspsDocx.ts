@@ -1,6 +1,6 @@
 // Word (.docx) export for a GRASPS performance task.
 //
-// The Generate GRASPS page keeps each task as six plain-text components, and
+// The Create GRASPS page keeps each task as six plain-text components, and
 // this export rebuilds them as the document faculty hand in: the official
 // form's header and footer bands (utils/nbscForm.ts, repeated on every page),
 // the identifying header lines, the six components as labeled paragraphs,

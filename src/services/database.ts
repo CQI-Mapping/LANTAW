@@ -1589,7 +1589,7 @@ export async function replaceTosTopics(
 
 // ---------- GRASPS performance tasks ----------
 //
-// The Generate GRASPS page's saved performance tasks: one row per document,
+// The Create GRASPS page's saved performance tasks: one row per document,
 // carrying the six GRASPS components as plain text. Private to their owner,
 // like TOS blueprints — migration 025 scopes every read and write to the
 // caller, so these functions never filter by user themselves and the page

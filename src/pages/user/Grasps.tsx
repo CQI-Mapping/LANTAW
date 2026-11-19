@@ -991,7 +991,7 @@ export default function Grasps() {
           <div className="program-hero__icon">G</div>
           <div className="program-hero__titles">
             <span className="g26-kicker">Performance task builder</span>
-            <h2>Generate GRASPS</h2>
+            <h2>Create GRASPS</h2>
             <p>Build a clear, outcomes-aligned performance task using the six GRASPS components.</p>
           </div>
         </div>
