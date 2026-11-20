@@ -2711,6 +2711,17 @@ code {
   white-space: nowrap;
 }
 
+/* Manager's Add Faculty note: the program every new account inherits. */
+.users-program-note {
+  margin: 2px 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.users-program-note strong {
+  color: var(--g700);
+}
+
 .users-program-chip--none {
   color: var(--text-muted);
   font-weight: 500;
@@ -10046,7 +10057,7 @@ html.lantaw-dark .clo26-hact--deleted {
   background: rgba(224, 138, 138, 0.1);
 }
 
-/* ---- Generate GRASPS (prototype design): hero with kicker + guide
+/* ---- Create GRASPS (prototype design): hero with kicker + guide
    button, the task-setup draft card, six component cards with letter
    badges and a completion meter, workspace tabs, and a Quick
    Reference dialog. ---- */
@@ -10804,6 +10815,31 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
+}
+
+/* The scoring interpretation table under the Analytic Rubric. */
+.g26-scoring {
+  margin-top: 12px;
+}
+
+.g26-scoring h4 {
+  margin: 0 0 6px;
+  font: 700 13px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
+.g26-scoring__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.g26-scoring__table td:last-child,
+.g26-scoring__table th:last-child {
+  width: 40px;
+  text-align: center;
 }
 
 /* ---- Program Outcomes (prototype design): flat cards with a number

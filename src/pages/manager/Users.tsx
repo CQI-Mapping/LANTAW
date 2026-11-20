@@ -22,13 +22,26 @@
 
 import { useState, useEffect } from 'react'
 import Icon from '../../components/icons'
-import { adminCreateUser, adminResendInvite, addActivityLog, fetchAllProfiles, updateUserStatus } from '../../services/database'
+import { adminCreateUser, adminResendInvite, addActivityLog, fetchAllProfiles, fetchPrograms, updateUserStatus } from '../../services/database'
 import { isActive } from '../../utils/report'
 import { MIN_PASSWORD_LENGTH, passwordVariety, suggestStrongPassword } from '../../utils/passwordPolicy'
 import { supabase } from '../../utils/supabaseClient'
 import type { Profile } from '../../services/database'
 
-function Users() {
+function Users({ profile }: { profile?: Profile | null }) {
+  // The manager's own program (profiles.program_id) is the one every new
+  // faculty account inherits — no selector, and the Edge Function refuses
+  // any program other than this one from a manager's request.
+  const myProgramId = profile?.program_id ?? null
+  const [myProgramName, setMyProgramName] = useState('')
+  useEffect(() => {
+    if (!myProgramId) { setMyProgramName(''); return }
+    let cancelled = false
+    fetchPrograms()
+      .then((ps) => { if (!cancelled) setMyProgramName(ps.find((p) => p.id === myProgramId)?.name ?? '') })
+      .catch(() => { if (!cancelled) setMyProgramName('') })
+    return () => { cancelled = true }
+  }, [myProgramId])
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -123,7 +136,7 @@ function Users() {
       // add faculty, they don't administer admins. EVERY faculty row is
       // kept (active and archived alike): the tab below decides which ones
       // the table shows, and the Archive tab needs its roster too.
-      setUsers(profiles.filter((u) => u.role !== 'admin'))
+      setUsers(profiles.filter((u) => u.role !== 'admin' && !!myProgramId && u.program_id === myProgramId))
       try {
         const { data } = await supabase!.auth.getUser()
         const me = profiles.find((u) => u.id === data?.user?.id)
@@ -168,7 +181,7 @@ function Users() {
       // a random one nobody sees and emails a one-time link) or the typed
       // temporary one (validated above; shared privately after creation),
       // and the inbox gets the one-time link either way.
-      const created = await adminCreateUser(createdEmail, setTempPasswordByHand ? tempPassword : '', '', 'user')
+      const created = await adminCreateUser(createdEmail, setTempPasswordByHand ? tempPassword : '', '', 'user', myProgramId)
       await addActivityLog('user.created', {
         entity: 'user',
         entity_id: created?.id,
@@ -214,6 +227,11 @@ function Users() {
 
       <div className="panel create-user" style={{ borderTop: '3px solid var(--primary)' }}>
         <h3>Add Faculty</h3>
+        <p className="users-program-note">
+          {myProgramId
+            ? <>New faculty will be assigned to <strong>{myProgramName || 'your program'}</strong> automatically.</>
+            : <>No program is assigned to your account yet — ask an administrator to set one. New faculty will have no program until then.</>}
+        </p>
         <form onSubmit={handleSubmit}>
           <div className="create-user__row create-user__row--email-only">
             <label className="field">

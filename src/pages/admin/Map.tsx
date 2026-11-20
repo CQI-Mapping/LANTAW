@@ -58,6 +58,7 @@ import { normalizeCode, cloMatchesSubject, cloLabel, standingPrereqYear, everyth
 import { splitReportPos, buildGroups, isManagerCmCategory, isManagerOutcome, outcomeCodeKey } from '../../utils/report'
 import { reportFileName } from '../../utils/download'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
+import { visiblePrograms } from '../../utils/programScope'
 import Icon from '../../components/icons'
 import SyllabusReport from '../../components/SyllabusReport'
 import OutcomeDetailsCard from '../../components/OutcomeDetailsCard'
@@ -263,7 +264,7 @@ const connectedCategoryDefs: Array<{ kind: ConnectedGroup['kind']; label: string
   { kind: 'cmo', label: 'CHED Memorandum Orders' },
 ]
 
-export default function SubjectView() {
+export default function SubjectView({ profile }: { profile?: { role?: string | null; program_id?: string | null } | null } = {}) {
   const [programs, setPrograms] = useState<Program[]>([])
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedProgramId, setSelectedProgramId] = useState('')
@@ -397,7 +398,7 @@ export default function SubjectView() {
       try {
         const [p, c, pos] = await Promise.all([fetchPrograms(), fetchCourses(), fetchProgramOutcomesStandalone()])
         if (!cancelled) {
-          const sorted = [...p].sort((a, b) =>
+          const sorted = [...visiblePrograms(p, profile)].sort((a, b) =>
             String(a.name || a.code).localeCompare(String(b.name || b.code)))
           setPrograms(sorted)
           setCourses(c.filter(isActive).sort((a, b) => String(a.code).localeCompare(String(b.code))))
@@ -852,7 +853,7 @@ export default function SubjectView() {
       // minus the loading UI — a background refresh shows no spinner, and the
       // already-chosen program/collection keeps its selection.
       const [p, c, pos] = await Promise.all([fetchPrograms(), fetchCourses(), fetchProgramOutcomesStandalone()])
-      const sorted = [...p].sort((a, b) =>
+      const sorted = [...visiblePrograms(p, profile)].sort((a, b) =>
         String(a.name || a.code).localeCompare(String(b.name || b.code)))
       setPrograms(sorted)
       setCourses(c.filter(isActive).sort((a, b) => String(a.code).localeCompare(String(b.code))))

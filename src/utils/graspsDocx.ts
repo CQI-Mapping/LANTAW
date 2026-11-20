@@ -1,6 +1,6 @@
 // Word (.docx) export for a GRASPS performance task.
 //
-// The Generate GRASPS page keeps each task as six plain-text components, and
+// The Create GRASPS page keeps each task as six plain-text components, and
 // this export rebuilds them as the document faculty hand in: the official
 // form's header and footer bands (utils/nbscForm.ts, repeated on every page),
 // the identifying header lines, the six components as labeled paragraphs,
@@ -16,6 +16,7 @@
 import type { Paragraph as DocxParagraph, Table as DocxTable } from 'docx'
 import type { GraspsRubricRow } from '../services/database'
 import { saveBlob } from './download'
+import { SCORING_INTERPRETATION } from './graspsScoring'
 import { FORM_PAGE, buildFormChrome } from './nbscForm'
 
 const FONT = 'Arial'
@@ -78,6 +79,8 @@ export interface GraspsDocxData {
   rubric?: GraspsRubricRow[]
   /** The bullet library choice - which glyph the bullet lists print. */
   bulletStyle?: string
+  /** The faculty's saved Scoring Interpretation rows. */
+  scoringInterpretation?: Array<{ range: string; level: string }>
   preparedBy: string
 }
 
@@ -359,6 +362,31 @@ export async function downloadGraspsDocx(data: GraspsDocxData): Promise<void> {
       new Paragraph({ spacing: { after: 200 }, children: [] }),
     )
   }
+
+  // ---- Scoring interpretation -------------------------------------------
+  // The form's fixed scale, printed after the analytic rubric.
+  children.push(
+    new Paragraph({ spacing: { after: 80 }, children: [] }),
+    para('Scoring Interpretation', { bold: true }),
+    new Table({
+      width: pct(100),
+      rows: [
+        new TableRow({
+          tableHeader: true,
+          children: [
+            cell([para('Score Range', { bold: true, color: NAVY, align: CENTER })], 35),
+            cell([para('Performance Level', { bold: true, color: NAVY, align: CENTER })], 65),
+          ],
+        }),
+        ...(data.scoringInterpretation?.length ? data.scoringInterpretation : SCORING_INTERPRETATION).map((s) =>
+          new TableRow({
+            children: [cell([para(s.range)], 35), cell([para(s.level)], 65)],
+          }),
+        ),
+      ],
+    }),
+    new Paragraph({ spacing: { after: 120 }, children: [] }),
+  )
 
   // ---- Prepared by -------------------------------------------------------
   if (data.preparedBy.trim()) {

@@ -45,6 +45,7 @@ import { buildMappingReport, chartCompleteOutcomes } from '../utils/cloPoMapping
 import { isManagerCmCategory, isManagerOutcome } from '../utils/report'
 import type { MappingStatus } from '../utils/reportsPdfModel'
 import { normalizeCode, cloLabel } from '../utils/courseCodes'
+import { visiblePrograms } from '../utils/programScope'
 import PoCoverageBars from './PoCoverageBars'
 import type { PoCoverageDetail } from './PoCoverageBars'
 
@@ -217,7 +218,7 @@ function MapBrief({ profile, onNavigate, children, dedupeCoreCounts, hideTiles }
         : Promise.resolve([] as CourseLearningOutcomeStandalone[]),
     ])
       .then(([p, c, po, peo, clo, sg, cmo, pool]) => {
-        setPrograms(p)
+        setPrograms(visiblePrograms(p, profile))
         setCourses(c)
         setPos(po)
         setPeos(peo)

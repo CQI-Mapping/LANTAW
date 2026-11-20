@@ -15,7 +15,7 @@ import { useSelection } from '../../hooks/useSelection'
 import { useViewMode } from '../../hooks/useViewMode'
 import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
-import type { Resource, Course } from '../../services/database'
+import type { Resource, Course, Profile } from '../../services/database'
 import { labelSchoolYearStart, schoolYearOptions } from '../../utils/schoolYear'
 
 const relId = (v: string | { id: string } | null | undefined) =>
@@ -44,9 +44,14 @@ function SyField({ value, onChange }: { value: string; onChange: (v: string) => 
 
 interface CurriculumProps {
   userEmail: string
+  profile?: Profile | null
 }
 
-function Curriculum({ userEmail }: CurriculumProps) {
+function Curriculum({ userEmail, profile }: CurriculumProps) {
+  // A manager's curricula are the ones linked from courses in their own
+  // program - resources have no program_id of their own, the course's
+  // curriculum_id is the bridge. Admins keep the whole catalog.
+  const myProgramId = profile?.role === 'manager' ? profile?.program_id ?? null : null
   const errMsg = (e: unknown) => {
     if (e instanceof Error) return e.message
     if (e && typeof e === 'object') {
@@ -99,7 +104,18 @@ function Curriculum({ userEmail }: CurriculumProps) {
     setLoading(true)
     setError('')
     try {
-      setItems(await fetchResources())
+      const [res, courses] = await Promise.all([fetchResources(), fetchCourses()])
+      if (myProgramId) {
+        const linked = new Set(
+          courses
+            .filter((c) => relId(c.program_id) === myProgramId)
+            .map((c) => relId(c.curriculum_id))
+            .filter(Boolean),
+        )
+        setItems(res.filter((r) => linked.has(r.id)))
+      } else {
+        setItems(res)
+      }
     } catch (e) {
       setError('Unable to load resources: ' + errMsg(e))
     } finally {
@@ -107,7 +123,7 @@ function Curriculum({ userEmail }: CurriculumProps) {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [myProgramId])
 
   // Load courses linked to the selected curriculum for the details panel.
   useEffect(() => {
@@ -117,7 +133,13 @@ function Curriculum({ userEmail }: CurriculumProps) {
     }
     setRelatedLoading(true)
     fetchCourses()
-      .then((all) => setRelatedCourses(all.filter((c) => relId(c.curriculum_id) === selectedId)))
+      .then((all) =>
+          setRelatedCourses(
+            all.filter(
+              (c) => relId(c.curriculum_id) === selectedId && (!myProgramId || relId(c.program_id) === myProgramId),
+            ),
+          ),
+        )
       .catch(() => setRelatedCourses([]))
       .finally(() => setRelatedLoading(false))
   }, [selectedId])

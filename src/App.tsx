@@ -20,7 +20,7 @@
 //
 // Faculty pages (sidebar order):
 //   Dashboard, Course Learning Outcomes, Subject Graph (Generate Map),
-//   Generate GRASPS, Generate TOS, Profile, Security & Privacy
+//   Create GRASPS, Create TOS, Profile, Security & Privacy
 //
 // The Program / CHED Memo / Strategic Goals / PEO pages are shared with the admin
 // role (same as Activity Logs and Subject Graph) — only destructive deletes stay
@@ -106,8 +106,8 @@ const NAV: Record<UserRole, NavItem[]> = {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'clo', label: 'Course Learning Outcomes' },
     { id: 'subject-view', label: 'Generate Map' },
-    { id: 'grasps', label: 'Generate GRASPS' },
-    { id: 'tos', label: 'Generate TOS' },
+    { id: 'grasps', label: 'Create GRASPS' },
+    { id: 'tos', label: 'Create TOS' },
     { id: 'profile', label: 'Profile' },
     { id: 'security', label: 'Security & Privacy' },
     { id: 'appearance', label: 'Appearance' },
@@ -677,21 +677,21 @@ function App() {
 
     if (page === 'dashboard') return <Page profile={profile} onNavigate={navigate} />
     if (page === 'profile') return <Page profile={profile} onSaved={setProfile} onNavigate={navigate} />
-    if (page === 'users') return <Page />
-    if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} />
-    if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} />
+    if (page === 'users') return <Page profile={profile} />
+    if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} profile={profile} />
+    if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} profile={profile} />
     if (page === 'view') {
       // One shared page, one banner wording: every sidebar that opens it names
       // the page "View Syllabus" (admin nav line 76, manager line 92), so the
       // banner matches its nav item instead of the page's file-level default.
       // (The faculty nav has no 'view' item, so the gating above never routes
       // them here.)
-      return <Page userEmail={profile?.email} title="View Syllabus" />
+      return <Page userEmail={profile?.email} title="View Syllabus" profile={profile} />
     }
     // The log page filters by role, and which roles it may offer depends on
     // the viewer: RLS hides admin-authored rows from managers (migration 003),
     // so offering them an Admins filter would only ever yield an empty table.
-    if (page === 'activity-logs') return <Page viewerRole={role} />
+    if (page === 'activity-logs') return <Page viewerRole={role} profile={profile} />
     if (page === 'clo') {
       // The faculty CLO page scopes its pickers by the signed-in email —
       // without it the assignment gate cannot match anything.

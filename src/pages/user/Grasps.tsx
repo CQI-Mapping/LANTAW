@@ -30,11 +30,14 @@ import {
 } from '../../services/database'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadGraspsDocx } from '../../utils/graspsDocx'
+import { SCORING_INTERPRETATION, defaultScoring, type GraspsScoringRow } from '../../utils/graspsScoring'
+import { visiblePrograms } from '../../utils/programScope'
 import { LETTERHEAD_URL } from '../../utils/letterhead'
 import {
   buildCourseOptions,
   buildExamTypeOptions,
   buildProgramOptions,
+  programLabel,
   buildSchoolYearOptions,
   buildSemesterOptions,
   composeTerm,
@@ -435,6 +438,8 @@ interface GraspsDraft {
   rubric: GraspsRubricRow[]
   /** The bullet library choice (035) - which glyph the lists print. */
   bulletStyle: string
+  /** The editable Scoring Interpretation rows (040). */
+  scoring: GraspsScoringRow[]
 }
 
 const blankDraft = (): GraspsDraft => ({
@@ -452,6 +457,7 @@ const blankDraft = (): GraspsDraft => ({
   standards: '',
   rubric: [],
   bulletStyle: 'disc',
+  scoring: defaultScoring(),
 })
 
 /** A saved task, loaded back into the editor as its own editable copy. */
@@ -470,6 +476,7 @@ const draftFromRow = (row: GraspsTaskRow): GraspsDraft => ({
   standards: row.standards ?? '',
   rubric: row.rubric ?? [],
   bulletStyle: row.bullet_style ?? 'disc',
+  scoring: row.scoring_interpretation?.length ? row.scoring_interpretation : defaultScoring(),
 })
 
 /**
@@ -522,7 +529,7 @@ const describeGraspsError = (e: unknown, fallback: string): string => {
   return describeTosError(e, fallback)
 }
 
-export default function Grasps() {
+export default function Grasps({ profile }: { profile?: { role?: string | null; program_id?: string | null } | null }) {
   // The draft, restored from localStorage when a previous visit left one.
   const [draft, setDraft] = useState<GraspsDraft>(() => readDraft() ?? blankDraft())
   const [programs, setPrograms] = useState<Program[]>([])
@@ -602,7 +609,17 @@ export default function Grasps() {
     let cancelled = false
     Promise.allSettled([fetchPrograms(), fetchCourses()]).then(([p, c]) => {
       if (cancelled) return
-      setPrograms(p.status === 'fulfilled' ? p.value.filter(isActive) : [])
+      const scoped = p.status === 'fulfilled'
+        ? visiblePrograms(p.value.filter(isActive), profile)
+        : []
+      setPrograms(scoped)
+      // Drop a stale program from an old draft and open on the assigned one.
+      setDraft((prev) => {
+        const labels = scoped.map(programLabel)
+        if (prev.code && labels.includes(prev.code)) return prev
+        if (scoped.length === 1) return { ...prev, code: labels[0] }
+        return prev.code ? { ...prev, code: '' } : prev
+      })
       setCourses(c.status === 'fulfilled' ? c.value.filter(isActive) : [])
     })
     return () => {
@@ -653,6 +670,20 @@ export default function Grasps() {
 
   // The analytic rubric's rows: add, edit a cell, remove. The remove
   // button never reorders surviving rows — index-spliced, like a table.
+  // The Scoring Interpretation rows: add, edit a cell, remove.
+  const addScoringRow = useCallback(() => {
+    setDraft((prev) => ({ ...prev, scoring: [...prev.scoring, { range: '', level: '' }] }))
+    setDirty(true)
+  }, [])
+  const removeScoringRow = useCallback((idx: number) => {
+    setDraft((prev) => ({ ...prev, scoring: prev.scoring.filter((_, i) => i !== idx) }))
+    setDirty(true)
+  }, [])
+  const patchScoringRow = useCallback((idx: number, patch: Partial<GraspsScoringRow>) => {
+    setDraft((prev) => ({ ...prev, scoring: prev.scoring.map((s, i) => (i === idx ? { ...s, ...patch } : s)) }))
+    setDirty(true)
+  }, [])
+
   const addRubricRow = useCallback(() => {
     setDraft((prev) => ({
       ...prev,
@@ -793,6 +824,7 @@ export default function Grasps() {
         standards: draft.standards.trim() || null,
         rubric: cleanRubric,
         bullet_style: draft.bulletStyle,
+        scoring_interpretation: draft.scoring,
       }
 
       let id: string
@@ -902,6 +934,7 @@ export default function Grasps() {
           standards: row.standards ?? '',
           rubric: row.rubric ?? [],
           bulletStyle: row.bullet_style ?? 'disc',
+          scoringInterpretation: row.scoring_interpretation ?? undefined,
           preparedBy: '',
         })
         await addActivityLog('grasps_task.exported', {
@@ -991,7 +1024,7 @@ export default function Grasps() {
           <div className="program-hero__icon">G</div>
           <div className="program-hero__titles">
             <span className="g26-kicker">Performance task builder</span>
-            <h2>Generate GRASPS</h2>
+            <h2>Create GRASPS</h2>
             <p>Build a clear, outcomes-aligned performance task using the six GRASPS components.</p>
           </div>
         </div>
@@ -1257,6 +1290,7 @@ export default function Grasps() {
                 )}
 
                 {p.key === 'standards' && (
+                  <>
                   <div className="g26-rubric">
                     {/* The Standards component's companion: criteria scored across
                         the four performance levels, saved with the task (034) and
@@ -1387,6 +1421,54 @@ export default function Grasps() {
                 </p>
               )}
             </div>
+// The editable Scoring Interpretation block for the form. Indented to
+// sit inside the Standards card's fragment.
+            <div className="g26-scoring">
+              <div className="g26-scoring__head">
+                <h4>Scoring Interpretation</h4>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={addScoringRow} disabled={!ready}>
+                  <Icon name="plus" size={13} /> Add range
+                </button>
+              </div>
+              <div className="g26-rubric__scroll">
+                <table className="g26-rubric__table g26-scoring__table">
+                  <thead>
+                    <tr><th>Score Range</th><th>Performance Level</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {draft.scoring.map((s, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input
+                            className="g26-rubric__input"
+                            value={s.range}
+                            placeholder="90–100"
+                            disabled={!ready}
+                            onChange={(e) => patchScoringRow(i, { range: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="g26-rubric__input"
+                            value={s.level}
+                            placeholder="Outstanding"
+                            disabled={!ready}
+                            onChange={(e) => patchScoringRow(i, { level: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <button type="button" className="g26-rubric__remove" aria-label={`Remove scoring range ${i + 1}`}
+                            title="Remove this range" onClick={() => removeScoringRow(i)} disabled={!ready}>
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+                  </>
                 )}
               </div>
             )
@@ -1691,6 +1773,20 @@ export default function Grasps() {
                     </div>
                   )
                 })()}
+
+                <div className="g26-reader__rubric">
+                  <h4>Scoring Interpretation</h4>
+                  <table className="g26-rubric__table">
+                    <thead>
+                      <tr><th>Score Range</th><th>Performance Level</th></tr>
+                    </thead>
+                    <tbody>
+                      {(viewRow.scoring_interpretation?.length ? viewRow.scoring_interpretation : SCORING_INTERPRETATION).map((s) => (
+                        <tr key={s.range}><td>{s.range}</td><td>{s.level}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

@@ -33,6 +33,7 @@ import { normalizeCode, cloMatchesSubject } from '../../utils/courseCodes'
 import { courseProgramId } from '../../utils/alignment'
 import { isActive, buildGroups, splitReportPos, poNumber } from '../../utils/report'
 import SyllabusReport from '../../components/SyllabusReport'
+import { visiblePrograms } from '../../utils/programScope'
 import Icon from '../../components/icons'
 import { downloadSyllabusPdf } from '../../utils/syllabusPdf'
 import { reportFileName } from '../../utils/download'
@@ -45,7 +46,10 @@ interface ViewProps {
   title?: string
 }
 
-function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
+function View({ userEmail, title = 'Curriculum Report', profile }: ViewProps & { profile?: { role?: string | null; program_id?: string | null } | null }) {
+  // A manager's syllabus is their program's only - no other department's
+  // subjects, not even before the Department filter is touched.
+  const myProgramId = profile?.role === 'manager' ? profile?.program_id ?? null : null
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -59,7 +63,7 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
   const [selectedCourseId, setSelectedCourseId] = useState('')
   // Department scope for the Subject picker: '' lists every department's
   // subjects; a program id narrows the picker to that department's courses.
-  const [deptId, setDeptId] = useState('')
+  const [deptId, setDeptId] = useState(myProgramId ?? '')
 
   const [downloading, setDownloading] = useState(false)
 
@@ -108,7 +112,7 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
       setClos(clo)
       setCourses(c)
       setCmos(cmo)
-      setPrograms(progs)
+      setPrograms(visiblePrograms(progs, profile))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load curriculum map data.')
     } finally {
@@ -117,6 +121,10 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (myProgramId) setDeptId(myProgramId)
+  }, [myProgramId])
 
   // Save the report in the chosen format. Snapshotting a PDF takes a moment
   // (the whole document is rasterised), so the button shows a working state.
@@ -173,7 +181,9 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
   // Subject scope: the report renders one subject's syllabus at a time.
   // CLOs link to a subject through their free-text `course` field, so matching
   // is lenient (see courseCodes.ts). Defaults to the first active subject.
-  const activeCourses = courses.filter(isActive)
+  const activeCourses = courses
+    .filter(isActive)
+    .filter((c) => !myProgramId || courseProgramId(c) === myProgramId)
 
   // Department scope: programs are the report's departments (the Overall
   // Report words a program as "BSIT Department"). '' = every department;
@@ -216,7 +226,7 @@ function View({ userEmail, title = 'Curriculum Report' }: ViewProps) {
                 onChange={(e) => setDeptId(e.target.value)}
                 aria-label="Filter subjects by department"
               >
-                <option value="">All departments</option>
+                {!myProgramId && <option value="">All departments</option>}
                 {activePrograms.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.code}

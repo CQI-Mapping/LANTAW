@@ -5,7 +5,7 @@ import { FORM_PAGE } from './nbscForm'
 
 // The Word export is browser-facing (saveBlob + fetched artwork), so the test
 // replaces both edges and keeps the generated Blob. It checks the contract the
-// Generate GRASPS page depends on: the official form's file name and A4 page,
+// Create GRASPS page depends on: the official form's file name and A4 page,
 // the four artworks the chrome embeds, and a graceful fallback when an
 // artwork goes missing.
 let captured: { blob: Blob; filename: string } | null = null

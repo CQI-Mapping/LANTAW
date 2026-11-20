@@ -234,6 +234,9 @@ CREATE TABLE public.program_educational_objectives (
 
 CREATE TABLE public.admin_program_outcomes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- The program a manager-authored outcome belongs to (037); admin
+    -- outcomes stay NULL and are global.
+    program_id UUID REFERENCES public.programs(id) ON DELETE SET NULL,
     code TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
@@ -489,15 +492,23 @@ CREATE POLICY "Admins can delete resources" ON public.resources FOR DELETE
     USING (public.current_user_role() = 'admin');
 
 -- PROGRAMS
-CREATE POLICY "Authenticated users can read programs" ON public.programs FOR SELECT
-    USING (auth.role() = 'authenticated');
+-- A manager sees only their assigned program and cannot create/edit
+-- programs (036); admins and faculty keep the full read.
+CREATE POLICY "Managers read only their assigned program" ON public.programs FOR SELECT
+    USING (
+        public.current_user_role() IN ('admin', 'user')
+        OR (
+            public.current_user_role() = 'manager'
+            AND id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
-CREATE POLICY "Managers and admins can create programs" ON public.programs FOR INSERT
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins can create programs" ON public.programs FOR INSERT
+    WITH CHECK (public.current_user_role() = 'admin');
 
-CREATE POLICY "Managers and admins can update programs" ON public.programs FOR UPDATE
-    USING (public.current_user_role() IN ('admin', 'manager'))
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins can update programs" ON public.programs FOR UPDATE
+    USING (public.current_user_role() = 'admin')
+    WITH CHECK (public.current_user_role() = 'admin');
 
 CREATE POLICY "Admins can delete programs" ON public.programs FOR DELETE
     USING (public.current_user_role() = 'admin');
@@ -593,7 +604,14 @@ CREATE POLICY "Scoped activity log visibility" ON public.activity_logs FOR SELEC
         OR (
             public.current_user_role() = 'manager'
             AND user_email IS NOT NULL
-            AND public.actor_role(user_email) = 'user'
+            AND user_email IN (
+                SELECT p.email
+                FROM public.profiles p
+                WHERE p.role = 'user'
+                  AND p.program_id = (
+                      SELECT m.program_id FROM public.profiles m WHERE m.id = auth.uid()
+                  )
+            )
         )
     );
 
@@ -632,20 +650,48 @@ CREATE POLICY "Admins can manage strategic_goals" ON public.strategic_goals FOR 
     WITH CHECK (public.current_user_role() = 'admin');
 
 -- ADMIN PROGRAM OUTCOMES
-CREATE POLICY "Authenticated users can read admin_program_outcomes" ON public.admin_program_outcomes FOR SELECT
-    USING (auth.role() = 'authenticated');
+-- A manager reads/creates/edits only their program's outcomes (037);
+-- admin-authored rows are global. Managers still cannot delete.
+CREATE POLICY "Managers read their program and global outcomes" ON public.admin_program_outcomes FOR SELECT
+    USING (
+        public.current_user_role() IN ('admin', 'user')
+        OR (
+            public.current_user_role() = 'manager'
+            AND (
+                program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+                OR program_id IS NULL
+            )
+        )
+    );
 
 CREATE POLICY "Admins can manage admin_program_outcomes" ON public.admin_program_outcomes FOR ALL
     USING (public.current_user_role() = 'admin')
     WITH CHECK (public.current_user_role() = 'admin');
 
--- Managers may create and edit program outcomes but not delete them.
-CREATE POLICY "Managers and admins can create admin_program_outcomes" ON public.admin_program_outcomes FOR INSERT
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins create any outcome, managers only for their program" ON public.admin_program_outcomes FOR INSERT
+    WITH CHECK (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
-CREATE POLICY "Managers and admins can update admin_program_outcomes" ON public.admin_program_outcomes FOR UPDATE
-    USING (public.current_user_role() IN ('admin', 'manager'))
-    WITH CHECK (public.current_user_role() IN ('admin', 'manager'));
+CREATE POLICY "Admins update any outcome, managers only their program's" ON public.admin_program_outcomes FOR UPDATE
+    USING (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    )
+    WITH CHECK (
+        public.current_user_role() = 'admin'
+        OR (
+            public.current_user_role() = 'manager'
+            AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+        )
+    );
 
 -- PROGRAM EDUCATIONAL OBJECTIVES
 CREATE POLICY "Authenticated users can read program_educational_objectives" ON public.program_educational_objectives FOR SELECT
@@ -1290,6 +1336,9 @@ CREATE TABLE IF NOT EXISTS public.grasps_tasks (
     -- The bullet library choice (035): which glyph the bullet lists print
     -- with in the Word export. NULL reads as the default disc.
     bullet_style TEXT,
+    -- The faculty's editable Scoring Interpretation rows (040); NULL
+    -- reads as the college's default bands.
+    scoring_interpretation JSONB,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),

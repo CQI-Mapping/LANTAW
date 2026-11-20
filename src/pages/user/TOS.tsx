@@ -46,10 +46,13 @@ import {
   type TosExamRow,
   type TosSheetRow,
 } from '../../services/database'
+import { visiblePrograms } from '../../utils/programScope'
 import { supabase } from '../../utils/supabaseClient'
 import { downloadTosExcel } from '../../utils/tosXlsx'
 import {
   buildProgramOptions,
+  programLabel,
+  courseLabel,
   buildCourseOptions,
   buildSemesterOptions,
   buildSchoolYearOptions,
@@ -184,7 +187,7 @@ const readDraft = (): { exam: TosExam; sheets: TosSheet[]; activeKind: SheetKind
   }
 }
 
-export default function TOS() {
+export default function TOS({ profile }: { profile?: { role?: string | null; program_id?: string | null } | null }) {
   // The draft, restored from localStorage when a previous visit left one.
   // Each initialiser reads once at mount, so the three come back consistent
   // with whatever was last written together.
@@ -195,6 +198,31 @@ export default function TOS() {
   )
   const [programs, setPrograms] = useState<Program[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  // The subject picker lists only the subjects the manager handed to this
+  // faculty member - the primary instructor column or a junction row (028),
+  // compared by email with strict null checks.
+  const [myEmail, setMyEmail] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    supabase!
+      .auth.getUser()
+      .then(({ data }) => { if (!cancelled) setMyEmail(data.user?.email ?? '') })
+      .catch(() => { /* unreadable session -> no subjects, never everyone's */ })
+    return () => { cancelled = true }
+  }, [])
+  const assignedCourses = useMemo(
+    () =>
+      courses.filter(
+        (c) =>
+          (c.instructor_id !== null &&
+            typeof c.instructor_id === 'object' &&
+            c.instructor_id.email === myEmail) ||
+          (c.course_instructors ?? []).some(
+            (ci) => ci.faculty_id !== null && ci.faculty_id.email === myEmail,
+          ),
+      ),
+    [courses, myEmail],
+  )
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -657,7 +685,17 @@ export default function TOS() {
     let cancelled = false
     Promise.allSettled([fetchPrograms(), fetchCourses()]).then(([p, c]) => {
       if (cancelled) return
-      setPrograms(p.status === 'fulfilled' ? p.value.filter(isActive) : [])
+      const scoped = p.status === 'fulfilled'
+        ? visiblePrograms(p.value.filter(isActive), profile)
+        : []
+      setPrograms(scoped)
+      // Drop a stale program from an old draft and open on the assigned one.
+      setExam((prev) => {
+        const labels = scoped.map(programLabel)
+        if (prev.code && labels.includes(prev.code)) return prev
+        if (scoped.length === 1) return { ...prev, code: labels[0] }
+        return prev.code ? { ...prev, code: '' } : prev
+      })
       setCourses(c.status === 'fulfilled' ? c.value.filter(isActive) : [])
     })
     return () => {
@@ -678,9 +716,15 @@ export default function TOS() {
     [programs, exam.code],
   )
 
+  useEffect(() => {
+    if (!myEmail || !exam.title) return
+    const labels = assignedCourses.map(courseLabel)
+    if (!labels.includes(exam.title)) setExam((prev) => ({ ...prev, title: '' }))
+  }, [myEmail, assignedCourses, exam.title])
+
   const courseOptions = useMemo(
-    () => buildCourseOptions(courses, selectedProgramId, exam.title),
-    [courses, selectedProgramId, exam.title],
+    () => buildCourseOptions(assignedCourses, selectedProgramId, exam.title),
+    [assignedCourses, selectedProgramId, exam.title],
   )
 
   const semesterOptions = useMemo(() => buildSemesterOptions(exam.semester), [exam.semester])
@@ -692,7 +736,7 @@ export default function TOS() {
   return (
     <div className="syllabus-doc">
       {/* Screen-only page banner; the document's own letterhead follows. */}
-      <PageBanner title="Generate TOS" sub="Build the table of specifications — your guide in making the GRASPS." />
+      <PageBanner title="Create TOS" sub="Build the table of specifications — your guide in making the GRASPS." />
 
       {/* ---- exam header ---- */}
       <div className="panel tos-panel no-print">

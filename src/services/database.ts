@@ -942,6 +942,8 @@ export async function deleteProgramEducationalObjective(id: string): Promise<voi
 
 export interface ProgramOutcomeStandalone {
   id: string
+  /** The program a manager-authored outcome belongs to (037). */
+  program_id?: string | null
   code: string
   title: string
   description: string | null
@@ -957,11 +959,15 @@ export interface ProgramOutcomeStandalone {
   updated_at: string
 }
 
-export async function fetchProgramOutcomesStandalone(source?: 'admin' | 'manager'): Promise<ProgramOutcomeStandalone[]> {
+export async function fetchProgramOutcomesStandalone(
+  source?: 'admin' | 'manager',
+  programId?: string | null,
+): Promise<ProgramOutcomeStandalone[]> {
   let query = supabase
     .from('admin_program_outcomes')
     .select('*')
   if (source) query = query.eq('source', source)
+  if (programId) query = query.eq('program_id', programId)
   query = query.order('code', { ascending: true })
   const { data, error } = await query
   if (error) throw error
@@ -1168,6 +1174,8 @@ export async function fetchPoFeedback(): Promise<PoFeedback[]> {
 export interface ActivityLogFilters {
   /** Exact actor. The log is global, so this is how you isolate one person. */
   userEmail?: string
+  /** Restrict to these actors (a manager's program faculty). */
+  userEmails?: string[]
   /** Exact action string, e.g. 'course.viewed'. */
   action?: string
   /**
@@ -1210,6 +1218,7 @@ function localDayBoundary(date: string, endOfDay: boolean): string {
  */
 interface ActivityQuery {
   eq(column: string, value: string): ActivityQuery
+  in(column: string, values: string[]): ActivityQuery
   or(condition: string): ActivityQuery
   gte(column: string, value: string): ActivityQuery
   lte(column: string, value: string): ActivityQuery
@@ -1226,6 +1235,8 @@ function applyActivityFilters(
 ): ActivityQuery {
   let q = query
   if (filters.userEmail) q = q.eq('user_email', filters.userEmail)
+  // A manager narrows the log to the faculty of their program by email.
+  if (filters.userEmails) q = q.in('user_email', filters.userEmails)
   if (filters.action) q = q.eq('action', filters.action)
   if (filters.search) {
     // Strip the characters PostgREST's or() grammar treats as structure, so a
@@ -1578,7 +1589,7 @@ export async function replaceTosTopics(
 
 // ---------- GRASPS performance tasks ----------
 //
-// The Generate GRASPS page's saved performance tasks: one row per document,
+// The Create GRASPS page's saved performance tasks: one row per document,
 // carrying the six GRASPS components as plain text. Private to their owner,
 // like TOS blueprints — migration 025 scopes every read and write to the
 // caller, so these functions never filter by user themselves and the page
@@ -1617,6 +1628,8 @@ export interface GraspsTaskRow {
   rubric?: GraspsRubricRow[] | null
   /** The bullet library choice (035); NULL reads as the default disc. */
   bullet_style?: string | null
+  /** The editable Scoring Interpretation rows (040). */
+  scoring_interpretation?: Array<{ range: string; level: string }> | null
   status: 'active' | 'archived'
   created_at: string
   updated_at: string

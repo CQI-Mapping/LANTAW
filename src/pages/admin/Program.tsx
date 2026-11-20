@@ -12,7 +12,8 @@ import {
   updateProgram,
   deleteProgram,
 } from '../../services/database'
-import type { Program, Course, ProgramOutcome } from '../../services/database'
+import { visiblePrograms } from '../../utils/programScope'
+import type { Program, Course, ProgramOutcome, Profile } from '../../services/database'
 
 const relProgramId = (v: string | { id: string; code: string; name: string } | null | undefined) =>
   v && typeof v === 'object' ? v.id : v || ''
@@ -27,16 +28,18 @@ const blank: ProgramForm = { code: '', name: '', description: '' }
 
 interface ProgramProps {
   allowDelete?: boolean
+  profile?: Profile | null
 }
 
-export default function Program({ allowDelete = true }: ProgramProps) {
+export default function Program({ allowDelete = true, profile }: ProgramProps) {
+  const isManager = profile?.role === 'manager'
   const createWithName = async (payload: Partial<Program>) =>
     createProgram({ ...payload, name: (payload as Program).name || payload.code || '' })
   const updateWithName = async (id: string, payload: Partial<Program>) =>
     updateProgram(id, { ...payload, name: (payload as Program).name || payload.code || '' })
 
   const crud = useEntityCrud<Program>({
-    loadFn: fetchPrograms,
+    loadFn: useCallback(async () => visiblePrograms(await fetchPrograms(), profile), [profile]),
     createFn: createWithName,
     updateFn: updateWithName,
     deleteFn: deleteProgram,
@@ -152,12 +155,14 @@ export default function Program({ allowDelete = true }: ProgramProps) {
             <p>Manage academic programs — add, edit, archive and organize offerings.</p>
           </div>
         </div>
-        <div className="program-hero__action">
-          <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New Program">
-            <Icon name="plus" size={14} />
-            Add New Program
-          </button>
-        </div>
+        {!isManager && (
+          <div className="program-hero__action">
+            <button className="btn btn--primary" onClick={openAdd} aria-label="Add program" title="Add New Program">
+              <Icon name="plus" size={14} />
+              Add New Program
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="program-stats">
@@ -301,16 +306,20 @@ export default function Program({ allowDelete = true }: ProgramProps) {
                   </div>
                 </div>
                 <div className="resource-card__actions">
-                  <button className="btn btn--ghost btn--sm" onClick={() => openEdit(item)} disabled={busy} aria-label={`Edit ${item.code}`} title="Edit">
-                    <Icon name="edit" size={13} />
-                  </button>
-                  <button
-                    className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`}
-                    onClick={() => handleArchive(item)} aria-label={isActive(item) ? `Archive ${item.code}` : `Restore ${item.code}`} title={isActive(item) ? 'Archive' : 'Restore'}
-                    disabled={busy}
-                  >
-                    <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
-                  </button>
+                  {!isManager && (
+                    <>
+                      <button className="btn btn--ghost btn--sm" onClick={() => openEdit(item)} disabled={busy} aria-label={`Edit ${item.code}`} title="Edit">
+                        <Icon name="edit" size={13} />
+                      </button>
+                      <button
+                        className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`}
+                        onClick={() => handleArchive(item)} aria-label={isActive(item) ? `Archive ${item.code}` : `Restore ${item.code}`} title={isActive(item) ? 'Archive' : 'Restore'}
+                        disabled={busy}
+                      >
+                        <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
+                      </button>
+                    </>
+                  )}
                   {!isActive(item) && allowDelete && (
                     <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'program.deleted')} disabled={busy} style={{ marginLeft: 'auto' }} aria-label={`Delete ${item.code}`} title="Delete">
                       <Icon name="trash" size={13} />
@@ -341,16 +350,20 @@ export default function Program({ allowDelete = true }: ProgramProps) {
                 <h3 className="program-card__name">{item.name}</h3>
                 <p className="program-card__desc">{item.description || 'No description provided.'}</p>
                 <div className="program-card__actions">
-                  <button className="btn btn--ghost btn--sm" onClick={() => openEdit(item)} disabled={busy} aria-label={`Edit ${item.code}`} title="Edit">
-                    <Icon name="edit" size={13} />
-                  </button>
-                  <button
-                    className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`}
-                    onClick={() => handleArchive(item)} aria-label={isActive(item) ? `Archive ${item.code}` : `Restore ${item.code}`} title={isActive(item) ? 'Archive' : 'Restore'}
-                    disabled={busy}
-                  >
-                    <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
-                  </button>
+                  {!isManager && (
+                    <>
+                      <button className="btn btn--ghost btn--sm" onClick={() => openEdit(item)} disabled={busy} aria-label={`Edit ${item.code}`} title="Edit">
+                        <Icon name="edit" size={13} />
+                      </button>
+                      <button
+                        className={`btn btn--sm ${isActive(item) ? 'btn--ghost' : 'btn--primary'}`}
+                        onClick={() => handleArchive(item)} aria-label={isActive(item) ? `Archive ${item.code}` : `Restore ${item.code}`} title={isActive(item) ? 'Archive' : 'Restore'}
+                        disabled={busy}
+                      >
+                        <Icon name={isActive(item) ? 'archive' : 'restore'} size={13} />
+                      </button>
+                    </>
+                  )}
                   {!isActive(item) && allowDelete && (
                     <button className="btn btn--danger btn--sm" onClick={() => handleDelete(item.id, 'program.deleted')} disabled={busy} style={{ marginLeft: 'auto' }} aria-label={`Delete ${item.code}`} title="Delete">
                       <Icon name="trash" size={13} />

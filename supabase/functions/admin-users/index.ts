@@ -436,7 +436,7 @@ Deno.serve(async (req: Request) => {
     // 2. Admins manage all accounts; managers may only create faculty.
     const { data: callerProfile, error: profileError } = await admin
       .from('profiles')
-      .select('role, full_name, email')
+      .select('role, full_name, email, program_id')
       .eq('id', callerId)
       .maybeSingle()
     if (profileError) throw profileError
@@ -481,19 +481,25 @@ Deno.serve(async (req: Request) => {
         return fail('Password must be at least 8 characters', 400)
       }
 
-      // Program assignment: admins only, and never for admin accounts.
-      // The id is verified so a crafted request cannot point at a
-      // nonexistent program; managers' requests are ignored entirely.
+      // Program assignment: admins choose any program; managers may set
+      // ONLY their own program on the faculty they create. The id is
+      // verified against the programs table, and a crafted request naming
+      // another program is refused rather than silently applied. Admin
+      // accounts never carry a program.
       let programId: string | null = null
-      if (isAdmin && role !== 'admin' && typeof body.programId === 'string' && body.programId) {
+      if (role !== 'admin' && typeof body.programId === 'string' && body.programId) {
+        const requested = body.programId
+        if (!isAdmin && requested !== callerProfile?.program_id) {
+          return fail('You can only assign your own program to new faculty', 403)
+        }
         const { data: program, error: programError } = await admin
           .from('programs')
           .select('id')
-          .eq('id', body.programId)
+          .eq('id', requested)
           .maybeSingle()
         if (programError) throw programError
         if (!program) return fail('Unknown program selected', 400)
-        programId = body.programId
+        programId = requested
       }
 
       const { data: created, error: createError } =

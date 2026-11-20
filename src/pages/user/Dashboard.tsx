@@ -94,7 +94,7 @@ const ACTIONS: Array<{ page: string; label: string; hint: string; tone: string; 
   },
   {
     page: 'tos',
-    label: 'Generate TOS',
+    label: 'Create TOS',
     hint: 'Build a table of specifications',
     tone: 'var(--primary)',
     icon: (
