@@ -751,14 +751,14 @@ export interface CurriculumUpload {
   file_path: string
   program_id: string
   curriculum_id: string | null
-  uploaded_by: string
+  uploaded_by: string | { id: string; full_name: string | null; email: string } | null
   created_at: string
 }
 
 export async function fetchCurriculumUploads(programId: string): Promise<CurriculumUpload[]> {
   const { data, error } = await supabase
     .from('curriculum_uploads')
-    .select('*')
+    .select('*, uploaded_by ( id, full_name, email )')
     .eq('program_id', programId)
     .order('created_at', { ascending: false })
   if (error) throw error

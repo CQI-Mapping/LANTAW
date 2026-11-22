@@ -242,6 +242,7 @@ CREATE POLICY "Users delete their own uploads" ON public.curriculum_uploads FOR 
 -- Private Storage bucket 'curriculum-files': objects are stored as
 -- <uploader uid>/<program id>/<file> and managed by their uploader; see
 -- migrations/041-curriculum-uploads.sql for the storage.objects policy.
+-- Admins may read/delete every curriculum file (042).
 
 -- CHED MEMORANDUM ORDERS (created before admin_program_outcomes so the
 -- Program Outcome -> CMO link can be declared inline below).

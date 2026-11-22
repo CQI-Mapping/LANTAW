@@ -312,6 +312,11 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
               <li key={u.id}>
                 <Icon name="doc" size={13} />
                 <span className="curriculum26__upload-name">{u.file_name}</span>
+                <span className="curriculum26__upload-by">
+                  {typeof u.uploaded_by === 'object' && u.uploaded_by
+                    ? u.uploaded_by.full_name || u.uploaded_by.email
+                    : '—'}
+                </span>
                 <span className="curriculum26__upload-date">
                   {new Date(u.created_at).toLocaleDateString()}
                 </span>
