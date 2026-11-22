@@ -13,6 +13,7 @@ import {
   fetchCurriculumUploads,
   deleteCurriculumUpload,
   deleteCourse,
+  createCourse,
   addActivityLog,
   type CurriculumUpload,
   type Course,
@@ -42,6 +43,8 @@ const TERMS: Array<{ label: string; year: number; sem: number }> = [
 ]
 
 const subjectOf = (code: string) => (code.match(/^[A-Za-z]+/) || [''])[0]
+const sameProgramOf = (c: Course, programId: string) =>
+  (typeof c.program_id === 'object' ? c.program_id?.id : c.program_id) === programId
 
 const yearLabel = (y: number) =>
   ['', 'First Year', 'Second Year', 'Third Year', 'Fourth Year'][y] || `Year ${y}`
@@ -63,6 +66,9 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [uploads, setUploads] = useState<CurriculumUpload[]>([])
   const [deletingUpload, setDeletingUpload] = useState('')
+  const [addingTerm, setAddingTerm] = useState<string | null>(null)
+  const [newSubject, setNewSubject] = useState({ code: '', title: '', lec: '0', lab: '0', units: '0', prereq: '' })
+  const [addingBusy, setAddingBusy] = useState(false)
 
   const myProgramId = profile?.program_id ?? null
 
@@ -153,7 +159,8 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       rows: scopedCourses
         .filter((c) => Number(c.year_level) === term.year && Number(c.semester) === term.sem)
         .sort((a, b) => String(a.code).localeCompare(String(b.code))),
-    })).filter((g) => g.rows.length > 0)
+    }))
+    // Empty terms stay visible so a new structure has somewhere to add.
     return list
   }, [scopedCourses])
 
@@ -241,6 +248,45 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       setNotice('Failed to remove the subjects: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setRemovingId('')
+    }
+  }
+
+  const handleAddSubject = async (term: { year: number; sem: number; label: string }) => {
+    const code = newSubject.code.trim().toUpperCase()
+    const title = newSubject.title.trim()
+    if (!code || !title) { setNotice('Code and descriptive title are required.'); return }
+    if (courses.some((c) => sameProgramOf(c, programId) && c.code.toUpperCase() === code)) {
+      setNotice(`${code} already exists in this program.`)
+      return
+    }
+    setAddingBusy(true)
+    try {
+      await createCourse({
+        program_id: programId,
+        curriculum_id: working?.id ?? null,
+        code,
+        title,
+        units: Number(newSubject.units) || 0,
+        credit_lecture: Number(newSubject.lec) || 0,
+        credit_laboratory: Number(newSubject.lab) || 0,
+        prerequisite: newSubject.prereq.trim() || 'None',
+        year_level: term.year,
+        semester: term.sem,
+        description: '',
+      })
+      await addActivityLog('course.created', {
+        entity: 'course',
+        label: `${code} — ${title} (${term.label})`,
+      })
+      const created = await fetchCourses()
+      setCourses(created)
+      setNewSubject({ code: '', title: '', lec: '0', lab: '0', units: '0', prereq: '' })
+      setAddingTerm(null)
+      setNotice(`${code} added to ${term.label}.`)
+    } catch (e) {
+      setNotice('Failed to add the subject: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setAddingBusy(false)
     }
   }
 
@@ -403,6 +449,15 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                           <span className="curriculum26__term-count">
                             {g.rows.length} course{g.rows.length === 1 ? '' : 's'}
                           </span>
+                          <span
+                            className="curriculum26__add no-print"
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => { e.stopPropagation(); setAddingTerm(addingTerm === key ? null : key) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setAddingTerm(addingTerm === key ? null : key) } }}
+                          >
+                            + Add subject
+                          </span>
                         </button>
                         {open && (
                           <table className="curriculum26__table">
@@ -459,6 +514,31 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                                   </td>
                                 </tr>
                               ))}
+                              {addingTerm === key && (
+                                <tr className="curriculum26__newrow">
+                                  <td colSpan={9}>
+                                    <div className="curriculum26__newfields">
+                                      <input className="input input--sm" value={newSubject.code} placeholder="CODE" aria-label="New subject code"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, code: e.target.value.toUpperCase() }))} />
+                                      <input className="input input--sm curriculum26__newtitle" value={newSubject.title} placeholder="Descriptive title" aria-label="New subject title"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, title: e.target.value }))} />
+                                      <input className="input input--sm" type="number" value={newSubject.lec} placeholder="Lec" aria-label="New subject lecture credits"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, lec: e.target.value }))} />
+                                      <input className="input input--sm" type="number" value={newSubject.lab} placeholder="Lab" aria-label="New subject laboratory credits"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, lab: e.target.value }))} />
+                                      <input className="input input--sm" type="number" value={newSubject.units} placeholder="Units" aria-label="New subject units"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, units: e.target.value }))} />
+                                      <input className="input input--sm" value={newSubject.prereq} placeholder="Pre-Req" aria-label="New subject prerequisite"
+                                        onChange={(e) => setNewSubject((s) => ({ ...s, prereq: e.target.value }))} />
+                                      <button type="button" className="btn btn--primary btn--sm" disabled={addingBusy}
+                                        onClick={() => void handleAddSubject(g)}>
+                                        {addingBusy ? 'Adding…' : 'Add'}
+                                      </button>
+                                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setAddingTerm(null)}>Cancel</button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
                               <tr className="curriculum26__total">
                                 <td colSpan={5}>TOTAL</td>
                                 <td>{totalLec}</td>

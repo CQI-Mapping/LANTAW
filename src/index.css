@@ -11163,6 +11163,46 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   white-space: nowrap;
 }
 
+.curriculum26__add {
+  margin-left: auto;
+  color: var(--primary);
+  font: 700 10px 'DM Sans', 'Inter', sans-serif;
+  cursor: pointer;
+  padding: 2px 5px;
+}
+
+.curriculum26__add:hover {
+  text-decoration: underline;
+}
+
+.curriculum26__newrow td {
+  background: var(--bg-panel);
+}
+
+.curriculum26__newfields {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.curriculum26__newfields .input--sm {
+  width: 68px;
+}
+
+.curriculum26__newfields .curriculum26__newtitle {
+  width: 180px;
+  flex: 1;
+  min-width: 120px;
+}
+
+@media print {
+  .curriculum26__add,
+  .curriculum26__newrow {
+    display: none;
+  }
+}
+
 .curriculum26__check-cell {
   text-align: center;
   width: 22px;
