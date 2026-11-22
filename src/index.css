@@ -11137,6 +11137,32 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: right;
 }
 
+.course-card-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.course-card-select .clo26-course-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.course-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.course-bulk__count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--g700);
+  white-space: nowrap;
+}
+
 .curriculum26__check-cell {
   text-align: center;
   width: 22px;

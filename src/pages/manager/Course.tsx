@@ -210,6 +210,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const setEditId = (id: string | null) => setEditState((s) => ({ ...s, editId: id }))
   const setEditForm = (f: CourseForm) => setEditState((s) => ({ ...s, editForm: f }))
   const [archived, setArchived] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
@@ -512,6 +513,57 @@ export default function ManagerCourse({ profile }: CourseProps) {
       load()
     } catch (err) {
       setError('Failed to update course: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const toggleAllVisible = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allSelected = visible.length > 0 && visible.every((c) => next.has(c.id))
+      for (const c of visible) {
+        if (allSelected) next.delete(c.id)
+        else next.add(c.id)
+      }
+      return next
+    })
+
+  const handleDeleteSelected = async () => {
+    const picked = visible.filter((c) => selectedIds.has(c.id))
+    if (picked.length === 0) return
+    if (
+      !window.confirm(
+        `Delete ${picked.length} subject${picked.length === 1 ? '' : 's'}? This permanently removes them.`,
+      )
+    )
+      return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    let deleted = 0
+    try {
+      for (const item of picked) {
+        await deleteCourse(item.id)
+        await addActivityLog('course.deleted', {
+          entity: 'course',
+          entity_id: item.id,
+          label: item.code || item.title || undefined,
+        })
+        deleted++
+      }
+      setSelectedIds(new Set())
+      setMessage(`${deleted} subject${deleted === 1 ? '' : 's'} deleted.`)
+      load()
+    } catch (err) {
+      setError('Failed to delete courses: ' + errMsg(err))
     } finally {
       setBusy(false)
     }
@@ -906,6 +958,20 @@ export default function ManagerCourse({ profile }: CourseProps) {
                   Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
                 </button>
               </div>
+              <div className="course-bulk">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={toggleAllVisible} disabled={visible.length === 0}>
+                  {visible.length > 0 && visible.every((c) => selectedIds.has(c.id)) ? 'Clear all' : 'Select all shown'}
+                </button>
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="course-bulk__count">{selectedIds.size} selected</span>
+                    <button type="button" className="btn btn--danger btn--sm" disabled={busy}
+                      onClick={() => void handleDeleteSelected()}>
+                      Delete {selectedIds.size}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             {visible.length === 0 ? (
               <div className="clo26-empty" style={{ marginTop: 14 }}>
@@ -926,6 +992,13 @@ export default function ManagerCourse({ profile }: CourseProps) {
                       data-course-edit={editId === c.id ? 'open' : undefined}
                       onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
                       title={editId === c.id ? undefined : 'Double-click to edit'}>
+                      <div className="course-card-select">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleSelected(c.id)}
+                        aria-label={`Select ${c.code} for deletion`}
+                      />
                       <button type="button" className="clo26-course-head"
                         onClick={() => { if (editId === c.id) return; setExpandedCourse(open && editId !== c.id ? null : c.id) }}
                         aria-expanded={open}>
@@ -943,6 +1016,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                           <span className="clo26-chevron" aria-hidden="true">›</span>
                         </div>
                       </button>
+                      </div>
                       {(open || editId === c.id) && (
                         <div className="clo26-body">
                           {editId === c.id ? (
