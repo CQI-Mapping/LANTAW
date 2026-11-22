@@ -20,6 +20,7 @@ import {
   fetchCourses,
   createCourse,
   updateCourse,
+  deleteCourse,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
@@ -516,6 +517,35 @@ export default function ManagerCourse({ profile }: CourseProps) {
     }
   }
 
+  // Permanent deletion of a course in the manager's own program (RLS
+  // migration 043). The plan view offers the same action per row.
+  const handleDelete = async (item: Course) => {
+    if (
+      !window.confirm(
+        `Delete ${item.code} — ${item.title}? This permanently removes the subject.`,
+      )
+    )
+      return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      await deleteCourse(item.id)
+      await addActivityLog('course.deleted', {
+        entity: 'course',
+        entity_id: item.id,
+        label: item.code || item.title || undefined,
+      })
+      setMessage(`Course ${item.code} deleted.`)
+      if (editId === item.id) cancelEdit()
+      load()
+    } catch (err) {
+      setError('Failed to delete course: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Credit units (lecture / laboratory) share one clamped numeric input.
   const creditField = (
     label: string,
@@ -961,6 +991,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
                                 <button type="button" onClick={() => startEdit(c)} disabled={busy}>Edit</button>
                                 <button type="button" onClick={() => handleToggleStatus(c)} disabled={busy || !!editId}>
                                   {isActive(c) ? 'Archive' : 'Restore'}
+                                </button>
+                                <button type="button" className="clo26-danger" onClick={() => void handleDelete(c)} disabled={busy || !!editId}>
+                                  Delete
                                 </button>
                               </div>
                             </>
