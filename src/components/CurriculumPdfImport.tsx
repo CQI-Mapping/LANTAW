@@ -60,9 +60,9 @@ export default function CurriculumPdfImport({
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null)
   // The curriculum-family filter (IT, GE, CCS…): the checklist mixes
-  // professional subjects with General Education and PE rows — the
-  // program head usually wants one family at a time. 'All' shows
-  // everything; IT is preselected when the parse finds it.
+  // professional subjects with General Education and PE rows. The review
+  // opens on 'All' so every parsed subject can be imported in one pass;
+  // the chips narrow the grid only when the program head wants a family.
   const [family, setFamily] = useState<string>('All')
 
   const existingCodes = useMemo(
@@ -87,8 +87,9 @@ export default function CurriculumPdfImport({
           include: !existingCodes.has(r.code.toUpperCase()),
         }))
         setRows(withFamily as ReviewRow[])
-        // The professional subjects are the usual import: IT preselected.
-        setFamily(withFamily.some((r) => r.family === 'IT') ? 'IT' : 'All')
+        // Every family stays visible by default — 'All' is the import
+        // scope; the chips narrow the grid only when explicitly picked.
+        setFamily('All')
       }
     } catch (e) {
       setParseError('Failed to read the PDF: ' + (e instanceof Error ? e.message : String(e)))
