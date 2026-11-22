@@ -493,6 +493,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                                       aria-label={`Select ${c.code} for removal`}
                                     />
                                   </td>
+                                  <td className="curriculum26__fg">{subjectOf(c.code)}</td>
                                   <td>{subjectOf(c.code)}</td>
                                   <td className="curriculum26__code">{c.code}</td>
                                   <td>{c.title}</td>
@@ -516,7 +517,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                               ))}
                               {addingTerm === key && (
                                 <tr className="curriculum26__newrow">
-                                  <td colSpan={9}>
+                                  <td colSpan={10}>
                                     <div className="curriculum26__newfields">
                                       <input className="input input--sm" value={newSubject.code} placeholder="CODE" aria-label="New subject code"
                                         onChange={(e) => setNewSubject((s) => ({ ...s, code: e.target.value.toUpperCase() }))} />
