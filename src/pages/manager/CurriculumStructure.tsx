@@ -12,7 +12,7 @@ import {
   fetchCourses,
   fetchCurriculumUploads,
   deleteCurriculumUpload,
-  updateCourse,
+  deleteCourse,
   addActivityLog,
   type CurriculumUpload,
   type Course,
@@ -191,20 +191,20 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const handleRemove = async (course: Course) => {
     if (
       !window.confirm(
-        `Remove ${course.code} — ${course.title} from the curriculum? The subject is archived, not permanently deleted.`,
+        `Delete ${course.code} — ${course.title} from the curriculum? This permanently deletes the subject.`,
       )
     )
       return
     setRemovingId(course.id)
     try {
-      await updateCourse(course.id, { status: 'archived' })
-      await addActivityLog('course.archived', {
+      await deleteCourse(course.id)
+      await addActivityLog('course.deleted', {
         entity: 'course',
         entity_id: course.id,
         label: `${course.code} — ${course.title}`,
       })
-      setCourses((prev) => prev.map((c) => (c.id === course.id ? { ...c, status: 'archived' } : c)))
-      setNotice(`${course.code} was removed from the curriculum plan.`)
+      setCourses((prev) => prev.filter((c) => c.id !== course.id))
+      setNotice(`${course.code} was deleted from the curriculum plan.`)
     } catch (e) {
       setNotice('Failed to remove the subject: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
@@ -217,7 +217,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
     if (picked.length === 0) return
     if (
       !window.confirm(
-        `Remove ${picked.length} subject${picked.length === 1 ? '' : 's'} from the curriculum? They are archived, not permanently deleted.`,
+        `Delete ${picked.length} subject${picked.length === 1 ? '' : 's'} from the curriculum? This permanently deletes them.`,
       )
     )
       return
@@ -225,8 +225,8 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
     let removed = 0
     try {
       for (const course of picked) {
-        await updateCourse(course.id, { status: 'archived' })
-        await addActivityLog('course.archived', {
+        await deleteCourse(course.id)
+        await addActivityLog('course.deleted', {
           entity: 'course',
           entity_id: course.id,
           label: `${course.code} — ${course.title}`,
@@ -234,9 +234,9 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
         removed++
       }
       const ids = new Set(picked.map((c) => c.id))
-      setCourses((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, status: 'archived' } : c)))
+      setCourses((prev) => prev.filter((c) => !ids.has(c.id)))
       setSelectedIds(new Set())
-      setNotice(`${removed} subject${removed === 1 ? '' : 's'} removed from the curriculum plan.`)
+      setNotice(`${removed} subject${removed === 1 ? '' : 's'} deleted from the curriculum plan.`)
     } catch (e) {
       setNotice('Failed to remove the subjects: ' + (e instanceof Error ? e.message : String(e)))
     } finally {

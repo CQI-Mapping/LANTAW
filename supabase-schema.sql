@@ -567,6 +567,13 @@ CREATE POLICY "Managers and admins can update courses" ON public.courses FOR UPD
 CREATE POLICY "Admins can delete courses" ON public.courses FOR DELETE
     USING (public.current_user_role() = 'admin');
 
+-- Managers may permanently delete courses in their own program (043).
+CREATE POLICY "Managers can delete their program courses" ON public.courses FOR DELETE
+    USING (
+        public.current_user_role() = 'manager'
+        AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+    );
+
 -- PROGRAM OUTCOMES
 CREATE POLICY "Authenticated users can read program outcomes" ON public.program_outcomes FOR SELECT
     USING (auth.role() = 'authenticated');
