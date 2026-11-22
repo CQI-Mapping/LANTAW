@@ -29,8 +29,8 @@ const TERMS: Array<{ label: string; year: number; sem: number }> = [
   { label: 'Second Year - First Semester', year: 2, sem: 1 },
   { label: 'Second Semester', year: 2, sem: 2 },
   { label: '3rd Year - 1st Semester', year: 3, sem: 1 },
-  { label: '3rd Year Summer', year: 3, sem: 3 },
   { label: '3rd Year - 2nd Semester', year: 3, sem: 2 },
+  { label: '3rd Year Summer', year: 3, sem: 3 },
   { label: '4th Year - 1st Semester', year: 4, sem: 1 },
   { label: '4th Year - 2nd Semester', year: 4, sem: 2 },
 ]
