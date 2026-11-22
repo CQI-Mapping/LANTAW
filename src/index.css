@@ -11121,11 +11121,6 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: center;
 }
 
-.curriculum26__fg {
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
 .curriculum26__code {
   font-weight: 700;
   color: var(--primary-dark);

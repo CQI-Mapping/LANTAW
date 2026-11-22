@@ -493,7 +493,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                                       aria-label={`Select ${c.code} for removal`}
                                     />
                                   </td>
-                                  <td className="curriculum26__fg">{subjectOf(c.code)}</td>
+                                  <td />
                                   <td>{subjectOf(c.code)}</td>
                                   <td className="curriculum26__code">{c.code}</td>
                                   <td>{c.title}</td>
