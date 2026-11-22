@@ -794,25 +794,50 @@ export default function SubjectView({ profile }: { profile?: { role?: string | n
     if (!silent) setSpinner(true)
     setGraphError('')
     try {
-      const [resources, clos, pos, peos, sgs, cmos] = await Promise.all([
+      const [resources, clos, pos, peos, sgs, cmos, cs] = await Promise.all([
         fetchResources(),
         fetchCourseLearningOutcomePoolForMap(),
         fetchProgramOutcomesStandalone(),
         fetchProgramEducationalObjectives(),
         fetchStrategicGoals(),
         fetchChedMemoOrders(),
+        fetchCourses(),
       ])
-      const activePos = pos.filter(isActive)
+      // The map pool RPC and the PO catalog are shared across programs.
+      // Managers and faculty may only see their own program's slice;
+      // admins keep the whole pool.
+      const scopeId = profile?.role === 'admin' ? null : profile?.program_id ?? null
+      const pidOf = (v: string | { id: string } | null | undefined) =>
+        v && typeof v === 'object' ? v.id : v
+      const scopedCourses = scopeId
+        ? cs.filter((c) => pidOf(c.program_id) === scopeId)
+        : cs
+      const courseCodes = new Set(scopedCourses.map((c) => normalizeCode(c.code)))
+      const scopedClos = scopeId
+        ? clos.filter((c) => courseCodes.has(normalizeCode(c.course || '')))
+        : clos
+      const scopedPos = scopeId
+        ? pos.filter((p) => !p.program_id || p.program_id === scopeId)
+        : pos
+      const peoProgram = (p: ProgramEducationalObjective) =>
+        (p as ProgramEducationalObjective & { program_id?: string | null }).program_id
+      const scopedPeos = scopeId
+        ? peos.filter((p) => !peoProgram(p) || peoProgram(p) === scopeId)
+        : peos
+      const scopedResources = scopeId
+        ? resources.filter((r) => scopedCourses.some((c) => pidOf(c.curriculum_id) === r.id))
+        : resources
+      const activePos = scopedPos.filter(isActive)
       setDatasets({
-        resources: resources.filter(isActive),
-        clos: clos.filter(isActive),
+        resources: scopedResources.filter(isActive),
+        clos: scopedClos.filter(isActive),
         pos: activePos,
-        peos: peos.filter(isActive),
+        peos: scopedPeos.filter(isActive),
         sgs: sgs.filter(isActive),
         cmos: cmos.filter(isActive),
       })
       setPoList(sortPos(activePos.filter((p) => isManagerCmCategory(p))))
-      setPeoList(peos.filter(isActive))
+      setPeoList(scopedPeos.filter(isActive))
       setSgList([...sgs.filter(isActive)].sort((a, b) => String(a.code).localeCompare(String(b.code))))
       setCmoList([...cmos.filter(isActive)].sort((a, b) => String(a.code).localeCompare(String(b.code))))
     } catch (e) {
