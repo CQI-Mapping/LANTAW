@@ -5,6 +5,7 @@
 // curriculum records and the Course page creates subjects.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import Icon from '../../components/icons'
+import CurriculumPdfImport from '../../components/CurriculumPdfImport'
 import {
   fetchPrograms,
   fetchResources,
@@ -51,6 +52,8 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const [query, setQuery] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  const [importOpen, setImportOpen] = useState(false)
+  const [notice, setNotice] = useState('')
 
   const myProgramId = profile?.program_id ?? null
 
@@ -149,6 +152,9 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
           <p>View and maintain courses by year level and semester.</p>
         </div>
         <div className="curriculum26__hero-actions">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setImportOpen(true)}>
+            <Icon name="doc" size={13} /> Upload curriculum
+          </button>
           <button type="button" className="btn btn--ghost btn--sm" onClick={() => window.print()}>
             <Icon name="print" size={13} /> Print curriculum
           </button>
@@ -157,6 +163,8 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
           </button>
         </div>
       </div>
+
+      {notice && <p className="curriculum26__notice" role="status">{notice}</p>}
 
       <div className="curriculum26__filters">
         <label className="field">
@@ -295,6 +303,26 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
         )}
 
       </div>
+      {importOpen && programId && (
+        <CurriculumPdfImport
+          programId={programId}
+          programCode={programLabel?.code ?? undefined}
+          curriculumId={working?.id ?? ''}
+          curriculumLabel={working?.title || working?.code || undefined}
+          courses={courses}
+          onClose={() => setImportOpen(false)}
+          onImported={(created, skipped) => {
+            setImportOpen(false)
+            setNotice(
+              `Imported ${created} subject${created === 1 ? '' : 's'}` +
+                (skipped ? `, skipped ${skipped} already on file.` : '.'),
+            )
+            fetchCourses()
+              .then(setCourses)
+              .catch(() => {})
+          }}
+        />
+      )}
     </div>
   )
 }

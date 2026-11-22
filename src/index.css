@@ -10914,6 +10914,16 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   min-width: 210px;
 }
 
+.curriculum26__notice {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--g100);
+  color: var(--g700);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .curriculum26__status {
   margin-left: auto;
   align-self: center;
