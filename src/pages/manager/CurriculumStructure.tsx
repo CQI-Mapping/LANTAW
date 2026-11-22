@@ -1,0 +1,281 @@
+// Manager Curriculum Structure - the plan view from the reference design:
+// courses grouped by year level and term, with per-term totals, program and
+// academic-year filters, a search box, expand-all, and the evaluation line.
+// Keeps its data read-only here; the existing management panel below edits
+// curriculum records and the Course page creates subjects.
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Icon from '../../components/icons'
+import {
+  fetchPrograms,
+  fetchResources,
+  fetchCourses,
+  type Course,
+  type Program,
+  type Resource,
+} from '../../services/database'
+import { visiblePrograms } from '../../utils/programScope'
+
+interface Props {
+  profile?: { role?: string | null; program_id?: string | null } | null
+  onNavigate?: (page: string) => void
+}
+
+const relId = (v: string | { id: string } | null | undefined) =>
+  v && typeof v === 'object' ? v.id : v || ''
+
+const TERMS: Array<{ label: string; year: number; sem: number }> = [
+  { label: 'First Year - First Semester', year: 1, sem: 1 },
+  { label: 'Second Semester', year: 1, sem: 2 },
+  { label: 'Second Year - First Semester', year: 2, sem: 1 },
+  { label: 'Second Semester', year: 2, sem: 2 },
+  { label: 'Third Year - First Semester', year: 3, sem: 1 },
+  { label: 'Third Year - Midyear', year: 3, sem: 3 },
+  { label: 'Second Semester', year: 3, sem: 2 },
+  { label: 'Fourth Year - First Semester', year: 4, sem: 1 },
+  { label: 'Second Semester', year: 4, sem: 2 },
+]
+
+const yearLabel = (y: number) =>
+  ['', 'First Year', 'Second Year', 'Third Year', 'Fourth Year'][y] || `Year ${y}`
+const semLabel = (s: number) =>
+  s === 3 ? 'Midyear' : s === 2 ? 'Second Semester' : 'First Semester'
+
+export default function CurriculumStructure({ profile, onNavigate }: Props) {
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [resources, setResources] = useState<Resource[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [programId, setProgramId] = useState('')
+  const [yearStart, setYearStart] = useState('')
+  const [query, setQuery] = useState('')
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+
+  const myProgramId = profile?.program_id ?? null
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.allSettled([fetchPrograms(), fetchResources(), fetchCourses()]).then(([p, r, c]) => {
+      if (cancelled) return
+      const scopedPrograms = p.status === 'fulfilled' ? visiblePrograms(p.value, profile) : []
+      setPrograms(scopedPrograms)
+      const activeResources =
+        r.status === 'fulfilled' ? r.value.filter((x) => !x.status || x.status === 'active') : []
+      setResources(activeResources)
+      setCourses(c.status === 'fulfilled' ? c.value : [])
+      setProgramId((prev) =>
+        prev && scopedPrograms.some((x) => x.id === prev)
+          ? prev
+          : myProgramId && scopedPrograms.some((x) => x.id === myProgramId)
+            ? myProgramId
+            : scopedPrograms[0]?.id ?? '',
+      )
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [profile, myProgramId])
+
+  const years = useMemo(() => {
+    const set = new Set<number>()
+    for (const r of resources) {
+      if (r.sy_start != null) set.add(Number(r.sy_start))
+    }
+    return [...set].sort((a, b) => a - b)
+  }, [resources])
+
+  const working = useMemo(
+    () =>
+      resources.find((r) => {
+        const pid = relId((r as Resource & { program_id?: string | null }).program_id)
+        return (!pid || pid === programId) && String(r.sy_start ?? '') === yearStart
+      }) ?? null,
+    [resources, programId, yearStart],
+  )
+
+  const q = query.trim().toLowerCase()
+  const scopedCourses = useMemo(
+    () =>
+      courses.filter((c) => {
+        if (programId && relId(c.program_id) !== programId) return false
+        if (working && relId(c.curriculum_id) !== working.id) return false
+        if (!q) return !c.status || c.status === 'active'
+        return (
+          [c.code, c.title, c.description].some((v) => (v || '').toLowerCase().includes(q)) &&
+          (!c.status || c.status === 'active')
+        )
+      }),
+    [courses, programId, working, q],
+  )
+
+  const groups = useMemo(() => {
+    const list = TERMS.map((term) => ({
+      ...term,
+      label: term.year === 1 && term.sem === 1 ? `${yearLabel(term.year)} - ${semLabel(term.sem)}` : term.label,
+      rows: scopedCourses
+        .filter((c) => Number(c.year_level) === term.year && Number(c.semester) === term.sem)
+        .sort((a, b) => String(a.code).localeCompare(String(b.code))),
+    })).filter((g) => g.rows.length > 0)
+    return list
+  }, [scopedCourses])
+
+  const allCollapsed = collapsed.size > 0 && collapsed.size === groups.length
+  const toggleAll = () =>
+    setCollapsed(allCollapsed ? new Set() : new Set(groups.map((g) => g.label + g.year)))
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+
+  const programLabel = programs.find((p) => p.id === programId)
+  const yearText = yearStart ? `${yearStart}-${Number(yearStart) + 1}` : ''
+
+  return (
+    <div className="curriculum26">
+      <nav className="curriculum26__crumb" aria-label="Breadcrumb">
+        Curriculum Management <span>/</span>{' '}
+        <strong>{programLabel?.code || programLabel?.name || 'Curriculum'}</strong>
+      </nav>
+
+      <div className="curriculum26__hero">
+        <div>
+          <span className="curriculum26__kicker">Program curriculum</span>
+          <h2>{programLabel?.code || 'Program'} Curriculum Structure</h2>
+          <p>View and maintain courses by year level and semester.</p>
+        </div>
+        <div className="curriculum26__hero-actions">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => window.print()}>
+            <Icon name="print" size={13} /> Print curriculum
+          </button>
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => onNavigate?.('course')}>
+            <Icon name="plus" size={13} /> Add course
+          </button>
+        </div>
+      </div>
+
+      <div className="curriculum26__filters">
+        <label className="field">
+          <span>Program</span>
+          <select className="input input--sm" value={programId} onChange={(e) => setProgramId(e.target.value)}>
+            {programs.length === 0 && <option value="">No programs available</option>}
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name || p.code} ({p.code})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Academic Year</span>
+          <select className="input input--sm" value={yearStart} onChange={(e) => setYearStart(e.target.value)}>
+            <option value="">All years</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}-{y + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="curriculum26__status">
+          <span className="curriculum26__dot" /> Working curriculum ·{' '}
+          {working?.title || working?.code || yearText || 'all years'}
+        </span>
+      </div>
+
+      <div className="curriculum26__plan">
+        <div className="curriculum26__plan-head">
+          <div>
+            <h3>Curriculum Plan</h3>
+            <p>Course listing by year level and term</p>
+          </div>
+          <div className="curriculum26__plan-tools no-print">
+            <input
+              className="input input--sm"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search course code or description"
+              aria-label="Search course code or description"
+            />
+            <button type="button" className="btn btn--ghost btn--sm" onClick={toggleAll}>
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="curriculum26__empty">Loading curriculum…</p>
+        ) : groups.length === 0 ? (
+          <p className="curriculum26__empty">
+            No courses found for this program and academic year.
+          </p>
+        ) : (
+          <div className="curriculum26__grid">
+            {groups.map((g) => {
+              const key = g.label + g.year
+              const open = !collapsed.has(key)
+              const totalLec = g.rows.reduce((s, c) => s + (Number(c.credit_lecture) || 0), 0)
+              const totalLab = g.rows.reduce((s, c) => s + (Number(c.credit_laboratory) || 0), 0)
+              const totalUnits = g.rows.reduce((s, c) => s + (Number(c.units) || 0), 0)
+              return (
+                <section key={key} className="curriculum26__term">
+                  <button type="button" className="curriculum26__term-head" onClick={() => toggle(key)}>
+                    <span>{g.label}</span>
+                    <span className="curriculum26__term-count">
+                      {g.rows.length} course{g.rows.length === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                  {open && (
+                    <table className="curriculum26__table">
+                      <thead>
+                        <tr>
+                          <th>FG</th>
+                          <th>CODE</th>
+                          <th>Descriptive Title</th>
+                          <th>Lec</th>
+                          <th>Lab</th>
+                          <th>Units</th>
+                          <th>Pre-Req</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.rows.map((c) => (
+                          <tr key={c.id}>
+                            <td />
+                            <td className="curriculum26__code">{c.code}</td>
+                            <td>{c.title}</td>
+                            <td>{c.credit_lecture}</td>
+                            <td>{c.credit_laboratory}</td>
+                            <td>{c.units}</td>
+                            <td>{c.prerequisite || 'None'}</td>
+                            <td />
+                          </tr>
+                        ))}
+                        <tr className="curriculum26__total">
+                          <td colSpan={3}>TOTAL</td>
+                          <td>{totalLec}</td>
+                          <td>{totalLab}</td>
+                          <td>{totalUnits}</td>
+                          <td colSpan={2} />
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+        )}
+
+        <p className="curriculum26__sign">
+          <strong>Evaluated</strong> by: ____________________________&nbsp;&nbsp;&nbsp;
+          <strong>Date:</strong> ____________________________
+        </p>
+      </div>
+    </div>
+  )
+}

@@ -10842,6 +10842,248 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: center;
 }
 
+/* ---- Manager Curriculum Structure (reference design) --------------------
+   The course plan by year and term: compact bordered tables, pale green
+   headers and total rows, a two-column grid, and a small filter bar. ---- */
+.curriculum26 {
+  padding: 18px 22px 26px;
+}
+
+.curriculum26__crumb {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  margin-bottom: 14px;
+}
+
+.curriculum26__crumb span {
+  margin: 0 6px;
+  opacity: 0.6;
+}
+
+.curriculum26__crumb strong {
+  color: var(--text);
+}
+
+.curriculum26__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.curriculum26__kicker {
+  font: 700 10px 'Manrope', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--text-muted);
+}
+
+.curriculum26__hero h2 {
+  margin: 3px 0 2px;
+  font: 800 25px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
+.curriculum26__hero p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.curriculum26__hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.curriculum26__filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 16px 0;
+}
+
+.curriculum26__filters .field {
+  margin: 0;
+  min-width: 210px;
+}
+
+.curriculum26__status {
+  margin-left: auto;
+  align-self: center;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.curriculum26__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-right: 5px;
+}
+
+.curriculum26__plan-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.curriculum26__plan-head h3 {
+  margin: 0;
+  font: 700 16px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
+.curriculum26__plan-head p {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.curriculum26__plan-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.curriculum26__plan-tools input {
+  width: 240px;
+}
+
+.curriculum26__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.curriculum26__term {
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.curriculum26__term-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-soft);
+  border: 0;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--text);
+  font: 700 11.5px 'DM Sans', 'Inter', sans-serif;
+  text-align: left;
+}
+
+.curriculum26__term-count {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.curriculum26__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.curriculum26__table th {
+  background: var(--g100);
+  color: var(--g700);
+  font: 700 9.5px 'DM Sans', 'Inter', sans-serif;
+  text-align: left;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.curriculum26__table td {
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  line-height: 1.35;
+}
+
+.curriculum26__table td:nth-child(4),
+.curriculum26__table td:nth-child(5),
+.curriculum26__table td:nth-child(6),
+.curriculum26__table th:nth-child(4),
+.curriculum26__table th:nth-child(5),
+.curriculum26__table th:nth-child(6) {
+  text-align: center;
+}
+
+.curriculum26__code {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.curriculum26__total td {
+  background: var(--g100);
+  color: var(--g700);
+  font-weight: 700;
+  text-align: center;
+}
+
+.curriculum26__total td:first-child {
+  text-align: right;
+}
+
+.curriculum26__empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 20px;
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+}
+
+.curriculum26__sign {
+  margin: 22px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.curriculum26__records {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.curriculum26__records summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 900px) {
+  .curriculum26__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .curriculum26__hero-actions,
+  .curriculum26__plan-tools,
+  .curriculum26__records,
+  .curriculum26__filters {
+    display: none !important;
+  }
+}
+
 /* ---- Program Outcomes (prototype design): flat cards with a number
    tile, the CMO category as the sub-line, alignment tags, and text
    actions. ---- */
