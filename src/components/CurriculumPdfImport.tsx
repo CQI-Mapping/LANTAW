@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from 'react'
 import { parseCurriculumPdf, type ParsedCurriculumSubject } from '../utils/curriculumPdf'
-import { createCourse, addActivityLog } from '../services/database'
+import { createCourse, addActivityLog, uploadCurriculumFile } from '../services/database'
 import type { Course } from '../services/database'
 
 interface CurriculumPdfImportProps {
@@ -45,7 +45,7 @@ export default function CurriculumPdfImport({
     [courses, programId],
   )
 
-  const importAll = async (parsed: ParsedCurriculumSubject[]) => {
+  const importAll = async (parsed: ParsedCurriculumSubject[], file: File) => {
     setParsing(true)
     setError('')
     let created = 0
@@ -75,6 +75,13 @@ export default function CurriculumPdfImport({
         entity: 'course',
         label: `Curriculum PDF import — ${created} subject${created === 1 ? '' : 's'} added to ${programCode || 'the program'}`,
       })
+      // Keep the checklist on the server so the manager can delete it
+      // later. A storage hiccup must not undo an already-finished import.
+      try {
+        await uploadCurriculumFile(file, programId, curriculumId)
+      } catch {
+        /* imported subjects stay; only the saved-file copy is missing */
+      }
       setResult({ created, skipped })
       onImported(created, skipped)
       // Straight back to the Curriculum Structure with the tables refreshed.
@@ -101,7 +108,7 @@ export default function CurriculumPdfImport({
         return
       }
       // No review step: every parsed subject is written in one pass.
-      await importAll(parsed)
+      await importAll(parsed, file)
     } catch (e) {
       setError('Failed to read the PDF: ' + (e instanceof Error ? e.message : String(e)))
       setParsing(false)

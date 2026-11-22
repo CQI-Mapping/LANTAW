@@ -743,6 +743,64 @@ export async function deleteCourse(id: string): Promise<void> {
   if (error) throw error
 }
 
+// CURRICULUM UPLOADS (041): the checklist PDF the manager imported,
+// stored privately in Supabase Storage with a record for the list.
+export interface CurriculumUpload {
+  id: string
+  file_name: string
+  file_path: string
+  program_id: string
+  curriculum_id: string | null
+  uploaded_by: string
+  created_at: string
+}
+
+export async function fetchCurriculumUploads(programId: string): Promise<CurriculumUpload[]> {
+  const { data, error } = await supabase
+    .from('curriculum_uploads')
+    .select('*')
+    .eq('program_id', programId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function uploadCurriculumFile(
+  file: File,
+  programId: string,
+  curriculumId: string,
+): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getUser()
+  if (authError) throw authError
+  const userId = auth.user?.id
+  if (!userId) throw new Error('You are not signed in.')
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+  const filePath = `${userId}/${programId}/${Date.now()}-${safeName}`
+  const { error: storageError } = await supabase.storage
+    .from('curriculum-files')
+    .upload(filePath, file, { upsert: false })
+  if (storageError) throw storageError
+  const { error } = await supabase.from('curriculum_uploads').insert({
+    file_name: file.name,
+    file_path: filePath,
+    program_id: programId,
+    curriculum_id: curriculumId || null,
+    uploaded_by: userId,
+  })
+  if (error) {
+    // No orphan object if the record could not be written.
+    await supabase.storage.from('curriculum-files').remove([filePath])
+    throw error
+  }
+}
+
+export async function deleteCurriculumUpload(upload: CurriculumUpload): Promise<void> {
+  const { error } = await supabase.from('curriculum_uploads').delete().eq('id', upload.id)
+  if (error) throw error
+  const { error: storageError } = await supabase.storage.from('curriculum-files').remove([upload.file_path])
+  if (storageError) throw storageError
+}
+
 // PROGRAM OUTCOMES (PO)
 
 export async function fetchProgramOutcomes(programId: string | null = null): Promise<ProgramOutcome[]> {

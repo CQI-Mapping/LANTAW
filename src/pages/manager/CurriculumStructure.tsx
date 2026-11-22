@@ -10,8 +10,11 @@ import {
   fetchPrograms,
   fetchResources,
   fetchCourses,
+  fetchCurriculumUploads,
+  deleteCurriculumUpload,
   updateCourse,
   addActivityLog,
+  type CurriculumUpload,
   type Course,
   type Program,
   type Resource,
@@ -58,6 +61,8 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const [notice, setNotice] = useState('')
   const [removingId, setRemovingId] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [uploads, setUploads] = useState<CurriculumUpload[]>([])
+  const [deletingUpload, setDeletingUpload] = useState('')
 
   const myProgramId = profile?.program_id ?? null
 
@@ -84,6 +89,30 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       cancelled = true
     }
   }, [profile, myProgramId])
+
+  useEffect(() => {
+    if (!programId) { setUploads([]); return }
+    let cancelled = false
+    fetchCurriculumUploads(programId)
+      .then((rows) => { if (!cancelled) setUploads(rows) })
+      .catch(() => { if (!cancelled) setUploads([]) })
+    return () => { cancelled = true }
+  }, [programId])
+
+  const handleDeleteUpload = async (upload: CurriculumUpload) => {
+    if (!window.confirm(`Delete the uploaded file "${upload.file_name}"? The imported subjects stay in the plan.`))
+      return
+    setDeletingUpload(upload.id)
+    try {
+      await deleteCurriculumUpload(upload)
+      setUploads((prev) => prev.filter((u) => u.id !== upload.id))
+      setNotice(`Deleted ${upload.file_name}.`)
+    } catch (e) {
+      setNotice('Failed to delete the file: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setDeletingUpload('')
+    }
+  }
 
   const years = useMemo(() => {
     const set = new Set<number>()
@@ -275,6 +304,31 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
         </span>
       </div>
 
+      {uploads.length > 0 && (
+        <div className="curriculum26__uploads no-print">
+          <h4>Uploaded curriculum files</h4>
+          <ul>
+            {uploads.map((u) => (
+              <li key={u.id}>
+                <Icon name="doc" size={13} />
+                <span className="curriculum26__upload-name">{u.file_name}</span>
+                <span className="curriculum26__upload-date">
+                  {new Date(u.created_at).toLocaleDateString()}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  disabled={deletingUpload === u.id}
+                  onClick={() => void handleDeleteUpload(u)}
+                >
+                  {deletingUpload === u.id ? 'Deleting…' : 'Delete'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="curriculum26__plan">
         <div className="curriculum26__plan-head">
           <div>
@@ -436,6 +490,9 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
             )
             fetchCourses()
               .then(setCourses)
+              .catch(() => {})
+            fetchCurriculumUploads(programId)
+              .then(setUploads)
               .catch(() => {})
           }}
         />

@@ -10958,6 +10958,46 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   margin-right: 5px;
 }
 
+.curriculum26__uploads {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.curriculum26__uploads h4 {
+  margin: 0 0 6px;
+  font: 700 12px 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--g700);
+}
+
+.curriculum26__uploads ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.curriculum26__uploads li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.curriculum26__upload-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.curriculum26__upload-date {
+  margin-left: auto;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .curriculum26__plan-head {
   display: flex;
   align-items: flex-end;
