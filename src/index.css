@@ -6492,6 +6492,24 @@ button.reports-panel__more:hover {
   max-height: 90vh;
   overflow: auto;
 }
+/* The curriculum PDF import dialog: an opaque, padded sheet so the
+   page behind never reads through the form. */
+.curriculum-import {
+  padding: 20px 22px 22px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.35);
+}
+
+.curriculum-import input[type='file'] {
+  padding: 9px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  cursor: pointer;
+}
+
 
 /* Full-page syllabus reader (opened from a CLO card's eye button): a fixed
    overlay with a sticky toolbar and the scrollable report document under it.

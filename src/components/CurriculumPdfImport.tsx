@@ -160,7 +160,7 @@ export default function CurriculumPdfImport({
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Import curriculum from PDF">
-      <div className="modal" style={{ maxWidth: 860 }}>
+      <div className="modal curriculum-import" style={{ maxWidth: 860 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <h2 style={{ fontFamily: "'Manrope', sans-serif", fontSize: 19, margin: '0 0 4px' }}>Import curriculum from PDF</h2>
