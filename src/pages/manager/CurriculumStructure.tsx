@@ -10,6 +10,8 @@ import {
   fetchPrograms,
   fetchResources,
   fetchCourses,
+  updateCourse,
+  addActivityLog,
   type Course,
   type Program,
   type Resource,
@@ -54,6 +56,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const [loading, setLoading] = useState(true)
   const [importOpen, setImportOpen] = useState(false)
   const [notice, setNotice] = useState('')
+  const [removingId, setRemovingId] = useState('')
 
   const myProgramId = profile?.program_id ?? null
 
@@ -134,6 +137,32 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       else next.add(key)
       return next
     })
+
+  // Removing a subject is a soft archive: managers may update courses
+  // but hard deletion is admin-only, and archived rows leave every plan.
+  const handleRemove = async (course: Course) => {
+    if (
+      !window.confirm(
+        `Remove ${course.code} — ${course.title} from the curriculum? The subject is archived, not permanently deleted.`,
+      )
+    )
+      return
+    setRemovingId(course.id)
+    try {
+      await updateCourse(course.id, { status: 'archived' })
+      await addActivityLog('course.archived', {
+        entity: 'course',
+        entity_id: course.id,
+        label: `${course.code} — ${course.title}`,
+      })
+      setCourses((prev) => prev.map((c) => (c.id === course.id ? { ...c, status: 'archived' } : c)))
+      setNotice(`${course.code} was removed from the curriculum plan.`)
+    } catch (e) {
+      setNotice('Failed to remove the subject: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setRemovingId('')
+    }
+  }
 
   const programLabel = programs.find((p) => p.id === programId)
   const yearText = yearStart ? `${yearStart}-${Number(yearStart) + 1}` : ''
@@ -280,7 +309,18 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                                   <td>{c.credit_laboratory}</td>
                                   <td>{c.units}</td>
                                   <td>{c.prerequisite || 'None'}</td>
-                                  <td />
+                                  <td className="curriculum26__remove-cell">
+                                    <button
+                                      type="button"
+                                      className="curriculum26__remove"
+                                      title={`Remove ${c.code} from the curriculum`}
+                                      aria-label={`Remove ${c.code} from the curriculum`}
+                                      disabled={removingId === c.id}
+                                      onClick={() => void handleRemove(c)}
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
                                 </tr>
                               ))}
                               <tr className="curriculum26__total">
