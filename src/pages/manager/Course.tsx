@@ -319,6 +319,11 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const unassignedCount = courses.filter(
     (c) => sameProgram(c) && isActive(c) && !instructorIdOf(c.instructor_id),
   ).length
+  // The Total card answers "how many subjects in THIS program", not
+  // "how many in the whole database" — the other program's courses are
+  // loaded for admin/mapping but never shown to a scoped manager.
+  const programTotal = courses.filter(sameProgram).length
+  const programLabel = programs.find((p) => p.id === programId)
 
   const totalCredits = (f: CourseForm) => {
     const lec = parseInt(f.creditLecture, 10) || 0
@@ -774,8 +779,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
       <div className="program-stats">
         <div className="program-stat">
           <div className="program-stat__label">Total</div>
-          <div className="program-stat__value">{courses.length}</div>
-          <div className="program-stat__sub">{programs.length} programs</div>
+          <div className="program-stat__value">{programTotal}</div>
+          <div className="program-stat__sub">{programLabel?.code || `${programs.length} programs`}</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Visible</div>
