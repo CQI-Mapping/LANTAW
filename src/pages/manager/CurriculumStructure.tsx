@@ -3,7 +3,7 @@
 // academic-year filters, a search box, expand-all, and the evaluation line.
 // Keeps its data read-only here; the existing management panel below edits
 // curriculum records and the Course page creates subjects.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import Icon from '../../components/icons'
 import {
   fetchPrograms,
@@ -28,12 +28,14 @@ const TERMS: Array<{ label: string; year: number; sem: number }> = [
   { label: 'Second Semester', year: 1, sem: 2 },
   { label: 'Second Year - First Semester', year: 2, sem: 1 },
   { label: 'Second Semester', year: 2, sem: 2 },
-  { label: 'Third Year - First Semester', year: 3, sem: 1 },
-  { label: 'Third Year - Midyear', year: 3, sem: 3 },
-  { label: 'Second Semester', year: 3, sem: 2 },
-  { label: 'Fourth Year - First Semester', year: 4, sem: 1 },
-  { label: 'Second Semester', year: 4, sem: 2 },
+  { label: '3rd Year - 1st Semester', year: 3, sem: 1 },
+  { label: '3rd Year Summer', year: 3, sem: 3 },
+  { label: '3rd Year - 2nd Semester', year: 3, sem: 2 },
+  { label: '4th Year - 1st Semester', year: 4, sem: 1 },
+  { label: '4th Year - 2nd Semester', year: 4, sem: 2 },
 ]
+
+const subjectOf = (code: string) => (code.match(/^[A-Za-z]+/) || [''])[0]
 
 const yearLabel = (y: number) =>
   ['', 'First Year', 'Second Year', 'Third Year', 'Fourth Year'][y] || `Year ${y}`
@@ -214,58 +216,98 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
           </p>
         ) : (
           <div className="curriculum26__grid">
-            {groups.map((g) => {
-              const key = g.label + g.year
-              const open = !collapsed.has(key)
-              const totalLec = g.rows.reduce((s, c) => s + (Number(c.credit_lecture) || 0), 0)
-              const totalLab = g.rows.reduce((s, c) => s + (Number(c.credit_laboratory) || 0), 0)
-              const totalUnits = g.rows.reduce((s, c) => s + (Number(c.units) || 0), 0)
+            {[1, 2, 3, 4].map((year) => {
+              const yearGroups = groups.filter((g) => g.year === year)
+              if (yearGroups.length === 0) return null
+              const yearUnits = yearGroups.reduce(
+                (sum, g) => sum + g.rows.reduce((s, c) => s + (Number(c.units) || 0), 0),
+                0,
+              )
               return (
-                <section key={key} className="curriculum26__term">
-                  <button type="button" className="curriculum26__term-head" onClick={() => toggle(key)}>
-                    <span>{g.label}</span>
-                    <span className="curriculum26__term-count">
-                      {g.rows.length} course{g.rows.length === 1 ? '' : 's'}
-                    </span>
-                  </button>
-                  {open && (
-                    <table className="curriculum26__table">
-                      <thead>
-                        <tr>
-                          <th>FG</th>
-                          <th>CODE</th>
-                          <th>Descriptive Title</th>
-                          <th>Lec</th>
-                          <th>Lab</th>
-                          <th>Units</th>
-                          <th>Pre-Req</th>
-                          <th />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {g.rows.map((c) => (
-                          <tr key={c.id}>
-                            <td />
-                            <td className="curriculum26__code">{c.code}</td>
-                            <td>{c.title}</td>
-                            <td>{c.credit_lecture}</td>
-                            <td>{c.credit_laboratory}</td>
-                            <td>{c.units}</td>
-                            <td>{c.prerequisite || 'None'}</td>
-                            <td />
-                          </tr>
-                        ))}
-                        <tr className="curriculum26__total">
-                          <td colSpan={3}>TOTAL</td>
-                          <td>{totalLec}</td>
-                          <td>{totalLab}</td>
-                          <td>{totalUnits}</td>
-                          <td colSpan={2} />
-                        </tr>
-                      </tbody>
-                    </table>
+                <Fragment key={year}>
+                  <h4 className="curriculum26__year">
+                    {year === 3
+                      ? 'THIRD YEAR'
+                      : year === 4
+                        ? 'FOURTH YEAR'
+                        : `${yearLabel(year).toUpperCase()}`}
+                  </h4>
+                  {yearGroups.map((g) => {
+                    const key = g.label + g.year
+                    const open = !collapsed.has(key)
+                    const totalLec = g.rows.reduce((s, c) => s + (Number(c.credit_lecture) || 0), 0)
+                    const totalLab = g.rows.reduce((s, c) => s + (Number(c.credit_laboratory) || 0), 0)
+                    const totalUnits = g.rows.reduce((s, c) => s + (Number(c.units) || 0), 0)
+                    return (
+                      <section key={key} className="curriculum26__term">
+                        <button
+                          type="button"
+                          className={`curriculum26__term-head${year >= 3 ? ' curriculum26__term-head--green' : ''}`}
+                          onClick={() => toggle(key)}
+                        >
+                          <span>{g.label}</span>
+                          <span className="curriculum26__term-count">
+                            {g.rows.length} course{g.rows.length === 1 ? '' : 's'}
+                          </span>
+                        </button>
+                        {open && (
+                          <table className="curriculum26__table">
+                            <thead>
+                              <tr>
+                                <th>FG</th>
+                                <th>SUBJ</th>
+                                <th>Code</th>
+                                <th>Descriptive Title</th>
+                                <th>Lec</th>
+                                <th>Lab</th>
+                                <th>Units</th>
+                                <th>Pre-Req</th>
+                                <th />
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {g.rows.map((c) => (
+                                <tr key={c.id}>
+                                  <td />
+                                  <td>{subjectOf(c.code)}</td>
+                                  <td className="curriculum26__code">{c.code}</td>
+                                  <td>{c.title}</td>
+                                  <td>{c.credit_lecture}</td>
+                                  <td>{c.credit_laboratory}</td>
+                                  <td>{c.units}</td>
+                                  <td>{c.prerequisite || 'None'}</td>
+                                  <td />
+                                </tr>
+                              ))}
+                              <tr className="curriculum26__total">
+                                <td colSpan={4}>TOTAL</td>
+                                <td>{totalLec}</td>
+                                <td>{totalLab}</td>
+                                <td>{totalUnits}</td>
+                                <td colSpan={2} />
+                              </tr>
+                            </tbody>
+                          </table>
+                        )}
+                      </section>
+                    )
+                  })}
+                  {year === 3 && (
+                    <div className="curriculum26__sign curriculum26__sign--year">
+                      <span>
+                        NAME: ________________&nbsp;&nbsp; SY ENROLLED: ________________&nbsp;&nbsp;
+                        FACULTY MENTOR: ________________
+                      </span>
+                      <strong>TOTAL UNITS: {yearUnits}</strong>
+                    </div>
                   )}
-                </section>
+                  {year === 4 && (
+                    <div className="curriculum26__sign curriculum26__sign--year">
+                      <span>Approved By: ____________________________</span>
+                      <span>Date: ____________________</span>
+                    </div>
+                  )}
+                </Fragment>
               )
             })}
           </div>

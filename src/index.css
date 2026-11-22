@@ -10994,6 +10994,40 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   font-weight: 500;
 }
 
+/* The printed form's year bands and the 3rd/4th-year green term bars. */
+.curriculum26__year {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  background: var(--primary);
+  color: #ffffff;
+  text-align: center;
+  font: 800 12px 'Manrope', 'Space Grotesk', sans-serif;
+  letter-spacing: 1.1px;
+  border-radius: 3px;
+}
+
+.curriculum26__term-head--green {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.curriculum26__term-head--green .curriculum26__term-count {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.curriculum26__sign--year {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
 .curriculum26__table {
   width: 100%;
   border-collapse: collapse;
@@ -11016,12 +11050,12 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   line-height: 1.35;
 }
 
-.curriculum26__table td:nth-child(4),
 .curriculum26__table td:nth-child(5),
 .curriculum26__table td:nth-child(6),
-.curriculum26__table th:nth-child(4),
+.curriculum26__table td:nth-child(7),
 .curriculum26__table th:nth-child(5),
-.curriculum26__table th:nth-child(6) {
+.curriculum26__table th:nth-child(6),
+.curriculum26__table th:nth-child(7) {
   text-align: center;
 }
 
