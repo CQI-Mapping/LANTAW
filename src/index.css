@@ -11016,18 +11016,6 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.curriculum26__sign--year {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin: 4px 0 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-
 .curriculum26__table {
   width: 100%;
   border-collapse: collapse;
@@ -11082,12 +11070,6 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: center;
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
-}
-
-.curriculum26__sign {
-  margin: 22px 0 0;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 .curriculum26__records {

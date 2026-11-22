@@ -219,10 +219,6 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
             {[1, 2, 3, 4].map((year) => {
               const yearGroups = groups.filter((g) => g.year === year)
               if (yearGroups.length === 0) return null
-              const yearUnits = yearGroups.reduce(
-                (sum, g) => sum + g.rows.reduce((s, c) => s + (Number(c.units) || 0), 0),
-                0,
-              )
               return (
                 <Fragment key={year}>
                   <h4 className="curriculum26__year">
@@ -292,31 +288,12 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                       </section>
                     )
                   })}
-                  {year === 3 && (
-                    <div className="curriculum26__sign curriculum26__sign--year">
-                      <span>
-                        NAME: ________________&nbsp;&nbsp; SY ENROLLED: ________________&nbsp;&nbsp;
-                        FACULTY MENTOR: ________________
-                      </span>
-                      <strong>TOTAL UNITS: {yearUnits}</strong>
-                    </div>
-                  )}
-                  {year === 4 && (
-                    <div className="curriculum26__sign curriculum26__sign--year">
-                      <span>Approved By: ____________________________</span>
-                      <span>Date: ____________________</span>
-                    </div>
-                  )}
                 </Fragment>
               )
             })}
           </div>
         )}
 
-        <p className="curriculum26__sign">
-          <strong>Evaluated</strong> by: ____________________________&nbsp;&nbsp;&nbsp;
-          <strong>Date:</strong> ____________________________
-        </p>
       </div>
     </div>
   )
