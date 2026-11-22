@@ -11091,6 +11091,26 @@ html.lantaw-dark .g26-bulletlib__tile.active {
   text-align: right;
 }
 
+.curriculum26__check-cell {
+  text-align: center;
+  width: 22px;
+}
+
+.curriculum26__selected {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--g700);
+  white-space: nowrap;
+}
+
+@media print {
+  .curriculum26__check-cell,
+  .curriculum26__selected {
+    display: none;
+  }
+}
+
 .curriculum26__remove-cell {
   text-align: center;
   width: 26px;

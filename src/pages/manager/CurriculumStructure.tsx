@@ -57,6 +57,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
   const [importOpen, setImportOpen] = useState(false)
   const [notice, setNotice] = useState('')
   const [removingId, setRemovingId] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const myProgramId = profile?.program_id ?? null
 
@@ -138,6 +139,24 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       return next
     })
 
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const toggleTerm = (rows: Course[]) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allSelected = rows.every((c) => next.has(c.id))
+      for (const c of rows) {
+        if (allSelected) next.delete(c.id)
+        else next.add(c.id)
+      }
+      return next
+    })
+
   // Removing a subject is a soft archive: managers may update courses
   // but hard deletion is admin-only, and archived rows leave every plan.
   const handleRemove = async (course: Course) => {
@@ -159,6 +178,38 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
       setNotice(`${course.code} was removed from the curriculum plan.`)
     } catch (e) {
       setNotice('Failed to remove the subject: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setRemovingId('')
+    }
+  }
+
+  const handleRemoveSelected = async () => {
+    const picked = courses.filter((c) => selectedIds.has(c.id))
+    if (picked.length === 0) return
+    if (
+      !window.confirm(
+        `Remove ${picked.length} subject${picked.length === 1 ? '' : 's'} from the curriculum? They are archived, not permanently deleted.`,
+      )
+    )
+      return
+    setRemovingId('bulk')
+    let removed = 0
+    try {
+      for (const course of picked) {
+        await updateCourse(course.id, { status: 'archived' })
+        await addActivityLog('course.archived', {
+          entity: 'course',
+          entity_id: course.id,
+          label: `${course.code} — ${course.title}`,
+        })
+        removed++
+      }
+      const ids = new Set(picked.map((c) => c.id))
+      setCourses((prev) => prev.map((c) => (ids.has(c.id) ? { ...c, status: 'archived' } : c)))
+      setSelectedIds(new Set())
+      setNotice(`${removed} subject${removed === 1 ? '' : 's'} removed from the curriculum plan.`)
+    } catch (e) {
+      setNotice('Failed to remove the subjects: ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setRemovingId('')
     }
@@ -242,6 +293,17 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
             <button type="button" className="btn btn--ghost btn--sm" onClick={toggleAll}>
               {allCollapsed ? 'Expand all' : 'Collapse all'}
             </button>
+            {selectedIds.size > 0 && (
+              <>
+                <span className="curriculum26__selected">{selectedIds.size} selected</span>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelectedIds(new Set())}>
+                  Clear
+                </button>
+                <button type="button" className="btn btn--danger btn--sm" onClick={() => void handleRemoveSelected()} disabled={removingId === 'bulk'}>
+                  {removingId === 'bulk' ? 'Removing…' : `Remove ${selectedIds.size}`}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -287,6 +349,14 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                           <table className="curriculum26__table">
                             <thead>
                               <tr>
+                                <th>
+                                  <input
+                                    type="checkbox"
+                                    checked={g.rows.length > 0 && g.rows.every((c) => selectedIds.has(c.id))}
+                                    onChange={() => toggleTerm(g.rows)}
+                                    aria-label={`Select all subjects in ${g.label}`}
+                                  />
+                                </th>
                                 <th>FG</th>
                                 <th>SUBJ</th>
                                 <th>Code</th>
@@ -301,7 +371,14 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                             <tbody>
                               {g.rows.map((c) => (
                                 <tr key={c.id}>
-                                  <td />
+                                  <td className="curriculum26__check-cell">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedIds.has(c.id)}
+                                      onChange={() => toggleSelected(c.id)}
+                                      aria-label={`Select ${c.code} for removal`}
+                                    />
+                                  </td>
                                   <td>{subjectOf(c.code)}</td>
                                   <td className="curriculum26__code">{c.code}</td>
                                   <td>{c.title}</td>
@@ -324,7 +401,7 @@ export default function CurriculumStructure({ profile, onNavigate }: Props) {
                                 </tr>
                               ))}
                               <tr className="curriculum26__total">
-                                <td colSpan={4}>TOTAL</td>
+                                <td colSpan={5}>TOTAL</td>
                                 <td>{totalLec}</td>
                                 <td>{totalLab}</td>
                                 <td>{totalUnits}</td>
