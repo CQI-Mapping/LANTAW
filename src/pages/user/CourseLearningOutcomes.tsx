@@ -1306,7 +1306,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                               <ul>
                                 {(historyShowAll ? trail : trail.slice(0, HISTORY_PREVIEW)).map((h) => (
                                   <li key={h.id}>
-                                    <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                    <span className="clo26-who">{h.user_email}</span>
                                     <span className={historyActClass(h.action)}>{historyVerb(h.action)}</span>
                                     {h.details?.code ? <span className="clo26-tag">CLO {h.details.code}</span> : null}
                                     {h.details?.changes && h.details.changes.length > 0 && (
@@ -1320,7 +1320,7 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                     <span className="clo26-what">
                                       {h.action === 'course.description_updated' ? 'Course description' : historyLabelText(h)}
                                     </span>
-                                    <span className="clo26-who">by {h.user_email}</span>
+                                    <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
                                   </li>
                                 ))}
                               </ul>
