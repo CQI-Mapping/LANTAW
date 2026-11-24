@@ -679,7 +679,7 @@ function App() {
     if (page === 'profile') return <Page profile={profile} onSaved={setProfile} onNavigate={navigate} />
     if (page === 'users') return <Page profile={profile} />
     if (SHARED_ACADEMIC_PAGES.has(page)) return <Page allowDelete={allowDelete} profile={profile} />
-    if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} profile={profile} />
+    if (page === 'curriculum' && role !== 'user') return <Page userEmail={profile?.email} allowDelete={role === 'admin'} profile={profile} onNavigate={navigate} />
     if (page === 'view') {
       // One shared page, one banner wording: every sidebar that opens it names
       // the page "View Syllabus" (admin nav line 76, manager line 92), so the

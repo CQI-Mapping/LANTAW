@@ -15,6 +15,7 @@ import { useSelection } from '../../hooks/useSelection'
 import { useViewMode } from '../../hooks/useViewMode'
 import ViewModeToggle from '../../components/ViewModeToggle'
 import Icon from '../../components/icons'
+import CurriculumStructure from './CurriculumStructure'
 import type { Resource, Course, Profile } from '../../services/database'
 import { labelSchoolYearStart, schoolYearOptions } from '../../utils/schoolYear'
 
@@ -45,9 +46,10 @@ function SyField({ value, onChange }: { value: string; onChange: (v: string) => 
 interface CurriculumProps {
   userEmail: string
   profile?: Profile | null
+  onNavigate?: (page: string) => void
 }
 
-function Curriculum({ userEmail, profile }: CurriculumProps) {
+function Curriculum({ userEmail, profile, onNavigate }: CurriculumProps) {
   // A manager's curricula are the ones linked from courses in their own
   // program - resources have no program_id of their own, the course's
   // curriculum_id is the bridge. Admins keep the whole catalog.
@@ -259,6 +261,11 @@ function Curriculum({ userEmail, profile }: CurriculumProps) {
 
   return (
     <div className="resources">
+      {/* The plan view is the page's main content; the record manager stays
+          available below for maintaining curriculum records. */}
+      <CurriculumStructure profile={profile} onNavigate={onNavigate} />
+      <details className="curriculum26__records">
+        <summary>Manage curriculum records (create, edit, archive)</summary>
       <div className="page-heading">
         <h2>Curriculum</h2>
         <p>Create, edit, and archive curriculum records.</p>
@@ -538,6 +545,7 @@ function Curriculum({ userEmail, profile }: CurriculumProps) {
           </div>
         </div>
       )}
+      </details>
     </div>
   )
 }

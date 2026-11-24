@@ -20,6 +20,7 @@ import {
   fetchCourses,
   createCourse,
   updateCourse,
+  deleteCourse,
   courseTermColumnsExist,
   addActivityLog,
 } from '../../services/database'
@@ -209,6 +210,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const setEditId = (id: string | null) => setEditState((s) => ({ ...s, editId: id }))
   const setEditForm = (f: CourseForm) => setEditState((s) => ({ ...s, editForm: f }))
   const [archived, setArchived] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
   // The course accordion open in the list ('' = all collapsed).
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null)
@@ -317,6 +319,11 @@ export default function ManagerCourse({ profile }: CourseProps) {
   const unassignedCount = courses.filter(
     (c) => sameProgram(c) && isActive(c) && !instructorIdOf(c.instructor_id),
   ).length
+  // The Total card answers "how many subjects in THIS program", not
+  // "how many in the whole database" — the other program's courses are
+  // loaded for admin/mapping but never shown to a scoped manager.
+  const programTotal = courses.filter(sameProgram).length
+  const programLabel = programs.find((p) => p.id === programId)
 
   const totalCredits = (f: CourseForm) => {
     const lec = parseInt(f.creditLecture, 10) || 0
@@ -516,6 +523,86 @@ export default function ManagerCourse({ profile }: CourseProps) {
     }
   }
 
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const toggleAllVisible = () =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allSelected = visible.length > 0 && visible.every((c) => next.has(c.id))
+      for (const c of visible) {
+        if (allSelected) next.delete(c.id)
+        else next.add(c.id)
+      }
+      return next
+    })
+
+  const handleDeleteSelected = async () => {
+    const picked = visible.filter((c) => selectedIds.has(c.id))
+    if (picked.length === 0) return
+    if (
+      !window.confirm(
+        `Delete ${picked.length} subject${picked.length === 1 ? '' : 's'}? This permanently removes them.`,
+      )
+    )
+      return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    let deleted = 0
+    try {
+      for (const item of picked) {
+        await deleteCourse(item.id)
+        await addActivityLog('course.deleted', {
+          entity: 'course',
+          entity_id: item.id,
+          label: item.code || item.title || undefined,
+        })
+        deleted++
+      }
+      setSelectedIds(new Set())
+      setMessage(`${deleted} subject${deleted === 1 ? '' : 's'} deleted.`)
+      load()
+    } catch (err) {
+      setError('Failed to delete courses: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Permanent deletion of a course in the manager's own program (RLS
+  // migration 043). The plan view offers the same action per row.
+  const handleDelete = async (item: Course) => {
+    if (
+      !window.confirm(
+        `Delete ${item.code} — ${item.title}? This permanently removes the subject.`,
+      )
+    )
+      return
+    setError('')
+    setMessage('')
+    setBusy(true)
+    try {
+      await deleteCourse(item.id)
+      await addActivityLog('course.deleted', {
+        entity: 'course',
+        entity_id: item.id,
+        label: item.code || item.title || undefined,
+      })
+      setMessage(`Course ${item.code} deleted.`)
+      if (editId === item.id) cancelEdit()
+      load()
+    } catch (err) {
+      setError('Failed to delete course: ' + errMsg(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Credit units (lecture / laboratory) share one clamped numeric input.
   const creditField = (
     label: string,
@@ -692,8 +779,8 @@ export default function ManagerCourse({ profile }: CourseProps) {
       <div className="program-stats">
         <div className="program-stat">
           <div className="program-stat__label">Total</div>
-          <div className="program-stat__value">{courses.length}</div>
-          <div className="program-stat__sub">{programs.length} programs</div>
+          <div className="program-stat__value">{programTotal}</div>
+          <div className="program-stat__sub">{programLabel?.code || `${programs.length} programs`}</div>
         </div>
         <div className="program-stat">
           <div className="program-stat__label">Visible</div>
@@ -876,6 +963,20 @@ export default function ManagerCourse({ profile }: CourseProps) {
                   Archived{archivedCount > 0 ? ` (${archivedCount})` : ''}
                 </button>
               </div>
+              <div className="course-bulk">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={toggleAllVisible} disabled={visible.length === 0}>
+                  {visible.length > 0 && visible.every((c) => selectedIds.has(c.id)) ? 'Clear all' : 'Select all shown'}
+                </button>
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="course-bulk__count">{selectedIds.size} selected</span>
+                    <button type="button" className="btn btn--danger btn--sm" disabled={busy}
+                      onClick={() => void handleDeleteSelected()}>
+                      Delete {selectedIds.size}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             {visible.length === 0 ? (
               <div className="clo26-empty" style={{ marginTop: 14 }}>
@@ -896,6 +997,13 @@ export default function ManagerCourse({ profile }: CourseProps) {
                       data-course-edit={editId === c.id ? 'open' : undefined}
                       onDoubleClick={() => { if (!busy && editId === null) startEdit(c) }}
                       title={editId === c.id ? undefined : 'Double-click to edit'}>
+                      <div className="course-card-select">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleSelected(c.id)}
+                        aria-label={`Select ${c.code} for deletion`}
+                      />
                       <button type="button" className="clo26-course-head"
                         onClick={() => { if (editId === c.id) return; setExpandedCourse(open && editId !== c.id ? null : c.id) }}
                         aria-expanded={open}>
@@ -913,6 +1021,7 @@ export default function ManagerCourse({ profile }: CourseProps) {
                           <span className="clo26-chevron" aria-hidden="true">›</span>
                         </div>
                       </button>
+                      </div>
                       {(open || editId === c.id) && (
                         <div className="clo26-body">
                           {editId === c.id ? (
@@ -961,6 +1070,9 @@ export default function ManagerCourse({ profile }: CourseProps) {
                                 <button type="button" onClick={() => startEdit(c)} disabled={busy}>Edit</button>
                                 <button type="button" onClick={() => handleToggleStatus(c)} disabled={busy || !!editId}>
                                   {isActive(c) ? 'Archive' : 'Restore'}
+                                </button>
+                                <button type="button" className="clo26-danger" onClick={() => void handleDelete(c)} disabled={busy || !!editId}>
+                                  Delete
                                 </button>
                               </div>
                             </>

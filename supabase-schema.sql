@@ -204,6 +204,46 @@ CREATE TABLE public.strategic_goals (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- CURRICULUM UPLOADS (041): the stored checklist PDF for a program.
+CREATE TABLE IF NOT EXISTS public.curriculum_uploads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    program_id UUID NOT NULL REFERENCES public.programs(id) ON DELETE CASCADE,
+    curriculum_id UUID REFERENCES public.resources(id) ON DELETE SET NULL,
+    uploaded_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.curriculum_uploads ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins manage curriculum uploads" ON public.curriculum_uploads FOR ALL
+    USING (public.current_user_role() = 'admin')
+    WITH CHECK (public.current_user_role() = 'admin');
+
+CREATE POLICY "Managers read their program uploads" ON public.curriculum_uploads FOR SELECT
+    USING (
+        public.current_user_role() IN ('manager', 'user')
+        AND (
+            program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+            OR uploaded_by = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users add their own uploads" ON public.curriculum_uploads FOR INSERT
+    WITH CHECK (
+        uploaded_by = auth.uid()
+        AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+    );
+
+CREATE POLICY "Users delete their own uploads" ON public.curriculum_uploads FOR DELETE
+    USING (uploaded_by = auth.uid());
+
+-- Private Storage bucket 'curriculum-files': objects are stored as
+-- <uploader uid>/<program id>/<file> and managed by their uploader; see
+-- migrations/041-curriculum-uploads.sql for the storage.objects policy.
+-- Admins may read/delete every curriculum file (042).
+
 -- CHED MEMORANDUM ORDERS (created before admin_program_outcomes so the
 -- Program Outcome -> CMO link can be declared inline below).
 -- codes may repeat IF the title differs; the exact (code, title) pair is unique.
@@ -526,6 +566,13 @@ CREATE POLICY "Managers and admins can update courses" ON public.courses FOR UPD
 
 CREATE POLICY "Admins can delete courses" ON public.courses FOR DELETE
     USING (public.current_user_role() = 'admin');
+
+-- Managers may permanently delete courses in their own program (043).
+CREATE POLICY "Managers can delete their program courses" ON public.courses FOR DELETE
+    USING (
+        public.current_user_role() = 'manager'
+        AND program_id = (SELECT p.program_id FROM public.profiles p WHERE p.id = auth.uid())
+    );
 
 -- PROGRAM OUTCOMES
 CREATE POLICY "Authenticated users can read program outcomes" ON public.program_outcomes FOR SELECT
