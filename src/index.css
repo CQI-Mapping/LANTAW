@@ -10006,6 +10006,7 @@ html.lantaw-dark .clo26-changed__chip {
   font-size: 10px;
   flex-shrink: 0;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .clo26-hact {

@@ -1320,7 +1320,9 @@ export default function CourseLearningOutcomes({ userEmail }: { userEmail: strin
                                     <span className="clo26-what">
                                       {h.action === 'course.description_updated' ? 'Course description' : historyLabelText(h)}
                                     </span>
-                                    <span className="clo26-when">{new Date(h.created_at).toLocaleString()}</span>
+                                    <span className="clo26-when">
+                                      {new Date(h.created_at).toLocaleString()}
+                                    </span>
                                   </li>
                                 ))}
                               </ul>
